@@ -2,6 +2,7 @@
 
 # export PYTHONPATH=~/Github/Syspop/
 from process.base_pop import create_base_pop
+from process.utils import setup_logging
 from pickle import load as pickle_load
 from pickle import dump as pickle_dump
 
@@ -10,6 +11,9 @@ with open("/tmp/syspop/population.pickle", "rb") as fid:
 
 with open("/tmp/syspop/geography.pickle", "rb") as fid:
     geog_data = pickle_load(fid)
+
+
+logger = setup_logging()
 
 synpop = create_base_pop(
     pop_data["gender"], 

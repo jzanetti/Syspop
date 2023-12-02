@@ -46,7 +46,7 @@ def setup_logging(workdir: str = "/tmp", start_utc: datetime = datetime.utcnow()
     ch = StreamHandler()
     ch.setLevel(INFO)
     ch.setFormatter(formatter)
-    logger_path = join(workdir, f"gradabm_esr.{start_utc.strftime('%Y%m%d')}")
+    logger_path = join(workdir, f"syspop.{start_utc.strftime('%Y%m%d')}")
     basicConfig(filename=logger_path),
     logger = getLogger()
     logger.setLevel(INFO)

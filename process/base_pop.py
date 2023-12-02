@@ -5,6 +5,10 @@ from pickle import dump as pickle_dump
 from datetime import datetime
 import ray
 
+from logging import getLogger
+
+logger = getLogger()
+
 
 @ray.remote
 def process_output_area_age_remote(output_area, age, df_gender_melt, df_ethnicity_melt):
@@ -51,7 +55,17 @@ def process_output_area_age(output_area, age, df_gender_melt, df_ethnicity_melt)
 
 
 def create_base_pop(gender_data: DataFrame, ethnicity_data: DataFrame, output_area_filter: list or None, use_parallel: bool = False):
+    """Create base population
 
+    Args:
+        gender_data (DataFrame): _description_
+        ethnicity_data (DataFrame): _description_
+        output_area_filter (listorNone): _description_
+        use_parallel (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
 
     if output_area_filter is not None:
         gender_data = gender_data[gender_data["output_area"].isin(output_area_filter)]
@@ -73,8 +87,6 @@ def create_base_pop(gender_data: DataFrame, ethnicity_data: DataFrame, output_ar
         "count"
     ].transform(lambda x: x / x.sum())
 
-    # Create synthetic population
-
     start_time = datetime.utcnow()
 
     if use_parallel:
@@ -85,7 +97,7 @@ def create_base_pop(gender_data: DataFrame, ethnicity_data: DataFrame, output_ar
     output_areas = list(df_gender_melt["output_area"].unique())
     total_output_area = len(output_areas)
     for i, output_area in enumerate(output_areas):
-        print(f"Processing: {i}/{total_output_area}")
+        logger.info(f"Processing: {i}/{total_output_area}")
         for age in df_gender_melt["age"].unique():
             if use_parallel:
                 result = process_output_area_age_remote.remote(output_area, age, df_gender_melt, df_ethnicity_melt)
@@ -102,7 +114,7 @@ def create_base_pop(gender_data: DataFrame, ethnicity_data: DataFrame, output_ar
 
     end_time = datetime.utcnow()
     total_mins = (end_time - start_time).total_seconds() / 60.0
-    print(f"Processing time: {total_mins}")
+    logger.info(f"Processing time: {total_mins}")
 
     # Convert the population to a DataFrame
     return DataFrame(population)
