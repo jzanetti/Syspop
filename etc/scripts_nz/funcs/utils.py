@@ -8,6 +8,26 @@ from pandas import DataFrame, concat, melt, merge, read_csv, read_excel, to_nume
 from shapely.wkt import loads as wkt_loads
 
 
+def sort_column_by_names(data_input: DataFrame, columns_to_exclude: list):
+    cols = list(data_input.columns)
+
+    # Remove 'output_area' and 'gender' from the list
+    cols_excluded = []
+    for proc_col_to_remove in columns_to_exclude:
+        if proc_col_to_remove in cols:
+            cols.remove(proc_col_to_remove)
+            cols_excluded.append(proc_col_to_remove)
+
+    # Sort the remaining columns
+    cols = sorted(cols, key=lambda x: int(x))
+
+    # Add 'output_area' and 'gender' at the start
+    cols = cols_excluded + cols
+
+    # Reindex the dataframe
+    return data_input.reindex(columns=cols)
+
+
 def haversine_distance(lat1, lon1, lat2, lon2):
     """Function to calculate the Haversine distance between two points
 

@@ -6,9 +6,9 @@ from pandas import DataFrame, concat, read_csv, read_parquet
 
 
 def read_data():
-    age_data = read_csv("data/inputs/processed/age_data.csv")
-    ethnicity_data = read_csv("data/inputs/processed/ethnicity_and_age_data.csv")
-    gender_data = read_csv("data/inputs/processed/female_ratio_data.csv")
+    age_data = read_csv("/tmp/syspop/age_data.csv")
+    ethnicity_data = read_csv("/tmp/syspop/ethnicity_and_age_data.csv")
+    gender_data = read_csv("/tmp/syspop/female_ratio_data.csv")
 
     gender_data.columns = ["output_area"] + [
         int(col) for col in gender_data.columns if col not in ["output_area"]
@@ -215,7 +215,7 @@ def create_synpop(gender_data, ethnicity_data):
     # Normalize the data
     df_gender_melt["prob"] = df_gender_melt.groupby(["output_area", "age"])[
         "count"
-    ].apply(lambda x: x / x.sum())
+    ].transform(lambda x: x / x.sum())
     df_ethnicity_melt["prob"] = df_ethnicity_melt.groupby(["output_area", "age"])[
         "count"
     ].apply(lambda x: x / x.sum())
@@ -239,7 +239,9 @@ def create_synpop(gender_data, ethnicity_data):
 
 
 if __name__ == "__main__":
-    df = read_parquet("syspop.parquet")
+
+
+    # df = read_parquet("syspop.parquet")
 
     my_data = read_data()
     gender_data_percentage = create_gender_percentage_for_each_age(
@@ -262,6 +264,9 @@ if __name__ == "__main__":
     gender_data.to_parquet("gender_data.parquet")
     ethnicity_data.to_parquet("ethnicity_data.parquet")
 
-    # syspop = create_synpop(gender_data, ethnicity_data)
+    # gender_data = read_parquet("gender_data.parquet")
+    # ethnicity_data = read_parquet("ethnicity_data.parquet")
+
+    syspop = create_synpop(gender_data, ethnicity_data)
 
     # syspop.to_parquet("syspop.parquet")

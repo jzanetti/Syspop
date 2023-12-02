@@ -35,7 +35,7 @@ RANDOM_ENSEMBLES = 2
 # ---------------------------------
 # Synthentic data information
 # ---------------------------------
-raw_nz_DATA = {
+RAW_DATA = {
     "geography": {
         "geography_hierarchy": "etc/data/raw_nz/geography_hierarchy-2023.csv",
         "geography_location": "etc/data/raw_nz/geography_location-2018.csv",
@@ -102,7 +102,7 @@ REGION_NAMES_CONVERSIONS = {
 }
 
 
-raw_nz_DATA_INFO = {
+RAW_DATA_INFO = {
     "base": {
         "business": {"employee_by_gender_by_sector": {"employment_rate": 0.7}},
         "venue": {
