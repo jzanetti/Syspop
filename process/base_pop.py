@@ -54,7 +54,12 @@ def process_output_area_age(output_area, age, df_gender_melt, df_ethnicity_melt)
     return population
 
 
-def create_base_pop(gender_data: DataFrame, ethnicity_data: DataFrame, output_area_filter: list or None, use_parallel: bool = False):
+def create_base_pop(
+        gender_data: DataFrame, 
+        ethnicity_data: DataFrame, 
+        output_area_filter: list or None, 
+        use_parallel: bool = False, 
+        n_cpu: int = 8):
     """Create base population
 
     Args:
@@ -90,7 +95,7 @@ def create_base_pop(gender_data: DataFrame, ethnicity_data: DataFrame, output_ar
     start_time = datetime.utcnow()
 
     if use_parallel:
-        ray.init(num_cpus=16, include_dashboard=False)
+        ray.init(num_cpus=n_cpu, include_dashboard=False)
 
     results = []
 

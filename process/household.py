@@ -163,13 +163,25 @@ def randomly_assign_people(proc_base_pop: DataFrame, proc_area: str, household_s
                 # If there is, assign the label to these rows
                 mask = selected_rows['age'] < 18
                 children_num = len(selected_rows[mask])
-                proc_base_pop.loc[selected_rows.index, "household"] = f"{proc_area}_{children_num}_u{index_unassigned}"
+                proc_base_pop.loc[selected_rows.index, "household"] = f"{proc_area}_{children_num}_random{index_unassigned}"
+                no_adult_family_index = 0
             else:
                 # If there isn't a row with age > 18, put the rows back and try again
+                try:
+                    no_adult_family_index += 1
+                except NameError:
+                    no_adult_family_index = 0
+
+                if no_adult_family_index == 5: # if we are not able to find adults any more ...
+                    children_num = len(selected_rows)
+                    proc_base_pop.loc[selected_rows.index, "household"] = f"{proc_area}_{children_num}_noadult"
+                    no_adult_family_index = 0
+                
                 continue
         else:
             # If there isn't a row with age < 18, assign the label to these rows
-            proc_base_pop.loc[selected_rows.index, 'household'] = f"{proc_area}_0_u{index_unassigned}"
+            proc_base_pop.loc[selected_rows.index, 'household'] = f"{proc_area}_0_random{index_unassigned}"
+            no_adult_family_index = 0
 
         unassigned_people = proc_base_pop[isna(proc_base_pop["household"])]
         index_unassigned += 1
@@ -198,6 +210,9 @@ def create_household_composition(
         all_ethnicities: list, 
         proc_area: str) -> DataFrame:
     """Create household composistion using 3 steps:
+        - step 1: two parents family (following census)
+        - step 2: single parent family (for remaining people)
+        - step 3: randomly assign rest people to families (for remaining people)
 
     Args:
         houshold_dataset (DataFrame): _description_
@@ -209,6 +224,7 @@ def create_household_composition(
         DataFrame: _description_
     """
     # Step 1: First round assignment (two parents)
+    logger.info("Start step 1 ....")
     for proc_num_children in num_children:
 
         total_households = int(houshold_dataset[
@@ -224,6 +240,7 @@ def create_household_composition(
 
     synpop_validation_data_after_step1 = validate_synpop(houshold_dataset, proc_base_pop, proc_area)
 
+    logger.info("Start step 2 ....")
     # Step 2: Second round assignment (single parent)
     for proc_num_children in num_children:
 
@@ -241,6 +258,7 @@ def create_household_composition(
             all_ethnicities,
             single_parent=True)
 
+    logger.info("Start step 3 ....")
     # Step 3: randomly assigned the rest people
     proc_base_pop = randomly_assign_people(proc_base_pop, proc_area)
 
@@ -249,7 +267,11 @@ def create_household_composition(
     return proc_base_pop
 
 
-def assign_people_to_household_wrapper(houshold_dataset: DataFrame, base_pop: DataFrame, use_parallel: bool = False) -> DataFrame:
+def household_wrapper(
+        houshold_dataset: DataFrame, 
+        base_pop: DataFrame, 
+        use_parallel: bool = False, 
+        n_cpu: int = 8) -> DataFrame:
     """Assign people to different households
 
     Args:
@@ -266,7 +288,7 @@ def assign_people_to_household_wrapper(houshold_dataset: DataFrame, base_pop: Da
     num_children.remove("output_area")
 
     if use_parallel:
-        ray.init(num_cpus=32, include_dashboard=False)
+        ray.init(num_cpus=n_cpu, include_dashboard=False)
 
     all_areas = list(base_pop["output_area"].unique())
     total_areas = len(all_areas)
