@@ -4,7 +4,6 @@ from pickle import dump as pickle_dump
 
 from datetime import datetime
 import ray
-from time import sleep
 
 
 @ray.remote
@@ -47,7 +46,7 @@ def process_output_area_age(output_area, age, df_gender_melt, df_ethnicity_melt)
             "ethnicity": ethnicity,
         }
         population.append(individual)
-    sleep(30.0)
+
     return population
 
 
