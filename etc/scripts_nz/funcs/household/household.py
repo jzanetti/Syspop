@@ -3,9 +3,9 @@ from os.path import join
 from pandas import read_csv
 
 from funcs import RAW_DATA
+from pickle import dump as pickle_dump
 
-
-def create_household_number():
+def create_household_number(workdir):
     """Create household number
 
     Args:
@@ -13,13 +13,19 @@ def create_household_number():
     """
     data = read_csv(RAW_DATA["household"]["household_number"])
 
-    data = data[data["Household composition"] >= 10000]
+    data = data[data["Number of dependent children"] >= 10000]
 
     data = data.rename(
         columns={
-            "Household composition": "output_area",
-            "Total households - household composition": ">=0 >=0 >=0 >=0 >=0",
+            "Number of dependent children": "output_area"
         }
     )
 
-    return data
+    data.columns = ["output_area"] + [
+        int(col) for col in data.columns if col not in ["output_area"]
+    ]
+
+    with open(join(workdir, "household.pickle"), 'wb') as fid:
+        pickle_dump({
+        "household": data
+    }, fid)

@@ -114,7 +114,7 @@ def create_base_pop(gender_data: DataFrame, ethnicity_data: DataFrame, output_ar
 
     end_time = datetime.utcnow()
     total_mins = (end_time - start_time).total_seconds() / 60.0
-    logger.info(f"Processing time: {total_mins}")
+    logger.info(f"Processing time (base population): {total_mins}")
 
     # Convert the population to a DataFrame
     return DataFrame(population)

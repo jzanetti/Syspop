@@ -26,3 +26,14 @@ The age must range from 0 to 100. For example:
 | area1       | female    | 40| 10| ... | 40  |
 | area2       | male      | 20| 20| ... | 35  |
 | ...         | ...       |...|...| ... | ... |
+
+## 2. Household data
+The base population will be assigned to households, the household input data should look like:
+
+| output_area | 0 | 1 | ... | 5   |
+| ----------- | - | - | --- | --- |
+| area1       | 15| 10| ... | 3   |
+| area2       | 10| 20| ... | 11  |
+| ...         | ..|...| ... | ... |
+
+where the column names except ``output_area`` indicate the number of dependant children in a household.

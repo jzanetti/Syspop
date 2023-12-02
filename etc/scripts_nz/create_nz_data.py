@@ -83,10 +83,17 @@ def create_geography_wrapper(workdir: str):
         "socialeconomic": socialeconomic_data
     }, fid)
 
+
 def import_raw_data(workdir: str):
 
     if not exists(workdir):
         makedirs(workdir)
+
+
+    # -----------------------------
+    # Create household
+    # -----------------------------
+    create_household_number(workdir)
 
     # -----------------------------
     # Create geography

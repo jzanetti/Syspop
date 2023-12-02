@@ -69,7 +69,7 @@ RAW_DATA = {
             "population_by_gender": "etc/data/raw_nz/population_by_gender-2022.csv",
         },
     },
-    "household": {"household_number": "etc/data/raw_nz/household_number-2022.csv"},
+    "household": {"household_number": "etc/data/raw_nz/household_by_children_number-2018.csv"},
     "venue": {
         "hospital": "etc/data/raw_nz/nz-facilities-2022.csv",
         "school": "etc/data/raw_nz/nz-facilities-2022.csv",
