@@ -283,7 +283,7 @@ def create_socialeconomic(geography_hierarchy_data: DataFrame):
     )
 
     # get hierarchy defination data
-    geog_hierarchy = geography_hierarchy_data[["super_area", "area"]]
+    geog_hierarchy = geography_hierarchy_data[["area"]]
 
     data = merge(data, geog_hierarchy, on="area")
 

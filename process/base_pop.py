@@ -56,7 +56,7 @@ def process_output_area_age(output_area, age, df_gender_melt, df_ethnicity_melt)
 
 def create_base_pop(
         gender_data: DataFrame, 
-        ethnicity_data: DataFrame, 
+        ethnicity_data: DataFrame,
         output_area_filter: list or None, 
         use_parallel: bool = False, 
         n_cpu: int = 8):
@@ -114,11 +114,13 @@ def create_base_pop(
 
     if use_parallel:
         results = ray.get(results)
+        ray.shutdown()
 
     population = [item for sublist in results for item in sublist]
 
     end_time = datetime.utcnow()
     total_mins = (end_time - start_time).total_seconds() / 60.0
+
     logger.info(f"Processing time (base population): {total_mins}")
 
     # Convert the population to a DataFrame

@@ -411,6 +411,7 @@ def household_wrapper(
 
     if use_parallel:
         results = ray.get(results)
+        ray.shutdown()
 
     for result in results:
         base_pop.loc[result.index] = result
