@@ -12,25 +12,6 @@ from datetime import datetime
 
 logger = getLogger()
 
-def select_female_ethnicity(target_ethnicity: str, input_ethnicity: list):
-
-    input_ethnicity.remove(target_ethnicity)
-
-    individual_percetnage = 0.3 / len(input_ethnicity)
-
-    all_ethnicities = [target_ethnicity] + input_ethnicity 
-    weights = [0.7] + [individual_percetnage] * len(input_ethnicity)
-
-    return random_choices(all_ethnicities, weights, k=1)[0]
-
-def get_household_children_num(household_data_result: DataFrame):
-    household_data_result['household'] = household_data_result['household'].fillna('default_9999_9999')
-    household_data_result["children_num"] = household_data_result['household'].str.split('_').str[1].astype(int)
-    household_data_result['household'] = household_data_result['household'].replace('default_9999_9999', NaN)
-    household_data_result['children_num'] = household_data_result['children_num'].replace(9999, NaN)
-
-    return household_data_result
-
 def add_people(
         pop_input: DataFrame, 
         total_households: int, 
@@ -38,20 +19,43 @@ def add_people(
         proc_area: int, 
         all_ethnicities: list, 
         parents_age_limits = {"min": 18, "max": 65},
-        single_parent: bool = False):
+        single_parent: bool = False) -> DataFrame:
     """Add people to household
 
     Args:
-        pop_input (DataFrame): _description_
-        total_households (int): _description_
-        proc_num_children (int): _description_
-        proc_area (int): _description_
-        all_ethnicities (list): _description_
-        parents_age_limits (dict, optional): _description_. Defaults to {"min": 18, "max": 65}.
+        pop_input (DataFrame): Base population
+        total_households (int): Total households to be assigned
+        proc_num_children (int): Number of children to be assigned
+        proc_area (int): Area name
+        all_ethnicities (list): All ethnicities
+        parents_age_limits (dict, optional): Parents age range. 
+            Defaults to {"min": 18, "max": 65}.
 
     Returns:
-        _type_: _description_
+        Dataframe: Updated population information
     """
+
+    def _select_female_ethnicity(target_ethnicity: str, input_ethnicity: list) -> str:
+        """Select female ethnicity based on male
+
+        Args:
+            target_ethnicity (str): The male ethnicity
+            input_ethnicity (list): potential ethnicities to be chosen from 
+
+        Returns:
+            str: randomly selected ethnicity
+        """
+
+        input_ethnicity.remove(target_ethnicity)
+
+        individual_percetnage = 0.3 / len(input_ethnicity)
+
+        all_ethnicities = [target_ethnicity] + input_ethnicity 
+        weights = [0.7] + [individual_percetnage] * len(input_ethnicity)
+
+        return random_choices(all_ethnicities, weights, k=1)[0]
+
+
     for proc_household in range(total_households):
 
         proc_household_id = f"{proc_area}_{proc_num_children}_{proc_household}"
@@ -86,7 +90,8 @@ def add_people(
             selected_parents_male["household"] = proc_household_id
             pop_input.loc[selected_parents_male.index] = selected_parents_male
 
-            selected_parents_female_ethnicity = select_female_ethnicity(selected_parents_male["ethnicity"].values[0], deepcopy(all_ethnicities))
+            selected_parents_female_ethnicity = _select_female_ethnicity(
+                selected_parents_male["ethnicity"].values[0], deepcopy(all_ethnicities))
             selected_parents_female = pop_input[
                 (pop_input['gender'] == 'female') & 
                 (pop_input["ethnicity"] == selected_parents_female_ethnicity) &
@@ -117,8 +122,39 @@ def add_people(
 
     return pop_input
 
-def validate_synpop(houshold_dataset: DataFrame, pop_input: DataFrame, proc_area: int):
-    pop_input = get_household_children_num(pop_input)
+def compared_synpop_household_with_census(
+        houshold_dataset: DataFrame, 
+        pop_input: DataFrame, 
+        proc_area: int) -> dict:
+    """Compared simulated household number with census
+
+    Args:
+        houshold_dataset (DataFrame): census household data
+        pop_input (DataFrame): simulated population data with household information
+        proc_area (int): area name
+
+    Returns:
+        dict: difference between simulation and census
+    """
+
+    def _get_household_children_num(household_data_result: DataFrame) -> dict:
+        """Get the number of household against the number of children
+
+        Args:
+            household_data_result (DataFrame): Census household data
+
+        Returns:
+            dict: Census houshold information
+        """
+        household_data_result['household'] = household_data_result['household'].fillna('default_9999_9999')
+        household_data_result["children_num"] = household_data_result['household'].str.split('_').str[1].astype(int)
+        household_data_result['household'] = household_data_result['household'].replace('default_9999_9999', NaN)
+        household_data_result['children_num'] = household_data_result['children_num'].replace(9999, NaN)
+
+        return household_data_result
+
+
+    pop_input = _get_household_children_num(pop_input)
 
     orig_children_num = list(houshold_dataset.columns)
     orig_children_num.remove("output_area")
@@ -144,15 +180,29 @@ def validate_synpop(houshold_dataset: DataFrame, pop_input: DataFrame, proc_area
         "synpop": syspop_all_households
     }
 
-def randomly_assign_people(proc_base_pop: DataFrame, proc_area: str, household_size = {"min": 1, "max": 10}):
+def randomly_assign_people_to_household(
+        proc_base_pop: DataFrame, 
+        proc_area: str, 
+        household_size = {"min": 1, "max": 10}) -> DataFrame:
+    """Randomly assign people to household with size defined in household_size
+
+    Args:
+        proc_base_pop (DataFrame): base population
+        proc_area (str): the area name
+        household_size (dict, optional): household size to be used. 
+            Defaults to {"min": 1, "max": 10}.
+
+    Returns:
+        Dataframe: Updated population
+    """
     unassigned_people = proc_base_pop[isna(proc_base_pop["household"])]
     index_unassigned = 0
     while len(unassigned_people) > 0: # up to 5 people in a household
         # Randomly select x rows
-        x = randint(household_size["min"], household_size["max"])
+        sample_size = randint(household_size["min"], household_size["max"])
 
         try:
-            selected_rows = unassigned_people.sample(n=x)
+            selected_rows = unassigned_people.sample(n=sample_size)
         except ValueError:
             selected_rows = unassigned_people.sample(n=len(unassigned_people))
 
@@ -164,29 +214,70 @@ def randomly_assign_people(proc_base_pop: DataFrame, proc_area: str, household_s
                 mask = selected_rows['age'] < 18
                 children_num = len(selected_rows[mask])
                 proc_base_pop.loc[selected_rows.index, "household"] = f"{proc_area}_{children_num}_random{index_unassigned}"
-                no_adult_family_index = 0
+                no_adult_family_tries = 0
             else:
                 # If there isn't a row with age > 18, put the rows back and try again
                 try:
-                    no_adult_family_index += 1
+                    no_adult_family_tries += 1
                 except NameError:
-                    no_adult_family_index = 0
+                    no_adult_family_tries = 0
 
-                if no_adult_family_index == 5: # if we are not able to find adults any more ...
+                if no_adult_family_tries == 5: # if we are not able to find adults any more ...
                     children_num = len(selected_rows)
                     proc_base_pop.loc[selected_rows.index, "household"] = f"{proc_area}_{children_num}_noadult"
-                    no_adult_family_index = 0
-                
-                continue
+                    no_adult_family_tries = 0
+                else:
+                    continue
         else:
             # If there isn't a row with age < 18, assign the label to these rows
             proc_base_pop.loc[selected_rows.index, 'household'] = f"{proc_area}_0_random{index_unassigned}"
-            no_adult_family_index = 0
+            no_adult_family_tries = 0
 
         unassigned_people = proc_base_pop[isna(proc_base_pop["household"])]
         index_unassigned += 1
     
+    proc_base_pop = send_remained_children_to_household(proc_base_pop)
+
     return proc_base_pop
+
+def send_remained_children_to_household(proc_base_pop: DataFrame) -> DataFrame:
+    """Send remained children (those children in a household without adults) 
+    to different households
+
+    Args:
+        proc_base_pop (DataFrame): Base population
+
+    Returns:
+        DataFrame: Updated population
+    """
+
+    def _add_one_child_to_name(input_name: str) -> str:
+        """Add one child to the household name
+
+        Args:
+            input_name (str): Input name such as 110500_3_random132
+
+        Returns:
+            str: such as 110500_4_random132
+        """
+        input_name = input_name.split("_")
+        input_name[1] = str(int(input_name[1]) + 1)
+        return "_".join(input_name)
+
+
+    children_only_data = proc_base_pop[proc_base_pop['household'].str.endswith('_noadult')]
+    ramdom_household_data = proc_base_pop[proc_base_pop['household'].str.contains('_random.*$', regex=True)]
+
+    for i in range(len(children_only_data)):
+        proc_child = children_only_data.iloc[[i]]
+        selected_household = ramdom_household_data.sample(n=1)
+        proc_base_pop.loc[proc_child.index, "household"] = _add_one_child_to_name(
+            selected_household["household"].values[0])
+    
+    return proc_base_pop
+
+
+
 
 @ray.remote
 def create_household_composition_remote(
@@ -201,7 +292,6 @@ def create_household_composition_remote(
         num_children, 
         all_ethnicities, 
         proc_area)
-
 
 def create_household_composition(
         houshold_dataset: DataFrame,
@@ -238,7 +328,8 @@ def create_household_composition(
             proc_area, 
             all_ethnicities)
 
-    synpop_validation_data_after_step1 = validate_synpop(houshold_dataset, proc_base_pop, proc_area)
+    synpop_validation_data_after_step1 = compared_synpop_household_with_census(
+        houshold_dataset, proc_base_pop, proc_area)
 
     logger.info("Start step 2 ....")
     # Step 2: Second round assignment (single parent)
@@ -260,12 +351,11 @@ def create_household_composition(
 
     logger.info("Start step 3 ....")
     # Step 3: randomly assigned the rest people
-    proc_base_pop = randomly_assign_people(proc_base_pop, proc_area)
+    proc_base_pop = randomly_assign_people_to_household(proc_base_pop, proc_area)
 
     proc_base_pop.drop("children_num", axis=1, inplace=True)
 
     return proc_base_pop
-
 
 def household_wrapper(
         houshold_dataset: DataFrame, 
