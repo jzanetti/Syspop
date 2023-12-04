@@ -8,7 +8,7 @@ from pandas import DataFrame, concat, melt, merge, read_csv, read_excel, to_nume
 
 from funcs import RAW_DATA, REGION_CODES, REGION_NAMES_CONVERSIONS
 
-
+import geopandas as gpd
 def create_geography_location_super_area(geography_hierarchy_data: DataFrame):
     data = read_csv(RAW_DATA["geography"]["geography_location"])
 
@@ -113,3 +113,23 @@ def create_geography_hierarchy():
     data = data[~data["area"].duplicated(keep=False)]
 
     return data
+
+
+def create_address():
+    sa2_data = gpd.read_file(RAW_DATA["geography"]["sa2_area_data"])
+    address_data = gpd.read_file(RAW_DATA["geography"]["address_data"])
+
+    gdf_sa2 = sa2_data.to_crs(epsg=4326)
+    gdf_address = address_data.to_crs(epsg=4326)
+    gdf_sa2 = gdf_sa2[["SA22022_V1", "geometry"]]
+    gdf_address = gdf_address[["geometry"]]
+
+    combined_df = gpd.sjoin(gdf_address, gdf_sa2, how="inner", op="within")
+    combined_df["lon"] = combined_df.geometry.x
+    combined_df["lat"] = combined_df.geometry.y
+
+    combined_df = combined_df.rename(columns={"SA22022_V1": "output_area"})
+
+    combined_df["output_area"] = combined_df["output_area"].astype(int)
+
+    return combined_df[["output_area", "lat", "lon"]]

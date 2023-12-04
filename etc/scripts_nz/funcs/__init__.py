@@ -39,6 +39,10 @@ RAW_DATA = {
     "geography": {
         "geography_hierarchy": "etc/data/raw_nz/geography_hierarchy-2023.csv",
         "geography_location": "etc/data/raw_nz/geography_location-2018.csv",
+        # due to the sizes of address and sa2 shapefile data, we are not able to save the data in git
+        # the data can be downloaded in https://koordinates.com/data/?q=sa2+area
+        "address_data": "etc/data/raw_nz/address_dataset/nz-addresses/nz-addresses.shp",
+        "sa2_area_data": "etc/data/raw_nz/address_dataset/statistical-area-2-2022-generalised/statistical-area-2-2022-generalised.shp"
     },
     "population": {
         "socialeconomics": "etc/data/raw_nz/socialeconomics-2018.csv",

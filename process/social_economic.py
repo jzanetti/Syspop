@@ -1,13 +1,12 @@
 
 from pandas import DataFrame
-from random import uniform as random_uniform
 from numpy import NaN
 
 from logging import getLogger
 
 logger = getLogger()
 
-def assign_social_economic(base_pop: DataFrame, social_economic_dataset: DataFrame):
+def social_economic_wrapper(base_pop: DataFrame, social_economic_dataset: DataFrame):
     """Assign social economics value to different area
 
     Args:

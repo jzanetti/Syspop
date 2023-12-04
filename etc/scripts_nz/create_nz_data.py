@@ -2,7 +2,6 @@
 
 from os import makedirs
 from os.path import exists
-
 from funcs.business.business import (
     create_employee_by_gender_by_sector,
     create_employers_by_employees_number,
@@ -11,6 +10,7 @@ from funcs.business.business import (
 from funcs.geography.geography import (
     create_geography_hierarchy,
     create_geography_location_area,
+    create_address,
     create_geography_location_super_area,
     create_geography_name_super_area,
 )
@@ -68,6 +68,7 @@ def create_population_wrapper(workdir: str):
 
 
 def create_geography_wrapper(workdir: str):
+    address_data = create_address()
     geography_hierarchy_data = create_geography_hierarchy()
     # geography_location_super_area_data = create_geography_location_super_area(
     #    geography_hierarchy_data
@@ -75,12 +76,12 @@ def create_geography_wrapper(workdir: str):
     #geography_name_super_area_data = create_geography_name_super_area()
     geography_location_area_data = create_geography_location_area()
     socialeconomic_data = create_socialeconomic(geography_hierarchy_data)
-
     with open(join(workdir, "geography.pickle"), 'wb') as fid:
         pickle_dump({
         "hierarchy": geography_hierarchy_data,
         "location": geography_location_area_data,
-        "socialeconomic": socialeconomic_data
+        "socialeconomic": socialeconomic_data,
+        "address": address_data
     }, fid)
 
 
@@ -91,14 +92,14 @@ def import_raw_data(workdir: str):
 
 
     # -----------------------------
-    # Create household
-    # -----------------------------
-    create_household_number(workdir)
-
-    # -----------------------------
     # Create geography
     # -----------------------------
     create_geography_wrapper(workdir)
+
+    # -----------------------------
+    # Create household
+    # -----------------------------
+    create_household_number(workdir)
 
     # -----------------------------
     # Create population

@@ -11,10 +11,10 @@ logger = getLogger()
 
 
 @ray.remote
-def process_output_area_age_remote(output_area, age, df_gender_melt, df_ethnicity_melt):
-    return process_output_area_age(output_area, age, df_gender_melt, df_ethnicity_melt)
+def create_base_pop_remote(output_area, age, df_gender_melt, df_ethnicity_melt):
+    return create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt)
 
-def process_output_area_age(output_area, age, df_gender_melt, df_ethnicity_melt):
+def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
     population = []
     # Get the gender and ethnicity probabilities for the current output_area and age
     gender_probs = df_gender_melt.loc[
@@ -54,22 +54,22 @@ def process_output_area_age(output_area, age, df_gender_melt, df_ethnicity_melt)
     return population
 
 
-def create_base_pop(
+def base_pop_wrapper(
         gender_data: DataFrame, 
         ethnicity_data: DataFrame,
         output_area_filter: list or None, 
         use_parallel: bool = False, 
-        n_cpu: int = 8):
+        n_cpu: int = 8) -> DataFrame:
     """Create base population
 
     Args:
-        gender_data (DataFrame): _description_
-        ethnicity_data (DataFrame): _description_
-        output_area_filter (listorNone): _description_
-        use_parallel (bool, optional): _description_. Defaults to False.
+        gender_data (DataFrame): Gender data for each age
+        ethnicity_data (DataFrame): Ethnicity data for each age
+        output_area_filter (list or None): With area ID to be used
+        use_parallel (bool, optional): If apply ray parallel processing. Defaults to False.
 
     Returns:
-        _type_: _description_
+        DataFrame: Produced base population
     """
 
     if output_area_filter is not None:
@@ -105,9 +105,9 @@ def create_base_pop(
         logger.info(f"Processing: {i}/{total_output_area}")
         for age in df_gender_melt["age"].unique():
             if use_parallel:
-                result = process_output_area_age_remote.remote(output_area, age, df_gender_melt, df_ethnicity_melt)
+                result = create_base_pop_remote.remote(output_area, age, df_gender_melt, df_ethnicity_melt)
             else:
-                result = process_output_area_age(
+                result = create_base_pop(
                     output_area, age, df_gender_melt, df_ethnicity_melt
                 )
             results.append(result)
