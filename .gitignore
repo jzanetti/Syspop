@@ -1,5 +1,4 @@
 *.pyc
 __pycache__
 cache
-etc/data/raw_nz/address_dataset/*
 .log.swp

@@ -18,3 +18,9 @@ clear_all:
 
 env: clear_all
 	$(MAMBA) env create -f env.yml
+
+upload_data:
+	git lfs track "etc/data/raw_nz/**"
+	git add "etc/data/raw_nz"
+	git commit -m "add large data"
+	git push
