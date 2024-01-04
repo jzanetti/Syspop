@@ -2,18 +2,12 @@
 # Creating Synthetic Population
 A repository for creating synthetic population using census data.
 
-Contents:
-
-- [Header 1](#header-1)
-- [Header 2](#header-1.1)
-- [Header 3](#header-1.1.1)
-
-# [1. Required input data](#header-1):
+# 1. Required input data:
 
 It is users' responsibilities to create the following required input data from their own census data. One example is given by using the New Zealand Census data in ``etc/scripts_nz/create_nz_data.py``
 
 
-## [1.1 Population data](#header-1.1)
+## 1.1 Population data:
 
 The base population data will be based on the information:
 - Number of total people (all ages, ehnicities and genders)
@@ -22,7 +16,7 @@ The base population data will be based on the information:
 
 The age must range from 0 to 100. For example:
 
-#### [1.1.1 Number of total people](#header-1.1.1)
+#### 1.1.1 Number of total people:
 
 | output_area |  0 | 1 | ... | 100 |
 | ----------- |  - | - | --- | --- |
@@ -30,7 +24,7 @@ The age must range from 0 to 100. For example:
 | area2       |  50| 70| ... | 15  |
 | ...         | ...|...|...| ... | ... |
 
-#### [1.1.2 Number of people for different ethnicities _vs_ age](#header-1.1.2)
+#### 1.1.2 Number of people for different ethnicities _vs_ age:
 
 | output_area | ethnicity | 0 | 1 | ... | 100 |
 | ----------- | --------- | - | - | --- | --- |
@@ -42,7 +36,7 @@ The age must range from 0 to 100. For example:
 
 For example, for a specific area (e.g., ``area1``), the number of people of different ethnicities (e.g., Asian, European, Māori, Pacific Island) who are 15 years old matches the total number of people for that age group (e.g., 15 years old), as detailed in Section 1.1.1.
 
-#### [1.1.3 Number of people for different gender _vs_ age](#header-1.1.3)
+#### 1.1.3 Number of people for different gender _vs_ age:
 
 | output_area | gender    | 0 | 1 | ... | 100 |
 | ----------- | --------- | - | - | --- | --- |
@@ -54,7 +48,7 @@ For example, for a specific area (e.g., ``area1``), the number of people of diff
 
 For example, for a specific area (e.g., ``area1``), the number of people of different genders (e.g., male and female) who are 15 years old matches the total number of people for that age group (e.g., 15 years old), as detailed in Section 1.1.1.
 
-## [2. Household data](#header-2)
+## 2. Household data:
 The base population will be assigned to households, the household input data should look like:
 
 | output_area | 0 | 1 | ... | 5   |
