@@ -2,6 +2,14 @@
 # Creating Synthetic Population
 A repository for creating synthetic population using census data.
 
+Contents:
+
+- [1. Required input data](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#1-required-input-data)
+    - [1.1 Population data](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#11-population-data)
+        - [1.1.1 Number of total people](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#111-number-of-total-people)
+        - [1.1.2 Number of people for different ethnicities _vs_ age](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#112-number-of-people-for-different-ethnicities-vs-age)
+        - [1.1.3 Number of people for different gender _vs_ age](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#113-number-of-people-for-different-gender-vs-age)
+
 # 1. Required input data:
 
 It is users' responsibilities to create the following required input data from their own census data. One example is given by using the New Zealand Census data in ``etc/scripts_nz/create_nz_data.py``
