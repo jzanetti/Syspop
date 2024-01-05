@@ -20,7 +20,7 @@ with open("/tmp/syspop/household.pickle", "rb") as fid:
 
 logger = setup_logging()
 
-create_base_pop_flag = False
+create_base_pop_flag = True
 assign_household_flag = False
 assign_socialeconomic_flag = False
 assign_address_flag = False
