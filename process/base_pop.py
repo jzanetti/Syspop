@@ -18,11 +18,11 @@ def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
     population = []
     # Get the gender and ethnicity probabilities for the current output_area and age
     gender_probs = df_gender_melt.loc[
-        (df_gender_melt["output_area"] == output_area) & (df_gender_melt["age"] == age),
+        (df_gender_melt["area"] == output_area) & (df_gender_melt["age"] == age),
         ["gender", "prob", "count"],
     ]
     ethnicity_probs = df_ethnicity_melt.loc[
-        (df_ethnicity_melt["output_area"] == output_area)
+        (df_ethnicity_melt["area"] == output_area)
         & (df_ethnicity_melt["age"] == age),
         ["ethnicity", "prob", "count"],
     ]
@@ -44,7 +44,7 @@ def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
 
     for gender, ethnicity in zip(genders, ethnicities):
         individual = {
-            "output_area": output_area,
+            "area": output_area,
             "age": age,
             "gender": gender,
             "ethnicity": ethnicity,
@@ -73,22 +73,22 @@ def base_pop_wrapper(
     """
 
     if output_area_filter is not None:
-        gender_data = gender_data[gender_data["output_area"].isin(output_area_filter)]
-        ethnicity_data = ethnicity_data[ethnicity_data["output_area"].isin(output_area_filter)]
+        gender_data = gender_data[gender_data["area"].isin(output_area_filter)]
+        ethnicity_data = ethnicity_data[ethnicity_data["area"].isin(output_area_filter)]
 
     # Assuming df_gender and df_ethnicity are your dataframes
     df_gender_melt = gender_data.melt(
-        id_vars=["output_area", "gender"], var_name="age", value_name="count"
+        id_vars=["area", "gender"], var_name="age", value_name="count"
     )
     df_ethnicity_melt = ethnicity_data.melt(
-        id_vars=["output_area", "ethnicity"], var_name="age", value_name="count"
+        id_vars=["area", "ethnicity"], var_name="age", value_name="count"
     )
 
     # Normalize the data
-    df_gender_melt["prob"] = df_gender_melt.groupby(["output_area", "age"])[
+    df_gender_melt["prob"] = df_gender_melt.groupby(["area", "age"])[
         "count"
     ].transform(lambda x: x / x.sum())
-    df_ethnicity_melt["prob"] = df_ethnicity_melt.groupby(["output_area", "age"])[
+    df_ethnicity_melt["prob"] = df_ethnicity_melt.groupby(["area", "age"])[
         "count"
     ].transform(lambda x: x / x.sum())
 
@@ -99,7 +99,7 @@ def base_pop_wrapper(
 
     results = []
 
-    output_areas = list(df_gender_melt["output_area"].unique())
+    output_areas = list(df_gender_melt["area"].unique())
     total_output_area = len(output_areas)
     for i, output_area in enumerate(output_areas):
         logger.info(f"Processing: {i}/{total_output_area}")
@@ -121,11 +121,7 @@ def base_pop_wrapper(
     end_time = datetime.utcnow()
     total_mins = (end_time - start_time).total_seconds() / 60.0
 
-    population = DataFrame(population)
-
-    population = population.rename(columns={"output_area": "area"})
-
     logger.info(f"Processing time (base population): {total_mins}")
 
     # Convert the population to a DataFrame
-    return population
+    return DataFrame(population)

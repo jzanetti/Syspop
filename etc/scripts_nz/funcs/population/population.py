@@ -76,7 +76,7 @@ def create_age(total_population_data: DataFrame):
 
     new_df = new_df.applymap(math_ceil)
 
-    new_df = new_df.rename(columns={"Region": "output_area"})
+    new_df = new_df.rename(columns={"Region": "area"})
 
     all_ages = range(101)
     for index, row in new_df.iterrows():
@@ -84,9 +84,9 @@ def create_age(total_population_data: DataFrame):
         new_df.at[index, "total"] = total
 
     total_population_data = total_population_data.rename(
-        columns={"area": "output_area"}
+        columns={"area": "area"}
     )
-    df_after_ratio = new_df.merge(total_population_data, on="output_area")
+    df_after_ratio = new_df.merge(total_population_data, on="area")
     df_after_ratio["ratio"] = df_after_ratio["population"] / df_after_ratio["total"]
 
     for col in all_ages:
@@ -99,8 +99,8 @@ def create_age(total_population_data: DataFrame):
 
     new_df = df_after_ratio.drop(["total", "population", "ratio"], axis=1)
 
-    new_df.columns = ["output_area"] + [
-        int(col) for col in new_df.columns if col not in ["output_area"]
+    new_df.columns = ["area"] + [
+        int(col) for col in new_df.columns if col not in ["area"]
     ]
 
 
@@ -121,7 +121,7 @@ def create_ethnicity_and_age(total_population_data: DataFrame):
 
         df = df.rename(
             columns={
-                "Ethnic group": "output_area",
+                "Ethnic group": "area",
                 "Pacific Peoples": "Pacific",
                 "Middle Eastern/Latin American/African": "MELAA",
             }
@@ -138,11 +138,11 @@ def create_ethnicity_and_age(total_population_data: DataFrame):
         dfs[proc_age_key] = df
 
     df_ratio = concat(list(dfs.values()))
-    df_ratio = df_ratio.groupby("output_area").sum().reset_index()
+    df_ratio = df_ratio.groupby("area").sum().reset_index()
     total_population_data = total_population_data.rename(
-        columns={"area": "output_area"}
+        columns={"area": "area"}
     )
-    df_ratio = df_ratio.merge(total_population_data, on="output_area")
+    df_ratio = df_ratio.merge(total_population_data, on="area")
     df_ratio["ratio"] = df_ratio["population"] / df_ratio["total"]
     df_ratio = df_ratio.drop(
         ["European", "Maori", "Pacific", "Asian", "MELAA", "total", "population"],
@@ -153,7 +153,7 @@ def create_ethnicity_and_age(total_population_data: DataFrame):
     for proc_age in dfs:
         df = dfs[proc_age]
 
-        df = df.merge(df_ratio, on="output_area")
+        df = df.merge(df_ratio, on="area")
         for race_key in ["European", "Maori", "Pacific", "Asian", "MELAA", "total"]:
             df[race_key] = df[race_key] * df["ratio"]
         df = df.drop(["ratio", "total"], axis=1)
@@ -169,7 +169,7 @@ def create_ethnicity_and_age(total_population_data: DataFrame):
         dfs_output.append(
             melt(
                 dfs[proc_age],
-                id_vars=["output_area"],
+                id_vars=["area"],
                 value_vars=[
                     "European",
                     "Maori",
@@ -183,14 +183,14 @@ def create_ethnicity_and_age(total_population_data: DataFrame):
         )
 
     # Assuming 'dataframes' is a list containing your DataFrames
-    combined_df = merge(dfs_output[0], dfs_output[1], on=["output_area", "ethnicity"])
+    combined_df = merge(dfs_output[0], dfs_output[1], on=["area", "ethnicity"])
     for i in range(2, len(dfs_output)):
-        combined_df = merge(combined_df, dfs_output[i], on=["output_area", "ethnicity"])
+        combined_df = merge(combined_df, dfs_output[i], on=["area", "ethnicity"])
 
-    combined_df.columns = ["output_area", "ethnicity"] + [
+    combined_df.columns = ["area", "ethnicity"] + [
         int(col)
         for col in combined_df.columns
-        if col not in ["output_area", "ethnicity"]
+        if col not in ["area", "ethnicity"]
     ]
 
 
@@ -217,7 +217,7 @@ def create_female_ratio():
             "Female.2": "Female (65)",
             "Male.3": "Male (90)",
             "Female.3": "Female (90)",
-            "Sex": "output_area",
+            "Sex": "area",
         }
     )
 
@@ -225,17 +225,17 @@ def create_female_ratio():
 
     df = df.drop([0, 1, 2]).drop(df.tail(3).index).astype(int)
 
-    df = df[df["output_area"] > 10000]
+    df = df[df["area"] > 10000]
 
     for age in ["15", "40", "65", "90"]:
         df[age] = df[f"Female ({age})"] / (df[f"Male ({age})"] + df[f"Female ({age})"])
 
-    df = df[["output_area", "15", "40", "65", "90"]]
+    df = df[["area", "15", "40", "65", "90"]]
 
     df = df.dropna()
 
-    df.columns = ["output_area"] + [
-        int(col) for col in df.columns if col not in ["output_area"]
+    df.columns = ["area"] + [
+        int(col) for col in df.columns if col not in ["area"]
     ]
 
     return df
@@ -312,8 +312,8 @@ def create_gender_percentage_for_each_age(age_data: DataFrame, gender_data: Data
     }
 
     gender_data_percentage_all = []
-    for proc_area in age_data["output_area"].unique():
-        proc_gender_data = gender_data[gender_data["output_area"] == proc_area]
+    for proc_area in age_data["area"].unique():
+        proc_gender_data = gender_data[gender_data["area"] == proc_area]
 
         df_new = proc_gender_data.copy()
         for age_group, ages in age_mapping.items():
@@ -340,8 +340,8 @@ def create_ethnicity_percentage_for_each_age(
         65: list(range(65, 101)),
     }
     ethnicity_data_percentage = []
-    for proc_area in age_data["output_area"].unique():
-        proc_ethnicity_data = ethnicity_data[ethnicity_data["output_area"] == proc_area]
+    for proc_area in age_data["area"].unique():
+        proc_ethnicity_data = ethnicity_data[ethnicity_data["area"] == proc_area]
         age_group_keys = list(age_mapping.keys())
         proc_ethnicity_data_total = proc_ethnicity_data[age_group_keys].sum()
         proc_ethnicity_data[age_group_keys] = (
@@ -368,11 +368,11 @@ def map_feature_percentage_data_with_age_population_data(
     check_consistency: bool = True,
 ):
     output = []
-    for proc_area in age_data["output_area"].unique():
-        proc_age_data = age_data[age_data["output_area"] == proc_area]
+    for proc_area in age_data["area"].unique():
+        proc_age_data = age_data[age_data["area"] == proc_area]
 
         proc_feature_percentage_data = (
-            feature_percentage_data[feature_percentage_data["output_area"] == proc_area]
+            feature_percentage_data[feature_percentage_data["area"] == proc_area]
             .reset_index()
             .drop("index", axis=1)
         )
@@ -403,7 +403,7 @@ def map_feature_percentage_data_with_age_population_data(
         total_data_from_age = age_data[list(range(101))].sum().sum()
 
         if total_data_from_feature != total_data_from_age:
-            cols = [col for col in output.columns if col not in ["output_area", "gender", "ethnicity"]]
+            cols = [col for col in output.columns if col not in ["area", "gender", "ethnicity"]]
             output[cols] = output[cols] * (total_data_from_age / total_data_from_feature)
 
-    return sort_column_by_names(output, ["output_area", "gender", "ethnicity"])
+    return sort_column_by_names(output, ["area", "gender", "ethnicity"])

@@ -45,7 +45,7 @@ def assign_household_to_address(
         
         if len(address_data_input) > 0:
             proc_address = address_data_input.sample(n=1)
-            proc_pop_data["address"] = f"({round(proc_address['lat'].values[0], 5)}, {round(proc_address['lon'].values[0], 5)})"
+            proc_pop_data["address"] = f"({round(proc_address['latitude'].values[0], 5)}, {round(proc_address['longitude'].values[0], 5)})"
             pop_data_input.loc[proc_pop_data.index] = proc_pop_data
     
     return pop_data_input
@@ -69,7 +69,7 @@ def add_address_wrapper(
     """
     start_time = datetime.utcnow()
 
-    all_areas = list(base_pop["output_area"].unique())
+    all_areas = list(base_pop["area"].unique())
 
     base_pop["address"] = NaN
 
@@ -83,8 +83,8 @@ def add_address_wrapper(
 
         logger.info(f"{i}/{len(all_areas)}: Processing {proc_area}")
 
-        proc_address_data = address_data[address_data["output_area"] == proc_area]
-        proc_pop_data = base_pop[base_pop["output_area"] == proc_area]
+        proc_address_data = address_data[address_data["area"] == proc_area]
+        proc_pop_data = base_pop[base_pop["area"] == proc_area]
 
         if use_parallel:
             proc_pop_data = assign_household_to_address_remote.remote(

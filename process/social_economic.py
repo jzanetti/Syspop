@@ -14,13 +14,15 @@ def social_economic_wrapper(base_pop: DataFrame, social_economic_dataset: DataFr
         social_economic_dataset (DataFrame): Area dependant social economical data
     """
 
-    all_areas = list(base_pop["output_area"].unique())
+    base_pop["social_economics"] = NaN
+
+    all_areas = list(base_pop["area"].unique())
 
     for i, proc_area in enumerate(all_areas):
 
         logger.info(f"Processing the area {i}/{len(all_areas)}")
 
-        proc_base_pop = base_pop[base_pop["output_area"] == proc_area]
+        proc_base_pop = base_pop[base_pop["area"] == proc_area]
 
         try:
             proc_social_economic = social_economic_dataset[

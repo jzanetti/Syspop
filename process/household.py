@@ -157,7 +157,7 @@ def compared_synpop_household_with_census(
     pop_input = _get_household_children_num(pop_input)
 
     orig_children_num = list(houshold_dataset.columns)
-    orig_children_num.remove("output_area")
+    orig_children_num.remove("area")
     all_possible_children_num = list(set(list(pop_input["children_num"].unique()) +  orig_children_num))
 
     truth_all_households = {}
@@ -169,7 +169,7 @@ def compared_synpop_household_with_census(
         
         try:
             truth_all_households[pro_children_num] = int(houshold_dataset[
-                houshold_dataset["output_area"] == proc_area][pro_children_num].values[0])
+                houshold_dataset["area"] == proc_area][pro_children_num].values[0])
         except KeyError:
             truth_all_households[pro_children_num] = 0
         syspop_all_households[pro_children_num] = len(
@@ -318,7 +318,7 @@ def create_household_composition(
     for proc_num_children in num_children:
 
         total_households = int(houshold_dataset[
-            houshold_dataset["output_area"] == proc_area
+            houshold_dataset["area"] == proc_area
         ][proc_num_children].values[0])
 
         proc_base_pop = add_people(
