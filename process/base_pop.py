@@ -121,7 +121,11 @@ def base_pop_wrapper(
     end_time = datetime.utcnow()
     total_mins = (end_time - start_time).total_seconds() / 60.0
 
+    population = DataFrame(population)
+
+    population = population.rename(columns={"output_area": "area"})
+
     logger.info(f"Processing time (base population): {total_mins}")
 
     # Convert the population to a DataFrame
-    return DataFrame(population)
+    return population

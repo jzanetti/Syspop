@@ -128,8 +128,8 @@ def create_address():
     combined_df["lon"] = combined_df.geometry.x
     combined_df["lat"] = combined_df.geometry.y
 
-    combined_df = combined_df.rename(columns={"SA22022_V1": "output_area"})
+    combined_df = combined_df.rename(columns={"SA22022_V1": "area", "lat": "latitude", "lon": "longitude"})
 
-    combined_df["output_area"] = combined_df["output_area"].astype(int)
+    combined_df["area"] = combined_df["area"].astype(int)
 
-    return combined_df[["output_area", "lat", "lon"]]
+    return combined_df[["area", "latitude", "longitude"]]

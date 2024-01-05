@@ -17,12 +17,12 @@ def create_household_number(workdir):
 
     data = data.rename(
         columns={
-            "Number of dependent children": "output_area"
+            "Number of dependent children": "area"
         }
     )
 
-    data.columns = ["output_area"] + [
-        int(col) for col in data.columns if col not in ["output_area"]
+    data.columns = ["area"] + [
+        int(col) for col in data.columns if col not in ["area"]
     ]
 
     with open(join(workdir, "household.pickle"), 'wb') as fid:

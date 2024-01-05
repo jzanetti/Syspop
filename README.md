@@ -1,68 +1,28 @@
 
-# Creating Synthetic Population
-A repository for creating synthetic population using census data.
+# Synthetic & Simulated Population (SysPop)
 
-Contents:
+Syspop is developed at [ESR](https://www.esr.cri.nz/home/about-esr/), led by Sijin.Zhang@esr.cri.nz
 
-- [1. Required input data](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#1-required-input-data)
-    - [1.1 Population data](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#11-population-data)
-        - [1.1.1 Number of total people](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#111-number-of-total-people)
-        - [1.1.2 Number of people for different ethnicities _vs_ age](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#112-number-of-people-for-different-ethnicities-vs-age)
-        - [1.1.3 Number of people for different gender _vs_ age](https://github.com/jzanetti/Syspop/tree/main?tab=readme-ov-file#113-number-of-people-for-different-gender-vs-age)
+## Motivations
 
-# 1. Required input data:
+This is a repository for creating synthetic population using census data (or other data sources).
 
-It is users' responsibilities to create the following required input data from their own census data. One example is given by using the New Zealand Census data in ``etc/scripts_nz/create_nz_data.py``
+Using synthetic populations can be beneficial in various fields and scenarios:
 
+* Privacy Protection: Synthetic populations safeguard individual privacy by mimicking real-world patterns without exposing personal details.
 
-## 1.1 Population data:
+* Simulation and Modeling: Ideal for simulating scenarios like public health management (e.g., disease spread), social wellbeing studies, urban planning, and traffic management. 
+    
+    * Synthetic populations enable the study of potential outcomes without using real-world data, which in most cases, is challenging to obtain or impractical.
 
-The base population data will be based on the information:
-- Number of total people (all ages, ehnicities and genders)
-- Number of people (scaled to the number of total people) for different ethnicities _vs_ age
-- Number of people (scaled to the number of total people) for different gender _vs_ age
+    * Useful for enhancing datasets, synthetic populations generate additional samples, particularly valuable with limited or incomplete data.
 
-The age must range from 0 to 100. For example:
+    * Synthetic populations serve as benchmarks for testing and evaluating algorithms and models before application to real-world data.
 
-#### 1.1.1 Number of total people:
+* Education and Training: Synthetic populations provide realistic datasets for educational purposes, allowing students to gain practical experience without accessing sensitive information.
 
-| output_area |  0 | 1 | ... | 100 |
-| ----------- |  - | - | --- | --- |
-| area1       |  30| 50| ... | 10  |
-| area2       |  50| 70| ... | 15  |
-| ...         | ...|...|...| ... | ... |
+* Policy and Decision-Making: Synthetic populations assist policymakers in predicting the impact of different policies and decisions, aiding informed choices based on data-driven insights.
 
-#### 1.1.2 Number of people for different ethnicities _vs_ age:
+It's important to note that the use of synthetic populations depends on the specific goals of a project and the nature of the data needed. Careful consideration and validation are essential to ensure that synthetic populations accurately reflect the characteristics of the real-world populations they aim to simulate. This package provides a number of interfaces to make creating and validating synthentic population easier.
 
-| output_area | ethnicity | 0 | 1 | ... | 100 |
-| ----------- | --------- | - | - | --- | --- |
-| area1       | Asian     |2.1|1.5| ... | 0.3 |
-| area1       | European  |3.0|7.2| ... | 0.1 |
-| ...         | ...       |...|...| ... | ... |
-| area2       | Asia      |6.0|5.3| ... | 20.0|
-| ...         | ...       |...|...| ... | ... |
-
-For example, for a specific area (e.g., ``area1``), the number of people of different ethnicities (e.g., Asian, European, Māori, Pacific Island) who are 15 years old matches the total number of people for that age group (e.g., 15 years old), as detailed in Section 1.1.1.
-
-#### 1.1.3 Number of people for different gender _vs_ age:
-
-| output_area | gender    | 0 | 1 | ... | 100 |
-| ----------- | --------- | - | - | --- | --- |
-| area1       | female    |1.0|5.0| ... | 0.4 |
-| area1       | male      |2.0|12.| ... | 5.5 |
-| ...         | ...       |...|...| ... | ... |
-| area2       | female    |4.0|19.| ... | 15.0|
-| ...         | ...       |...|...| ... | ... |
-
-For example, for a specific area (e.g., ``area1``), the number of people of different genders (e.g., male and female) who are 15 years old matches the total number of people for that age group (e.g., 15 years old), as detailed in Section 1.1.1.
-
-## 2. Household data:
-The base population will be assigned to households, the household input data should look like:
-
-| output_area | 0 | 1 | ... | 5   |
-| ----------- | - | - | --- | --- |
-| area1       | 15| 10| ... | 3   |
-| area2       | 10| 20| ... | 11  |
-| ...         | ..|...| ... | ... |
-
-where the column names except ``output_area`` indicate the number of dependant children in a household.
+## Installation

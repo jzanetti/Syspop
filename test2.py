@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 
 ox.config(use_cache=True, log_console=True)
 
-# with open("/tmp/synpop.pickle", "rb") as fid:
-#    synpop_data = pickle_load(fid)
+with open("/tmp/synpop.pickle", "rb") as fid:
+    synpop_data = pickle_load(fid)
 
 
 # start = (-41.1526481, 175.0101646) # 54 field street

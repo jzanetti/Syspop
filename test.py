@@ -20,8 +20,8 @@ with open("/tmp/syspop/household.pickle", "rb") as fid:
 
 logger = setup_logging()
 
-create_base_pop_flag = True
-assign_household_flag = False
+create_base_pop_flag = False
+assign_household_flag = True
 assign_socialeconomic_flag = False
 assign_address_flag = False
 
@@ -30,7 +30,7 @@ if create_base_pop_flag:
         pop_data["gender"], 
         pop_data["ethnicity"],
         list(geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Auckland"]["area"]),
-        use_parallel=False,
+        use_parallel=True,
         n_cpu=8)
 
     with open("/tmp/synpop.pickle", 'wb') as fid:

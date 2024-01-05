@@ -375,19 +375,19 @@ def household_wrapper(
     all_ethnicities = list(base_pop["ethnicity"].unique())
 
     num_children = list(houshold_dataset.columns)
-    num_children.remove("output_area")
+    num_children.remove("area")
 
     if use_parallel:
         ray.init(num_cpus=n_cpu, include_dashboard=False)
 
-    all_areas = list(base_pop["output_area"].unique())
+    all_areas = list(base_pop["area"].unique())
     total_areas = len(all_areas)
     results = []
     for i, proc_area in enumerate(all_areas):
 
         logger.info(f"{i}/{total_areas}: Processing {proc_area}")
 
-        proc_base_pop = base_pop[base_pop["output_area"] == proc_area]
+        proc_base_pop = base_pop[base_pop["area"] == proc_area]
 
         if len(proc_base_pop) == 0:
             continue
