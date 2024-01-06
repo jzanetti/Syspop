@@ -6,7 +6,7 @@ from funcs import RAW_DATA
 from pickle import dump as pickle_dump
 
 
-def create_travel(workdir):
+def create_home_to_work(workdir):
     """Write Transport Model file
 
     Args:
@@ -14,7 +14,7 @@ def create_travel(workdir):
         transport_mode_cfg (dict): Transport model configuration
     """
 
-    data = read_csv(RAW_DATA["transport"]["population_travel_to_work_by_method"])
+    data = read_csv(RAW_DATA["commute"]["workplace_and_home_locations"]["travel-to-work-info"])
 
     data = data[
         [
@@ -35,11 +35,11 @@ def create_travel(workdir):
 
     data = data.replace(-999.0, 0)
     data.rename(columns = {
-        'SA2_code_usual_residence_address':'output_area_home', 
-        'SA2_code_workplace_address':'output_area_work'}, 
+        'SA2_code_usual_residence_address':'area_home', 
+        'SA2_code_workplace_address':'area_work'}, 
         inplace = True)
 
-    with open(join(workdir, "transport.pickle"), 'wb') as fid:
+    with open(join(workdir, "commute.pickle"), 'wb') as fid:
         pickle_dump({
-        "transport": data
+        "home_to_work": data
     }, fid)

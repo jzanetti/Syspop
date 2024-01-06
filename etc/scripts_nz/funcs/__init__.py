@@ -66,8 +66,7 @@ RAW_DATA = {
         "employers_by_employees_number": "etc/data/raw_nz/employers_by_employees_number-2022.csv",
         "employers_by_sector": "etc/data/raw_nz/employers_by_sectors-2022.csv",
     },
-    "transport": {
-        "population_travel_to_work_by_method": "etc/data/raw_nz/travel-to-work-info-2018.csv",
+    "commute": {
         "workplace_and_home_locations": {
             "travel-to-work-info": "etc/data/raw_nz/travel-to-work-info-2018.csv",
             "population_by_gender": "etc/data/raw_nz/population_by_gender-2022.csv",

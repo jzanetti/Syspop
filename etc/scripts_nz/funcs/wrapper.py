@@ -32,10 +32,10 @@ from funcs.utils import sort_column_by_names
 from os.path import join
 
 from pickle import dump as pickle_dump
-from funcs.transport.transport import create_travel
+from funcs.commute.commute import create_home_to_work
 
 def create_travel_wrapper(workdir: str):
-    create_travel(workdir)
+    create_home_to_work(workdir)
 
 
 
