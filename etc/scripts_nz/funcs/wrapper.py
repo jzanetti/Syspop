@@ -32,12 +32,44 @@ from funcs.utils import sort_column_by_names
 from os.path import join
 
 from pickle import dump as pickle_dump
+from pickle import load as pickle_load
 from funcs.commute.commute import create_home_to_work
+
+def create_business_wrapper(workdir: str):
+    """Create business wrapper (e.g., employees etc.)
+
+    Args:
+        workdir (str): Working directory
+    """
+    with open(join(workdir, "population.pickle"), "rb") as fid:
+        population_data = pickle_load(fid)
+
+    with open(join(workdir, "geography.pickle"), "rb") as fid:
+        geography_data = pickle_load(fid)
+
+    # employers_by_employees_num = create_employers_by_employees_number(
+    #   population_data["age"], 
+    #   geography_data["hierarchy"]
+    # )
+
+    employers_employees_by_sector = create_employee_by_gender_by_sector(
+        population_data["age"], 
+        geography_data["hierarchy"]
+    )
+
+    with open(join(workdir, "business.pickle"), 'wb') as fid:
+        pickle_dump({
+        "employee": employers_employees_by_sector[[
+            "area", 
+            "business_code", 
+            "employee_number", 
+            "employee_male_ratio",
+            "employee_female_ratio"]],
+        "employer": employers_employees_by_sector[["area", "business_code", "employer_number"]]
+    }, fid)
 
 def create_travel_wrapper(workdir: str):
     create_home_to_work(workdir)
-
-
 
 def create_population_wrapper(workdir: str):
     total_population_data = create_population()
@@ -67,7 +99,6 @@ def create_population_wrapper(workdir: str):
         "gender": gender_data,
         "ethnicity": ethnicity_data
     }, fid)
-
 
 def create_geography_wrapper(workdir: str):
     address_data = create_address()

@@ -63,7 +63,7 @@ RAW_DATA = {
             "anzsic_code": "etc/data/raw_nz/anzsic06_code.csv",
             "geography_hierarchy": "etc/data/raw_nz/geography_hierarchy-2023.csv",
         },
-        "employers_by_employees_number": "etc/data/raw_nz/employers_by_employees_number-2022.csv",
+        # "employers_by_employees_number": "etc/data/raw_nz/employers_by_employees_number-2022.csv",
         "employers_by_sector": "etc/data/raw_nz/employers_by_sectors-2022.csv",
     },
     "commute": {

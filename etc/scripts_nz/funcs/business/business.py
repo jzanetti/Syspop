@@ -6,11 +6,42 @@ from os.path import join
 from re import match as re_match
 
 from numpy import inf, nan
-from pandas import DataFrame, melt, merge, pivot_table, read_csv, read_excel, to_numeric
+from pandas import DataFrame, concat, merge, pivot_table, read_csv, read_excel, to_numeric
 
 from funcs import RAW_DATA, RAW_DATA_INFO
 from funcs.utils import read_anzsic_code, read_leed
 
+
+
+def _read_employers_by_employees_data() -> DataFrame:
+    """Read the number of employers by employee number
+
+    Returns:
+        DataFrame: Employers number by employees number
+    """
+
+    data = read_csv(RAW_DATA["business"]["employers_by_employees_number"])[
+        ["Area", "Measure", "Enterprise employee count size group", "Value"]
+    ]
+    data["Area"] = data["Area"].str.replace(" Region", "")
+
+    data = data.drop(
+        data[data["Enterprise employee count size group"] == "Total"].index
+    )
+    data = data[data["Measure"] == "Geographic Units"]
+
+    data = data[["Area", "Enterprise employee count size group", "Value"]]
+
+    data["Area"] = data["Area"].replace("Manawatu-Wanganui", "Manawatu-Whanganui")
+
+    data["Enterprise employee count size group"] = (
+        data["Enterprise employee count size group"]
+        .replace("1 to 19", "1-19")
+        .replace("20 to 49", "20-49")
+        .replace("50+", "50-xxx")
+    )
+
+    return data.rename(columns={"Area": "region", "Value": "employer_num"})
 
 def read_leed(
     leed_path: str, anzsic_code: DataFrame, if_rate: bool = False
@@ -121,8 +152,8 @@ def read_leed(
 
 
 def create_employee_by_gender_by_sector(
-    geography_hierarchy_data: DataFrame,
     pop: DataFrame,
+    geography_hierarchy_data: DataFrame,
 ):
     """Write the number of employees by gender for different area
 
@@ -151,10 +182,10 @@ def create_employee_by_gender_by_sector(
         if_rate=True,
     )
 
-    # Read employees for different SA2
+    # Read employees for different area
     data = read_csv(
         RAW_DATA["business"]["employee_by_gender_by_sector"]["employee_by_area"]
-    )[["anzsic06", "Area", "ec_count"]]
+    )[["anzsic06", "Area", "ec_count", "geo_count"]]
 
     data = data[
         data["anzsic06"].isin(
@@ -162,25 +193,25 @@ def create_employee_by_gender_by_sector(
         )
     ]
 
-    data_sa2 = data[data["Area"].str.startswith("A")]
+    data = data[data["Area"].str.startswith("A")]
 
-    data_sa2 = data_sa2.rename(columns={"Area": "area"})
+    data = data.rename(columns={"Area": "area"})
 
-    data_sa2["area"] = data_sa2["area"].str[1:].astype(int)
+    data["area"] = data["area"].str[1:].astype(int)
 
-    data_sa2 = data_sa2.merge(
-        geography_hierarchy_data[["area", "region"]], on="area", how="left"
+    data = data.merge(
+        geography_hierarchy_data[["area", "super_area", "region"]], on="area", how="left"
     )
-    data_sa2 = data_sa2.dropna()
+    data = data.dropna()
 
     data_leed_rate = data_leed_rate.reset_index()
 
     data_leed_rate = data_leed_rate.rename(columns={"Area": "region"})
-    data_sa2 = data_sa2.merge(data_leed_rate, on="region", how="left")
+    data = data.merge(data_leed_rate, on="region", how="left")
 
     industrial_codes = []
     industrial_codes_with_genders = []
-    for proc_item in list(data_sa2.columns):
+    for proc_item in list(data.columns):
         if proc_item.endswith("Male"):
             proc_code = proc_item.split(",")[0]
             industrial_codes.append(proc_code)
@@ -192,14 +223,39 @@ def create_employee_by_gender_by_sector(
     for category in industrial_codes:
         male_col = f"{category},Male"
         female_col = f"{category},Female"
-        data_sa2.loc[data_sa2["anzsic06"] == category, "Male"] = (
-            data_sa2[male_col] * data_sa2["ec_count"]
+        data.loc[data["anzsic06"] == category, "Male"] = (
+            data[male_col] * data["ec_count"]
         )
-        data_sa2.loc[data_sa2["anzsic06"] == category, "Female"] = (
-            data_sa2[female_col] * data_sa2["ec_count"]
+        data.loc[data["anzsic06"] == category, "Female"] = (
+            data[female_col] * data["ec_count"]
         )
 
-    df = data_sa2.drop(columns=industrial_codes_with_genders)
+    anzsic_unique_values = data['anzsic06'].unique()
+    anzsic_mapping = {anzsic: [f"{anzsic},Male", f"{anzsic},Female"] for anzsic in anzsic_unique_values}
+    
+    all_data = []
+    for i in range(len(data)):
+        proc_data = data.iloc[[i]]
+        proc_anzsic = proc_data["anzsic06"].values[0]
+        proc_data = proc_data[
+            ["area", "anzsic06", "geo_count", "ec_count"] + anzsic_mapping[proc_anzsic]]
+        proc_data.columns = [col.split(',')[1] if ',' in col else col for col in proc_data.columns]
+        all_data.append(proc_data)
+    
+    all_data = concat(all_data, ignore_index=True)
+
+    # all_data["super_area"] = all_data["super_area"].astype(int)
+
+    all_data = all_data.rename(columns={
+        "geo_count": "employer_number", 
+        "ec_count": "employee_number",
+        "anzsic06": "business_code",
+        "Male": "employee_male_ratio", 
+        "Female": "employee_female_ratio"})
+
+    return all_data
+
+    df = data.drop(columns=industrial_codes_with_genders)
 
     total_people_target = int(
         pop["population"].sum()
@@ -248,55 +304,41 @@ def create_employers_by_employees_number(
         use_sa3_as_super_area (bool): Use SA3 as super area, otherwise using Regions
     """
 
-    pop_ratio_sa3 = _get_population_ratio_between_region_and_sa3(
+    pop = _add_region_to_pop(
         pop, geography_hierarchy_definition
     )
 
-    data = read_csv(RAW_DATA["business"]["employers_by_employees_number"])[
-        ["Area", "Measure", "Enterprise employee count size group", "Value"]
-    ]
-    data["Area"] = data["Area"].str.replace(" Region", "")
+    employer_data = _read_employers_by_employees_data()
 
-    data = data.drop(
-        data[data["Enterprise employee count size group"] == "Total"].index
-    )
-    data = data[data["Measure"] == "Geographic Units"]
-
-    data = data[["Area", "Enterprise employee count size group", "Value"]]
-
-    data["Area"] = data["Area"].replace("Manawatu-Wanganui", "Manawatu-Whanganui")
-
-    data["Enterprise employee count size group"] = (
-        data["Enterprise employee count size group"]
-        .replace("1 to 19", "1-19")
-        .replace("20 to 49", "20-49")
-        .replace("50+", "50-xxx")
-    )
-
-    df = data.rename(columns={"Area": "region"}).merge(
-        pop_ratio_sa3[["region", "super_area", "population_ratio"]],
+    df = employer_data.merge(
+        pop[["region", "super_area", "total_pop_ratio"]],
         on="region",
         how="left",
-    )
-    df["Value2"] = df["Value"] * df["population_ratio"]
-    df = df.dropna()
-    df["Value2"] = df["Value2"].round().astype(int)
-    df = df[["super_area", "Enterprise employee count size group", "Value2"]]
-    data = df.rename(columns={"super_area": "Area", "Value2": "Value"})
-    data["Area"] = data["Area"].astype(int)
+    ).dropna()
+    df["employer_num_adjusted"] = (df["employer_num"] * df["total_pop_ratio"]).round().astype(int)
+
+    df = df[
+        [
+            "super_area", 
+            "Enterprise employee count size group", 
+            "employer_num_adjusted"
+        ]
+    ]
+
+    data = df.rename(columns={"employer_num_adjusted": "employer_num"})
+    data["super_area"] = data["super_area"].astype(int)
 
     df_pivot = pivot_table(
         data,
-        values="Value",
-        index="Area",
+        values="employer_num",
+        index="super_area",
         columns="Enterprise employee count size group",
     ).reset_index()
-    df_pivot = df_pivot[["Area", "1-19", "20-49", "50-xxx"]]
 
-    for df_key in ["Area", "1-19", "20-49", "50-xxx"]:
+    df_pivot.columns.name = None
+
+    for df_key in ["super_area", "1-19", "20-49", "50-xxx"]:
         df_pivot[df_key] = df_pivot[df_key].astype(int)
-
-    df_pivot = df_pivot.rename(columns={"Area": "MSOA"})
 
     return df_pivot
 
@@ -411,28 +453,38 @@ def write_employers_by_sector(
     return df_pivot
 
 
-def _get_population_ratio_between_region_and_sa3(
+def _add_region_to_pop(
     pop: DataFrame, geography_hierarchy_definition: DataFrame
 ) -> DataFrame:
-    """Get population ratio between region and SA3
+    """Get population for each super area and region
 
     Args:
         pop (DataFrame): Population object
         geography_hierarchy_definition (DataFrame): Geography hirarchy defination data
 
     Returns:
-        DataFrame: Population ratio between region and SA3
+        DataFrame: Population for each super area and region
     """
+
+    pop["total_pop"] = pop.drop(columns="area").sum(axis=1)
+
     df = pop.merge(
         geography_hierarchy_definition[["area", "super_area", "region"]],
         on="area",
         how="left",
     ).dropna()
     df["super_area"] = df["super_area"].astype(int)
-    df = df[["region", "super_area", "population"]]
-    df["population"] = df.groupby("super_area")["population"].transform("sum")
-    df = df[["region", "super_area", "population"]]
+    df = df[["region", "super_area", "total_pop"]]
+    df["total_pop"] = df.groupby("super_area")["total_pop"].transform("sum")
+
     df.drop_duplicates(inplace=True)
+
+    df["total_pop_ratio"] = df.groupby(["region"])["total_pop"].transform(
+            lambda x: (x / x.sum())
+    )
+
+    return df
+
     df["population_ratio"] = df.groupby("super_area")["population"].transform("sum")
 
     df["population_ratio"] = df.groupby(["region"])["population"].transform(
