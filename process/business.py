@@ -3,7 +3,7 @@ from numpy.random import choice as numpy_choice
 from numpy.random import uniform as numpy_uniform
 from process.commute import home_and_work
 from numpy import NaN
-
+from numpy import vectorize as numpy_vectorize
 from logging import getLogger
 
 logger = getLogger()
@@ -114,7 +114,7 @@ def business_wrapper(employer_data: DataFrame, employee_data: DataFrame, pop_dat
 
     all_commute_data = []
     all_employers = {}
-    for i, proc_area in enumerate(all_work_areas):
+    for proc_area in all_work_areas:
 
         proc_commute_data = commute_data[commute_data["area_work"] == proc_area]
         proc_employee_data = employee_data[employee_data["area"] == proc_area]
@@ -130,14 +130,17 @@ def business_wrapper(employer_data: DataFrame, employee_data: DataFrame, pop_dat
 
     all_commute_data = concat(all_commute_data, ignore_index=True)
 
-    base_pop = home_and_work(all_commute_data, pop_data, use_parallel=False)
+    logger.info("Assign home and work locations ...")
 
+    base_pop = home_and_work(all_commute_data, pop_data, use_parallel=True)
+
+    logger.info("Assign employers ...")
     base_pop = assign_employers_to_base_pop(base_pop, all_employers)
 
     return base_pop
 
 
-def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict) -> DataFrame:
+def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict, use_for_loop: bool = False) -> DataFrame:
     """Assign employer/company to base population
 
     Args:
@@ -151,23 +154,37 @@ def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict) -> Da
     base_pop["company"] = NaN
     total_people = len(base_pop)
 
-    i = 0
-    for index, proc_row in base_pop.iterrows():
-        
-        if i % 100000 == 0.0:
-            logger.info(f"Business processing: {i}/{total_people}")
+    if use_for_loop:
+        i = 0
+        for index, proc_row in base_pop.iterrows():
+            
+            if i % 100000 == 0.0:
+                logger.info(f"Business processing: {i}/{total_people}")
 
-        if proc_row["area_work"] == -9999:
+            if proc_row["area_work"] == -9999:
+                i += 1
+                continue
+
+            proc_area_work = proc_row["area_work"]
+
+            possible_employers = all_employers[proc_area_work]
+
+            base_pop.at[index, "company"] = numpy_choice(possible_employers)
+
             i += 1
-            continue
+    else:
+        # Create a mask for rows where area_work is not -9999
+        mask = base_pop["area_work"] != -9999
 
-        proc_area_work = proc_row["area_work"]
+        # Apply the mask to filter relevant rows
+        valid_rows = base_pop[mask]
 
-        possible_employers = all_employers[proc_area_work]
+        # Use numpy_choice to generate random choices for each row in valid_rows
+        choices = numpy_vectorize(lambda x: numpy_choice(all_employers[x]))(valid_rows["area_work"])
 
-        base_pop.at[index, "company"] = numpy_choice(possible_employers)
+        # Assign the choices back to the "company" column in the original dataframe
+        base_pop.loc[mask, "company"] = choices
 
-        i += 1
 
     return base_pop
 

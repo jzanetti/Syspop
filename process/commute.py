@@ -49,12 +49,10 @@ def home_and_work(
     all_areas_home = list(base_pop["area"].unique())
 
     results = []
+
     for i, proc_home_area in enumerate(all_areas_home):
 
         logger.info(f"Commute processing at {i}/{len(all_areas_home)}")
-
-        if i > 100:
-            break
 
         if use_parallel:
             proc_working_age_people = assign_people_between_home_and_work_remote.remote(
@@ -124,6 +122,7 @@ def assign_people_between_home_and_work(
     Returns:
         DataFrame: Updated working age people
     """
+
     proc_working_age_people = working_age_people[
         working_age_people["area"] == proc_home_area]
 

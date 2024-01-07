@@ -32,7 +32,7 @@ assign_household_flag = False
 assign_socialeconomic_flag = False
 assign_address_flag = False
 assign_commute_flag = False
-assign_business_flag = False
+assign_business_flag = True
 
 
 if create_base_pop_flag:
