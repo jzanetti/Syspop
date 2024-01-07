@@ -7,38 +7,13 @@ import ray
 
 logger = getLogger()
 
-def commute_wrapper(
-    commute_dataset: DataFrame, 
-    base_pop: DataFrame,
-    use_parallel: bool = False,
-    n_cpu: int = 8,
-    work_age: dict = {"min": 18, "max": 65}) -> DataFrame:
-    """Adding commute data wrapper
-
-    Args:
-        base_pop (DataFrame): Base population data
-        commute_dataset (DataFrame): Comute data
-        work_age (dict, optional): Working age range. Defaults to {"min": 18, "max": 65}.
-    """
-
-    start_time = datetime.utcnow()
-
-    base_pop = home_and_work(commute_dataset, base_pop, work_age, use_parallel, n_cpu)
-
-    end_time = datetime.utcnow()
-
-    total_mins = round((end_time - start_time).total_seconds() / 60.0 , 3)
-    logger.info(f"Processing time (household): {total_mins}")
-
-    return base_pop
-
 
 def home_and_work(
-        commute_dataset: DataFrame, 
-        base_pop: DataFrame, 
-        work_age: dict,
-        use_parallel: bool,
-        n_cpu: int) -> DataFrame:
+    commute_dataset: DataFrame, 
+    base_pop: DataFrame, 
+    work_age: dict = {"min": 16, "max": 75},
+    use_parallel: bool = False,
+    n_cpu: int = 8) -> DataFrame:
     """Assign commute data (home to work) to base population
 
         - step 1: go through each area (home) from base population
@@ -66,7 +41,10 @@ def home_and_work(
         (base_pop["age"] <= work_age["max"])]
 
     travel_methods = list(
-        commute_dataset.drop(columns=["area_home", "area_work", "Total"]))
+        commute_dataset.drop(columns=["area_home", "area_work", "Total", "Work_at_home"]))
+
+    # Set work_at_home at the end so most people will be assigned to other commute methods
+    travel_methods.append("Work_at_home")
 
     all_areas_home = list(base_pop["area"].unique())
 
@@ -74,6 +52,9 @@ def home_and_work(
     for i, proc_home_area in enumerate(all_areas_home):
 
         logger.info(f"Commute processing at {i}/{len(all_areas_home)}")
+
+        if i > 100:
+            break
 
         if use_parallel:
             proc_working_age_people = assign_people_between_home_and_work_remote.remote(
@@ -156,17 +137,22 @@ def assign_people_between_home_and_work(
             proc_people_num = proc_commute_dataset[
                 proc_commute_dataset["area_work"] == proc_work_area][
                     proc_travel_method].values[0]
+
+            unassigned_people = proc_working_age_people[
+                proc_working_age_people["area_work"] == -9999]
             
-            # try:
+            if len(unassigned_people) == 0:
+                continue
+
+            people_num_to_use = min([proc_people_num, len(unassigned_people)])
+
             proc_working_age_people_sampled = proc_working_age_people[
-                proc_working_age_people["area_work"] == -9999].sample(proc_people_num)
+                proc_working_age_people["area_work"] == -9999].sample(people_num_to_use)
 
             proc_working_age_people_sampled["area_work"] = int(proc_work_area)
             proc_working_age_people_sampled["travel_mode_work"] = proc_travel_method
 
             proc_working_age_people.loc[proc_working_age_people_sampled.index] = proc_working_age_people_sampled
-            # except ValueError: # just in case if not enough people to sample from
-            #    pass
     
     return proc_working_age_people
                 

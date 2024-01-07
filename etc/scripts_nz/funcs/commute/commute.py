@@ -29,8 +29,7 @@ def create_home_to_work(workdir):
             'Bicycle', 
             'Walk_or_jog', 
             'Ferry', 
-            'Other', 
-            'Total']
+            'Other']
     ]
 
     data = data.replace(-999.0, 0)

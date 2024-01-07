@@ -1,0 +1,178 @@
+from pandas import DataFrame, concat
+from numpy.random import choice as numpy_choice
+from numpy.random import uniform as numpy_uniform
+from process.commute import home_and_work
+from numpy import NaN
+
+from logging import getLogger
+
+logger = getLogger()
+
+def align_commute_data_to_employee_data(
+        employee_input: DataFrame, 
+        commute_input: DataFrame) -> DataFrame:
+    """Align commute dataset (the number of people travel to work) to employee data
+
+    Args:
+        employee_input (DataFrame): employee data to be used
+        commute_input (DataFrame): commute data to be used
+        method (str): can be multiply or adding
+            - mutiple is simpler and faster, but it may not match well (e.g., mutiplication applies to 0.0 will still be 0.0)
+            - adding: slower but more accurate, it adds the mismatch randomly to the target dataframe
+
+    Returns:
+        DataFrame: updated commute data
+    """
+
+    total_employee_from_commute_data = commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
+    total_employee_from_employee_data = employee_input["employee_number"].sum()
+
+    # Step 1: scaling up/down the commute employee number
+
+    scaling_factor = total_employee_from_employee_data / total_employee_from_commute_data
+    # apply scaling factor to align commute data to employee data
+    commute_input = commute_input.apply(
+        lambda x: x * scaling_factor if x.name not in ["area_home", "area_work"] else x, axis=0)
+
+    commute_input = commute_input.apply(lambda x: x.astype(int) if x.name not in ["area_home", "area_work"] else x)
+
+    # Step 2: add remained employee numbers randomly
+    total_employee_from_commute_data = commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
+
+    total_value_to_add = total_employee_from_employee_data - total_employee_from_commute_data
+
+    columns_to_adjust = [col for col in commute_input.columns if col not in ["area_home", "area_work"]]
+
+    while total_value_to_add != 0.0:
+        # Step 2.1: randomly select a column and row
+        column_name = numpy_choice(columns_to_adjust)
+        row_index = numpy_choice(commute_input.index)
+
+        # Step 2.2: create a random value to add
+        random_value_range = total_value_to_add / 3.0
+
+        if total_value_to_add > 0:
+            random_value = int(min(numpy_uniform(0, random_value_range), random_value_range))
+            random_value = random_value if random_value != 0 else 1
+        else:
+            random_value = int(max(numpy_uniform(random_value_range, 0), random_value_range))
+            random_value = random_value if random_value != 0 else -1
+
+        # Step 2.3: update the value
+        updated_value = commute_input.at[row_index, column_name] + random_value
+
+        if updated_value < 0: # make sure that the number of employees are larger than zero
+            continue
+
+        commute_input.at[row_index, column_name] = updated_value
+        
+        # Step 2.4: Update the remaining total
+        total_value_to_add -= random_value
+
+    # recalculate the total commute (home and work) using updated data:
+    commute_input["Total"] = commute_input.loc[
+        :, ~commute_input.columns.isin(["area_home", "area_work"])].sum(axis=1)
+
+    return commute_input
+
+
+
+def create_employers(employer_input: DataFrame, employer_num_factor: float = 1.0) -> list:
+    """Create available employers 
+
+    Args:
+        employer_input (DataFrame): employers dataset
+        employer_num_factor (int): Should we reduce the number of employers 
+            (so more people can get together ?)
+
+    Returns:
+        list: the possible employers
+    """
+    employers = []
+    for index, proc_row in employer_input.iterrows():
+        proc_employer_num = int(proc_row["employer_number"] / employer_num_factor)
+        proc_employer_code = proc_row["business_code"]
+        proc_employer_area = proc_row["area"]
+
+        for employer_id in range(proc_employer_num):
+            employers.append(
+                f"{proc_employer_code}_{employer_id}_{proc_employer_area}"
+            )
+    
+    return employers
+
+def business_wrapper(employer_data: DataFrame, employee_data: DataFrame, pop_data: DataFrame, commute_data: DataFrame):
+    """Assign individuals to different companies:
+
+    Args:
+        employer_data (DataFrame): _description_
+        employee_data (DataFrame): _description_
+        pop_data (DataFrame): _description_
+        commute_data (DataFrame): _description_
+    """
+    all_work_areas = list(pop_data["area"].unique())
+
+    all_commute_data = []
+    all_employers = {}
+    for i, proc_area in enumerate(all_work_areas):
+
+        proc_commute_data = commute_data[commute_data["area_work"] == proc_area]
+        proc_employee_data = employee_data[employee_data["area"] == proc_area]
+        proc_employer_data = employer_data[employer_data["area"] == proc_area]
+
+        proc_commute_data = align_commute_data_to_employee_data(
+            proc_employee_data, 
+            proc_commute_data)
+        
+        all_commute_data.append(proc_commute_data)
+        
+        all_employers[proc_area] = create_employers(proc_employer_data)
+
+    all_commute_data = concat(all_commute_data, ignore_index=True)
+
+    base_pop = home_and_work(all_commute_data, pop_data, use_parallel=False)
+
+    base_pop = assign_employers_to_base_pop(base_pop, all_employers)
+
+    return base_pop
+
+
+def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict) -> DataFrame:
+    """Assign employer/company to base population
+
+    Args:
+        base_pop (DataFrame): Base population to be added
+        all_employers (dict): employers list, e.g.,
+            {110400: [110400_N_4, 110400_N_5, 110400_S_4, ...], ...}
+
+    Returns:
+        DataFrame: Updated population
+    """
+    base_pop["company"] = NaN
+    total_people = len(base_pop)
+
+    i = 0
+    for index, proc_row in base_pop.iterrows():
+        
+        if i % 100000 == 0.0:
+            logger.info(f"Business processing: {i}/{total_people}")
+
+        if proc_row["area_work"] == -9999:
+            i += 1
+            continue
+
+        proc_area_work = proc_row["area_work"]
+
+        possible_employers = all_employers[proc_area_work]
+
+        base_pop.at[index, "company"] = numpy_choice(possible_employers)
+
+        i += 1
+
+    return base_pop
+
+
+
+
+
+    
