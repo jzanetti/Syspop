@@ -35,8 +35,23 @@ from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from funcs.commute.commute import create_home_to_work
 
-def create_business_wrapper(workdir: str):
-    """Create business wrapper (e.g., employees etc.)
+def create_school_wrapper(workdir: str):
+    """Create school wrapper (e.g., where is the school etc.)
+
+    Args:
+        workdir (str): Working directory
+    """
+
+    with open(join(workdir, "geography.pickle"), "rb") as fid:
+        geography_data = pickle_load(fid)
+
+    school_data = create_school(geography_data["location"])
+    with open(join(workdir, "school.pickle"), 'wb') as fid:
+        pickle_dump({"school": school_data}, fid)
+
+
+def create_work_wrapper(workdir: str):
+    """Create work wrapper (e.g., employees etc.)
 
     Args:
         workdir (str): Working directory
@@ -57,7 +72,7 @@ def create_business_wrapper(workdir: str):
         geography_data["hierarchy"]
     )
 
-    with open(join(workdir, "business.pickle"), 'wb') as fid:
+    with open(join(workdir, "work.pickle"), 'wb') as fid:
         pickle_dump({
         "employee": employers_employees_by_sector[[
             "area", 

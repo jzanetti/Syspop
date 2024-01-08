@@ -125,7 +125,6 @@ def write_leisures(workdir: str):
 
 
 def create_school(
-    workdir: str,
     sa2_loc: DataFrame,
     max_to_cur_occupancy_ratio=1.2,
 ) -> dict:
@@ -196,10 +195,7 @@ def create_school(
         ]
     ]
 
-    data.to_csv(
-        join(workdir, "school.csv"),
-        index=True,
-    )
+    return data
 
 
 def create_hospital(

@@ -9,6 +9,55 @@ from process.commute import shared_transport
 
 logger = getLogger()
 
+def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict, use_for_loop: bool = False) -> DataFrame:
+    """Assign employer/company to base population
+
+    Args:
+        base_pop (DataFrame): Base population to be added
+        all_employers (dict): employers list, e.g.,
+            {110400: [110400_N_4, 110400_N_5, 110400_S_4, ...], ...}
+
+    Returns:
+        DataFrame: Updated population
+    """
+    base_pop["company"] = NaN
+    total_people = len(base_pop)
+
+    if use_for_loop:
+        i = 0
+        for index, proc_row in base_pop.iterrows():
+            
+            if i % 100000 == 0.0:
+                logger.info(f"Business processing: {i}/{total_people}")
+
+            if proc_row["area_work"] == -9999:
+                i += 1
+                continue
+
+            proc_area_work = proc_row["area_work"]
+
+            possible_employers = all_employers[proc_area_work]
+
+            base_pop.at[index, "company"] = numpy_choice(possible_employers)
+
+            i += 1
+    else:
+        # Create a mask for rows where area_work is not -9999
+        mask = base_pop["area_work"] != -9999
+
+        # Apply the mask to filter relevant rows
+        valid_rows = base_pop[mask]
+
+        # Use numpy_choice to generate random choices for each row in valid_rows
+        choices = numpy_vectorize(lambda x: numpy_choice(all_employers[x]))(valid_rows["area_work"])
+
+        # Assign the choices back to the "company" column in the original dataframe
+        base_pop.loc[mask, "company"] = choices
+
+
+    return base_pop
+
+
 def align_commute_data_to_employee_data(
         employee_input: DataFrame, 
         commute_input: DataFrame) -> DataFrame:
@@ -77,7 +126,6 @@ def align_commute_data_to_employee_data(
     return commute_input
 
 
-
 def create_employers(employer_input: DataFrame, employer_num_factor: float = 1.0) -> list:
     """Create available employers 
 
@@ -102,13 +150,11 @@ def create_employers(employer_input: DataFrame, employer_num_factor: float = 1.0
     
     return employers
 
-
-def business_and_commute_wrapper(
+def work_and_commute_wrapper(
     business_data: dict,
     pop_data: DataFrame, 
     commute_data: DataFrame,
     geo_hirarchy_data: DataFrame,
-    business_type: list = ["work"],
     use_parallel: bool = False,
     n_cpu: int = 4) -> DataFrame:
     """Create business and commute data
@@ -117,7 +163,6 @@ def business_and_commute_wrapper(
         business_data (dict): Business data, e.g., employer, employee, school etc.
         pop_data (DataFrame): Population dataset
         commute_data (DataFrame): Commute dataset, e.g., home_to_work etc.
-        business_type (list, optional): Business type, work, school etc.. Defaults to ["work"].
         use_parallel (bool, optional): If run jobs in parallel. Defaults to False.
         n_cpu (int, optional): Number of CPUs to use. Defaults to 4.
 
@@ -128,23 +173,17 @@ def business_and_commute_wrapper(
         DataFrame: Updated population data
     """
 
-    for proc_business_type in business_type:
-
-        if proc_business_type == "work":
-            base_pop = work_wrapper(
-                business_data["employer"], 
-                business_data["employee"], 
-                pop_data, 
-                commute_data["home_to_work"],
-                use_parallel=use_parallel,
-                n_cpu=n_cpu)
-        else:
-            raise Exception("Not implemented yet ...")
+    base_pop = work_wrapper(
+        business_data["employer"], 
+        business_data["employee"], 
+        pop_data, 
+        commute_data["home_to_work"],
+        use_parallel=use_parallel,
+        n_cpu=n_cpu)
     
     base_pop = shared_transport(base_pop, geo_hirarchy_data)
 
     return base_pop
-
 
 def work_wrapper(
         employer_data: DataFrame, 
@@ -189,58 +228,3 @@ def work_wrapper(
     base_pop = assign_employers_to_base_pop(base_pop, all_employers)
 
     return base_pop
-
-
-def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict, use_for_loop: bool = False) -> DataFrame:
-    """Assign employer/company to base population
-
-    Args:
-        base_pop (DataFrame): Base population to be added
-        all_employers (dict): employers list, e.g.,
-            {110400: [110400_N_4, 110400_N_5, 110400_S_4, ...], ...}
-
-    Returns:
-        DataFrame: Updated population
-    """
-    base_pop["company"] = NaN
-    total_people = len(base_pop)
-
-    if use_for_loop:
-        i = 0
-        for index, proc_row in base_pop.iterrows():
-            
-            if i % 100000 == 0.0:
-                logger.info(f"Business processing: {i}/{total_people}")
-
-            if proc_row["area_work"] == -9999:
-                i += 1
-                continue
-
-            proc_area_work = proc_row["area_work"]
-
-            possible_employers = all_employers[proc_area_work]
-
-            base_pop.at[index, "company"] = numpy_choice(possible_employers)
-
-            i += 1
-    else:
-        # Create a mask for rows where area_work is not -9999
-        mask = base_pop["area_work"] != -9999
-
-        # Apply the mask to filter relevant rows
-        valid_rows = base_pop[mask]
-
-        # Use numpy_choice to generate random choices for each row in valid_rows
-        choices = numpy_vectorize(lambda x: numpy_choice(all_employers[x]))(valid_rows["area_work"])
-
-        # Assign the choices back to the "company" column in the original dataframe
-        base_pop.loc[mask, "company"] = choices
-
-
-    return base_pop
-
-
-
-
-
-    

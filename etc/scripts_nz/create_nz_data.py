@@ -4,7 +4,8 @@ from funcs.wrapper import (
     create_household_number, 
     create_population_wrapper, 
     create_travel_wrapper,
-    create_business_wrapper)
+    create_school_wrapper,
+    create_work_wrapper)
 from os.path import exists
 from os import makedirs
 
@@ -34,9 +35,14 @@ def import_raw_data(workdir: str):
     create_travel_wrapper(workdir)
 
     # -----------------------------
-    # Create business
+    # Create work
     # -----------------------------
-    create_business_wrapper(workdir)
+    create_work_wrapper(workdir)
+
+    # -----------------------------
+    # Create school
+    # -----------------------------
+    create_school_wrapper(workdir)
 
     """
     # -----------------------------

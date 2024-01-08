@@ -6,7 +6,7 @@ from process.utils import setup_logging
 from process.household import household_wrapper
 from process.social_economic import social_economic_wrapper
 from process.address import add_address_wrapper
-from process.business import business_and_commute_wrapper
+from process.work import work_and_commute_wrapper
 from pickle import load as pickle_load
 from pickle import dump as pickle_dump
 
@@ -22,8 +22,8 @@ with open("/tmp/syspop/household.pickle", "rb") as fid:
 with open("/tmp/syspop/commute.pickle", "rb") as fid:
     commute_data = pickle_load(fid)
 
-with open("/tmp/syspop/business.pickle", "rb") as fid:
-    business_data = pickle_load(fid)
+with open("/tmp/syspop/work.pickle", "rb") as fid:
+    work_data = pickle_load(fid)
 
 logger = setup_logging()
 
@@ -32,7 +32,7 @@ assign_household_flag = False
 assign_socialeconomic_flag = False
 assign_address_flag = False
 assign_commute_flag = False
-assign_business_flag = False
+assign_work_flag = True
 
 
 if create_base_pop_flag:
@@ -83,13 +83,12 @@ if assign_address_flag:
         pickle_dump({"synpop": base_pop}, fid)
 
 
-if assign_business_flag:
+if assign_work_flag:
     with open("/tmp/synpop.pickle", "rb") as fid:
         base_pop = pickle_load(fid)
 
-
-    base_pop = business_and_commute_wrapper(
-        business_data,
+    base_pop = work_and_commute_wrapper(
+        work_data,
         base_pop["synpop"], 
         commute_data,
         geog_data["hierarchy"],
