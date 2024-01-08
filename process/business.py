@@ -5,6 +5,7 @@ from process.commute import home_and_work
 from numpy import NaN
 from numpy import vectorize as numpy_vectorize
 from logging import getLogger
+from process.commute import shared_transport
 
 logger = getLogger()
 
@@ -101,7 +102,57 @@ def create_employers(employer_input: DataFrame, employer_num_factor: float = 1.0
     
     return employers
 
-def business_wrapper(employer_data: DataFrame, employee_data: DataFrame, pop_data: DataFrame, commute_data: DataFrame):
+
+def business_and_commute_wrapper(
+    business_data: dict,
+    pop_data: DataFrame, 
+    commute_data: DataFrame,
+    geo_hirarchy_data: DataFrame,
+    business_type: list = ["work"],
+    use_parallel: bool = False,
+    n_cpu: int = 4) -> DataFrame:
+    """Create business and commute data
+
+    Args:
+        business_data (dict): Business data, e.g., employer, employee, school etc.
+        pop_data (DataFrame): Population dataset
+        commute_data (DataFrame): Commute dataset, e.g., home_to_work etc.
+        business_type (list, optional): Business type, work, school etc.. Defaults to ["work"].
+        use_parallel (bool, optional): If run jobs in parallel. Defaults to False.
+        n_cpu (int, optional): Number of CPUs to use. Defaults to 4.
+
+    Raises:
+        Exception: Not implemented yet ...
+
+    Returns:
+        DataFrame: Updated population data
+    """
+
+    for proc_business_type in business_type:
+
+        if proc_business_type == "work":
+            base_pop = work_wrapper(
+                business_data["employer"], 
+                business_data["employee"], 
+                pop_data, 
+                commute_data["home_to_work"],
+                use_parallel=use_parallel,
+                n_cpu=n_cpu)
+        else:
+            raise Exception("Not implemented yet ...")
+    
+    base_pop = shared_transport(base_pop, geo_hirarchy_data)
+
+    return base_pop
+
+
+def work_wrapper(
+        employer_data: DataFrame, 
+        employee_data: DataFrame, 
+        pop_data: DataFrame, 
+        commute_data: DataFrame,
+        use_parallel: bool = False,
+        n_cpu: int = 4):
     """Assign individuals to different companies:
 
     Args:
@@ -132,7 +183,7 @@ def business_wrapper(employer_data: DataFrame, employee_data: DataFrame, pop_dat
 
     logger.info("Assign home and work locations ...")
 
-    base_pop = home_and_work(all_commute_data, pop_data, use_parallel=True)
+    base_pop = home_and_work(all_commute_data, pop_data, use_parallel=use_parallel, n_cpu=n_cpu)
 
     logger.info("Assign employers ...")
     base_pop = assign_employers_to_base_pop(base_pop, all_employers)

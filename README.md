@@ -1,9 +1,10 @@
 
+
 # Synthetic & Simulated Population (SysPop)
 
-Syspop is developed at [ESR](https://www.esr.cri.nz/home/about-esr/), led by Sijin.Zhang@esr.cri.nz. 
+<img src="etc/wiki_img/syspop_wiki.png" alt="Sample Image" width="20%">
 
-See the details of SysPop at [SysPop Wiki](https://github.com/jzanetti/Syspop/wiki)
+Syspop is developed at [ESR](https://www.esr.cri.nz/home/about-esr/), led by Sijin.Zhang@esr.cri.nz. **See the detailed documentation of SysPop at [SysPop Wiki](https://github.com/jzanetti/Syspop/wiki)**
 
 ## Motivations
 
