@@ -6,16 +6,15 @@
     <img src="etc/wiki_img/syspop_wiki.png" alt="Sample Image" width="30%">
 </p>
 
-Syspop is developed at [ESR](https://www.esr.cri.nz/home/about-esr/). **See the detailed documentation of SysPop at [SysPop Wiki](https://github.com/jzanetti/Syspop/wiki)**
-
-Contents:
+### Contents:
 
 * [Motivation](https://github.com/jzanetti/Syspop#motivations)
 * [Attributes](https://github.com/jzanetti/Syspop#attributes)
 * [Installation](https://github.com/jzanetti/Syspop#installation)
 
+**See the detailed documentation of SysPop at [SysPop Wiki](https://github.com/jzanetti/Syspop/wiki)**
 
-_Contact: Sijin.Zhang@esr.cri.nz_
+Syspop is developed at [ESR](https://www.esr.cri.nz/home/about-esr/). _Contact: Sijin.Zhang@esr.cri.nz_
 
 ## Motivation
 
