@@ -35,6 +35,20 @@ from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from funcs.commute.commute import create_home_to_work
 
+def create_hospital_wrapper(workdir: str):
+    """Create hospital wrapper (e.g., where is the hospital etc.)
+
+    Args:
+        workdir (str): Working directory
+    """
+    with open(join(workdir, "geography.pickle"), "rb") as fid:
+        geography_data = pickle_load(fid)
+
+    hopital_data = create_hospital(geography_data["location"])
+
+    with open(join(workdir, "hospital.pickle"), 'wb') as fid:
+        pickle_dump({"hospital": hopital_data}, fid)
+
 def create_school_wrapper(workdir: str):
     """Create school wrapper (e.g., where is the school etc.)
 

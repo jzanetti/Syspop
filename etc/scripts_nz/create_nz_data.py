@@ -5,6 +5,7 @@ from funcs.wrapper import (
     create_population_wrapper, 
     create_travel_wrapper,
     create_school_wrapper,
+    create_hospital_wrapper,
     create_work_wrapper)
 from os.path import exists
 from os import makedirs
@@ -13,8 +14,6 @@ def import_raw_data(workdir: str):
 
     if not exists(workdir):
         makedirs(workdir)
-
-    create_school_wrapper(workdir)
 
     # -----------------------------
     # Create geography
@@ -45,6 +44,11 @@ def import_raw_data(workdir: str):
     # Create school
     # -----------------------------
     create_school_wrapper(workdir)
+
+    # -----------------------------
+    # Create hospital
+    # -----------------------------
+    create_hospital_wrapper(workdir)
 
     """
     # -----------------------------

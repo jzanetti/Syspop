@@ -207,10 +207,8 @@ def create_school(
 
 
 def create_hospital(
-    workdir: str,
-    geography_hierarchy_definition: DataFrame,
     sa2_loc: DataFrame,
-):
+) -> DataFrame:
     """Write hospital locations
 
     Args:
@@ -236,28 +234,16 @@ def create_hospital(
 
     # Find the nearest location in A for each point in B
     nearest_indices = argmin(distances, axis=1)
-    data["sa2"] = sa2_loc["area"].iloc[nearest_indices].values
+    data["area"] = sa2_loc["area"].iloc[nearest_indices].values
 
-    geography_hierarchy_definition = (
-        geography_hierarchy_definition[["area", "super_area"]]
-        .drop_duplicates()
-        .rename(columns={"area": "sa2"})
-    )
+    data.drop(columns=["source_facility_id"], inplace=True)
 
-    merged_df = merge(data, geography_hierarchy_definition, on="sa2", how="left")
-
-    merged_df = merged_df.rename(
+    data = data.rename(
         columns={
-            "sa2": "area",
-            "source_facility_id": "code",
             "estimated_occupancy": "beds",
         }
     )
+    data.dropna(inplace=True)
+    data[["beds", "area"]] = data[["beds", "area"]].astype(int)
 
-    merged_df = merged_df.dropna(
-        subset=["beds", "super_area"], axis=0, how="any", inplace=False
-    )
-
-    merged_df[["beds", "super_area"]] = merged_df[["beds", "super_area"]].astype(int)
-
-    merged_df.to_csv(join(workdir, "hospital.csv"), index=False)
+    return data
