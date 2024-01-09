@@ -8,9 +8,16 @@
 
 Syspop is developed at [ESR](https://www.esr.cri.nz/home/about-esr/). **See the detailed documentation of SysPop at [SysPop Wiki](https://github.com/jzanetti/Syspop/wiki)**
 
+Contents:
+
+* [Motivation](https://github.com/jzanetti/Syspop#motivations)
+* [Attributes](https://github.com/jzanetti/Syspop#attributes)
+* [Installation](https://github.com/jzanetti/Syspop#installation)
+
+
 _Contact: Sijin.Zhang@esr.cri.nz_
 
-## Motivations
+## Motivation
 
 This is a repository for creating synthetic population using census data (or other data sources).
 
