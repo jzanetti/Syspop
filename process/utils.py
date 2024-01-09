@@ -6,34 +6,11 @@ from time import time
 
 from numpy import array, mean
 from yaml import safe_load as yaml_load
+from typing import Tuple, Any
+
+import ray
 
 logger = getLogger()
-
-
-def create_random_seed(factor=100000):
-    return factor * time()
-
-
-def get_params_increments(param_values_list):
-    if len(param_values_list) < 2:
-        return
-    param_values1 = param_values_list[-2]
-    param_values2 = param_values_list[-1]
-
-    if len(param_values1.shape) == 1:
-        param_values2 = array(param_values2.tolist())
-        param_values1 = array(param_values1.tolist())
-
-    elif len(param_values1.shape) == 3:
-        param_values1 = array(param_values1.tolist())[0, :, :]
-        param_values2 = array(param_values2.tolist())[0, :, :]
-
-        param_values1 = mean(param_values1, 0)
-        param_values2 = mean(param_values2, 0)
-
-    param_incre = (param_values2 - param_values1) / param_values1
-
-    logger.info(f"{param_incre}")
 
 
 def setup_logging(workdir: str = "/tmp", start_utc: datetime = datetime.utcnow()):

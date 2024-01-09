@@ -14,6 +14,8 @@ def import_raw_data(workdir: str):
     if not exists(workdir):
         makedirs(workdir)
 
+    create_school_wrapper(workdir)
+
     # -----------------------------
     # Create geography
     # -----------------------------

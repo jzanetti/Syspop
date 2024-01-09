@@ -7,6 +7,7 @@ from process.household import household_wrapper
 from process.social_economic import social_economic_wrapper
 from process.address import add_address_wrapper
 from process.work import work_and_commute_wrapper
+from process.school import school_wrapper
 from pickle import load as pickle_load
 from pickle import dump as pickle_dump
 
@@ -25,6 +26,9 @@ with open("/tmp/syspop/commute.pickle", "rb") as fid:
 with open("/tmp/syspop/work.pickle", "rb") as fid:
     work_data = pickle_load(fid)
 
+with open("/tmp/syspop/school.pickle", "rb") as fid:
+    school_data = pickle_load(fid)
+
 logger = setup_logging()
 
 create_base_pop_flag = False
@@ -32,7 +36,8 @@ assign_household_flag = False
 assign_socialeconomic_flag = False
 assign_address_flag = False
 assign_commute_flag = False
-assign_work_flag = True
+assign_work_flag = False
+assign_school_flag = False
 
 
 if create_base_pop_flag:
@@ -97,5 +102,19 @@ if assign_work_flag:
     with open("/tmp/synpop.pickle", 'wb') as fid:
         pickle_dump({"synpop": base_pop}, fid)
 
+
+if assign_school_flag:
+    with open("/tmp/synpop.pickle", "rb") as fid:
+        base_pop = pickle_load(fid)
+
+    base_pop = school_wrapper(
+        school_data["school"],
+        base_pop["synpop"], 
+        geog_data["hierarchy"])
+
+    with open("/tmp/synpop.pickle", 'wb') as fid:
+        pickle_dump({"synpop": base_pop}, fid)
+
 with open("/tmp/synpop.pickle", "rb") as fid:
     synpop_data = pickle_load(fid)
+    x = 3

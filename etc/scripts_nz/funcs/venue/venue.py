@@ -195,6 +195,14 @@ def create_school(
         ]
     ]
 
+    # make sure columns are in integer
+    for proc_key in ["area", "max_students", "age_min", "age_max"]:
+        data[proc_key] = data[proc_key].astype(int)
+
+    # make sure columns are in float
+    for proc_key in ["latitude", "longitude"]:
+        data[proc_key] = data[proc_key].astype(float)
+
     return data
 
 
