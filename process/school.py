@@ -30,8 +30,6 @@ def school_wrapper(
         school_data (DataFrame): School data
         pop_data (DataFrame): Base population data
         geography_hierarchy_data (DataFrame): Geography hierarchy data
-        use_parallel (bool, optional): If run the process in parallel. Defaults to False.
-        n_cpu (int, optional): Number of CPUs to be used. Defaults to 4.
 
     Returns:
         DataFrame: Updated population
@@ -64,7 +62,6 @@ def school_wrapper(
 
     processed_people = []
 
-    total_school_people = 3000
     for i in range(total_school_people):
 
         proc_people = school_population.iloc[[i]]
