@@ -12,6 +12,29 @@ from funcs import RAW_DATA, RAW_DATA_INFO, REGION_NAMES_CONVERSIONS
 from funcs.utils import get_central_point, haversine_distance
 
 
+def create_shared_space(space_name: str, geography_location: DataFrame):
+    """Write shared space
+
+    Args:
+        workdir (str): Working directory
+        space_name (str), name such as supermakrts
+    """
+    data = read_csv(RAW_DATA["venue"][space_name])
+    distances = cdist(
+        data[["lat", "lon"]],
+        geography_location[["latitude", "longitude"]],
+        lambda x, y: haversine_distance(x[0], x[1], y[0], y[1]),
+    )
+    # Find the nearest location in A for each point in B
+    nearest_indices = argmin(distances, axis=1)
+    data["area"] = geography_location["area"].iloc[nearest_indices].values
+
+    data.dropna(inplace=True)
+    data[["area"]] = data[["area"]].astype(int)
+    data = data.rename(columns={"lat": "latitude", "lon": "longitude"})
+
+    return data
+
 def write_leisures(workdir: str):
     """Write cinema information
 

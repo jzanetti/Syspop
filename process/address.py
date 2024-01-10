@@ -51,9 +51,9 @@ def assign_household_to_address(
     return pop_data_input
 
 
-def add_address_wrapper(
+def add_household_address(
         base_pop: DataFrame, 
-        address_data: DataFrame, 
+        address_data: DataFrame,
         use_parallel: bool = False, 
         n_cpu: int = 16) -> DataFrame:
     """Add address (lat and lon) to each household

@@ -177,7 +177,7 @@ def work_and_commute_wrapper(
         business_data["employer"], 
         business_data["employee"], 
         pop_data, 
-        commute_data["home_to_work"],
+        commute_data,
         use_parallel=use_parallel,
         n_cpu=n_cpu)
     

@@ -26,7 +26,7 @@ from funcs.population.population import (
 )
 from funcs.postproc import postproc
 
-from funcs.venue.venue import create_hospital, create_school, write_leisures
+from funcs.venue.venue import create_hospital, create_school, write_leisures, create_shared_space
 from funcs.utils import sort_column_by_names
 
 from os.path import join
@@ -34,6 +34,24 @@ from os.path import join
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from funcs.commute.commute import create_home_to_work
+
+
+def create_shared_space_wrapper(workdir: str, space_names: list = ["supermarket", "restaurant"]):
+    """Create shared space such as supermarket or restaurant
+         Compared to school/hospital, shared space is ther locations where
+         people may randomly interact.
+         Also, people may also just visit shared space nearby
+
+    Args:
+        workdir (str): Working directory
+    """
+    with open(join(workdir, "geography.pickle"), "rb") as fid:
+        geography_data = pickle_load(fid)
+
+    for space_name in space_names:
+        proc_data = create_shared_space(space_name, geography_data["location"])
+        with open(join(workdir, f"{space_name}.pickle"), 'wb') as fid:
+            pickle_dump({space_name: proc_data}, fid)
 
 def create_hospital_wrapper(workdir: str):
     """Create hospital wrapper (e.g., where is the hospital etc.)

@@ -55,7 +55,7 @@ def hospital_wrapper(
     pop_data = concat([pop_data, nearest_rows], axis=1)
 
     pop_data = pop_data.drop(columns=["latitude_hospital", "longitude_hospital", "beds", "area_hospital"])
-    pop_data = pop_data.rename(columns={"hospital_name": "hospital_1"})
+    pop_data = pop_data.rename(columns={"hospital_name": "primary_hospital"})
 
     # Step 2: get the second nearest hospital for each agents: 
     #         Set the distance of the nearest rows to infinity in the distance_matrix
@@ -71,9 +71,9 @@ def hospital_wrapper(
     pop_data = concat([pop_data, second_nearest_rows], axis=1)
 
     pop_data = pop_data.drop(columns=["latitude_hospital", "longitude_hospital", "beds", "area_hospital"])
-    pop_data = pop_data.rename(columns={"hospital_name": "hospital_2"})
-
+    pop_data = pop_data.rename(columns={"hospital_name": "secondary_hospital"})
 
     # Final, remove area lat/lon:
     pop_data = pop_data.drop(columns=["latitude", "longitude"])
+
     return pop_data

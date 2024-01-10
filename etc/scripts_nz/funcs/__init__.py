@@ -76,6 +76,8 @@ RAW_DATA = {
     "venue": {
         "hospital": "etc/data/raw_nz/nz-facilities-2022.csv",
         "school": "etc/data/raw_nz/nz-facilities-2022.csv",
+        "supermarket": "etc/data/raw_nz/shop_supermarket.csv",
+        "restaurant": "etc/data/raw_nz/amenity_restaurant.csv"
     },
 }
 

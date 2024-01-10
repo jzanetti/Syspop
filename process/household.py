@@ -9,6 +9,8 @@ from numpy import isnan
 import ray
 from logging import getLogger
 from datetime import datetime
+from process.address import add_household_address
+
 
 logger = getLogger()
 
@@ -359,7 +361,8 @@ def create_household_composition(
 
 def household_wrapper(
         houshold_dataset: DataFrame, 
-        base_pop: DataFrame, 
+        base_pop: DataFrame,
+        geo_address_data: DataFrame,
         use_parallel: bool = False, 
         n_cpu: int = 8) -> DataFrame:
     """Assign people to different households
@@ -420,6 +423,11 @@ def household_wrapper(
 
     total_mins = round((end_time - start_time).total_seconds() / 60.0 , 3)
     logger.info(f"Processing time (household): {total_mins}")
+
+    base_pop = add_household_address(
+        base_pop, 
+        geo_address_data,
+        use_parallel=False)
 
     return base_pop
         
