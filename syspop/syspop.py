@@ -5,8 +5,7 @@ from pickle import load as pickle_load
 from pandas import DataFrame
 from pandas import read_csv as pandas_read_csv
 from process.utils import setup_logging
-from process.validate import validate_gender_and_age
-from process.vis import validate_vis_barh
+from process.validate import validate_base_pop_and_age, validate_gender_and_age
 from wrapper_pop import (
     create_base_pop,
     create_hospital,
@@ -32,7 +31,17 @@ def validate(
     if not exists(val_dir):
         makedirs(val_dir)
 
-    validate_gender_and_age(val_dir, synpop_data, pop_gender)
+    validate_base_pop_and_age(
+        val_dir, synpop_data, pop_gender, "gender", ["male", "female"]
+    )
+
+    validate_base_pop_and_age(
+        val_dir,
+        synpop_data,
+        pop_ethnicity,
+        "ethnicity",
+        ["European", "Maori", "Pacific", "Asian", "MELAA"],
+    )
 
 
 def create(

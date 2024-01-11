@@ -1,11 +1,10 @@
-from pandas import DataFrame
-from numpy.random import choice
+from datetime import datetime
+from logging import getLogger
 from pickle import dump as pickle_dump
 
-from datetime import datetime
 import ray
-
-from logging import getLogger
+from numpy.random import choice
+from pandas import DataFrame
 
 logger = getLogger()
 
@@ -13,6 +12,7 @@ logger = getLogger()
 @ray.remote
 def create_base_pop_remote(output_area, age, df_gender_melt, df_ethnicity_melt):
     return create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt)
+
 
 def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
     population = []
@@ -22,8 +22,7 @@ def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
         ["gender", "prob", "count"],
     ]
     ethnicity_probs = df_ethnicity_melt.loc[
-        (df_ethnicity_melt["area"] == output_area)
-        & (df_ethnicity_melt["age"] == age),
+        (df_ethnicity_melt["area"] == output_area) & (df_ethnicity_melt["age"] == age),
         ["ethnicity", "prob", "count"],
     ]
 
@@ -55,11 +54,12 @@ def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
 
 
 def base_pop_wrapper(
-        gender_data: DataFrame, 
-        ethnicity_data: DataFrame,
-        output_area_filter: list or None, 
-        use_parallel: bool = False, 
-        n_cpu: int = 8) -> DataFrame:
+    gender_data: DataFrame,
+    ethnicity_data: DataFrame,
+    output_area_filter: list or None,
+    use_parallel: bool = False,
+    n_cpu: int = 8,
+) -> DataFrame:
     """Create base population
 
     Args:
@@ -85,9 +85,9 @@ def base_pop_wrapper(
     )
 
     # Normalize the data
-    df_gender_melt["prob"] = df_gender_melt.groupby(["area", "age"])[
-        "count"
-    ].transform(lambda x: x / x.sum())
+    df_gender_melt["prob"] = df_gender_melt.groupby(["area", "age"])["count"].transform(
+        lambda x: x / x.sum()
+    )
     df_ethnicity_melt["prob"] = df_ethnicity_melt.groupby(["area", "age"])[
         "count"
     ].transform(lambda x: x / x.sum())
@@ -105,7 +105,9 @@ def base_pop_wrapper(
         logger.info(f"Processing: {i}/{total_output_area}")
         for age in df_gender_melt["age"].unique():
             if use_parallel:
-                result = create_base_pop_remote.remote(output_area, age, df_gender_melt, df_ethnicity_melt)
+                result = create_base_pop_remote.remote(
+                    output_area, age, df_gender_melt, df_ethnicity_melt
+                )
             else:
                 result = create_base_pop(
                     output_area, age, df_gender_melt, df_ethnicity_melt

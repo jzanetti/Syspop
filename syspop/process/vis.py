@@ -1,6 +1,6 @@
 from os.path import join
 
-from matplotlib.pyplot import close, savefig, subplots
+from matplotlib.pyplot import axvline, close, savefig, subplots
 
 """
 def validate_households(truth: dict, data: dict):
@@ -26,6 +26,7 @@ def validate_vis_barh(
     output_dir: str,
     err_ratio: dict,
     data_title: str,
+    output_filename: str,
     x_label: str = None,
     y_label: str = None,
 ):
@@ -52,7 +53,8 @@ def validate_vis_barh(
     index = range(len(keys))
 
     # Create bars for 'x' and 'y'
-    ax.barh(index, list(x_vals), bar_width, color="b", label="x")
+    ax.barh(index, list(x_vals), bar_width, color="b", label="Error percentage")
+    axvline(x=0, color="red", linestyle="--", linewidth=2)
 
     # Labeling
     if x_label is not None:
@@ -65,6 +67,5 @@ def validate_vis_barh(
     ax.set_yticks(index)
     ax.set_yticklabels(keys)
     ax.legend()
-    data_title = data_title.replace(" ", "_")
-    savefig(join(output_dir, f"{data_title}.png"), bbox_inches="tight")
+    savefig(join(output_dir, f"{output_filename}.png"), bbox_inches="tight")
     close()

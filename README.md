@@ -26,6 +26,8 @@ pip install syspop
 
 ## Usage
 
+### syspop.create 
+
 A synthetic population can be created using:
 
 ```
@@ -56,7 +58,15 @@ syspop_create(
 
 Detailed descriptions of the input data for each argument can be found in [Input data](https://github.com/jzanetti/Syspop/wiki/Input-data).
 
-It's important to note that all arguments in the syspop.create function are optional, and their requirement depends on the specific synthetic information that needs to be generated. To understand the interdependencies between different synthetic information, refer to the documentation available [here](https://github.com/jzanetti/Syspop/wiki/Synthetic-population)
+It's important to note that all arguments in the ``syspop.create`` function are optional, and their requirement depends on the specific synthetic information that needs to be generated. To understand the interdependencies between different synthetic information, refer to the documentation available [here](https://github.com/jzanetti/Syspop/wiki/Synthetic-population)
+
+### syspop.validate
+
+The produced syntehtic population from ``syspop.create`` can be validated using the function of ``syspop.validate``:
+
+_under development_
+
+
 
 ## Release (for developer)
 The package can be released by running:
