@@ -1,31 +1,31 @@
-import syspop
+from syspop import syspop
 from pickle import load as pickle_load
 
-with open("/tmp/syspop/population.pickle", "rb") as fid:
+with open("etc/data/test_data/population.pickle", "rb") as fid:
     pop_data = pickle_load(fid)
 
-with open("/tmp/syspop/geography.pickle", "rb") as fid:
+with open("etc/data/test_data/geography.pickle", "rb") as fid:
     geog_data = pickle_load(fid)
 
-with open("/tmp/syspop/household.pickle", "rb") as fid:
+with open("etc/data/test_data/household.pickle", "rb") as fid:
     household_data = pickle_load(fid)
 
-with open("/tmp/syspop/commute.pickle", "rb") as fid:
+with open("etc/data/test_data/commute.pickle", "rb") as fid:
     commute_data = pickle_load(fid)
 
-with open("/tmp/syspop/work.pickle", "rb") as fid:
+with open("etc/data/test_data/work.pickle", "rb") as fid:
     work_data = pickle_load(fid)
 
-with open("/tmp/syspop/school.pickle", "rb") as fid:
+with open("etc/data/test_data/school.pickle", "rb") as fid:
     school_data = pickle_load(fid)
 
-with open("/tmp/syspop/hospital.pickle", "rb") as fid:
+with open("etc/data/test_data/hospital.pickle", "rb") as fid:
     hospital_data = pickle_load(fid)
 
-with open("/tmp/syspop/supermarket.pickle", "rb") as fid:
+with open("etc/data/test_data/supermarket.pickle", "rb") as fid:
     supermarket_data = pickle_load(fid)
 
-with open("/tmp/syspop/restaurant.pickle", "rb") as fid:
+with open("etc/data/test_data/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
 
