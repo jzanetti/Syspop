@@ -1,4 +1,7 @@
-from syspop import syspop
+
+# export PYTHONPATH=/home/zhangs/Github/Syspop/syspop
+
+from syspop import create as syspop_create
 from pickle import load as pickle_load
 
 with open("etc/data/test_data/population.pickle", "rb") as fid:
@@ -29,7 +32,7 @@ with open("etc/data/test_data/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
 
-syspop.create(
+syspop_create(
     syn_areas = [135400, 111400, 110400],
     output_dir = "/tmp/syspop_test",
     pop_gender = pop_data["gender"],
