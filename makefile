@@ -24,3 +24,21 @@ upload_data:
 	git add "etc/data/raw_nz"
 	git commit -m "add large data"
 	git push
+
+# -----------------------
+# Publication
+# -----------------------
+build_pkg:
+	rm -rf $(PKG).egg*
+	rm -rf dist
+	python setup.py sdist bdist_wheel
+	pip install .
+
+install_twine:
+	pip install twine
+
+
+upload_pkg: 
+	twine upload dist/*
+
+publish: build_pkg upload_pkg

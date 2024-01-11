@@ -3,3 +3,7 @@ __pycache__
 cache
 .log.swp
 etc/data
+build
+cache
+dist
+*.egg-info
