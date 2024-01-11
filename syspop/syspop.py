@@ -1,3 +1,4 @@
+from logging import getLogger
 from os import makedirs
 from os.path import exists, join
 from pickle import load as pickle_load
@@ -5,7 +6,7 @@ from pickle import load as pickle_load
 from pandas import DataFrame
 from pandas import read_csv as pandas_read_csv
 from process.utils import setup_logging
-from process.validate import validate_base_pop_and_age, validate_gender_and_age
+from process.validate import validate_base_pop_and_age, validate_household
 from wrapper_pop import (
     create_base_pop,
     create_hospital,
@@ -16,6 +17,8 @@ from wrapper_pop import (
     create_supermarket,
     create_work,
 )
+
+logger = getLogger()
 
 
 def validate(
@@ -31,10 +34,15 @@ def validate(
     if not exists(val_dir):
         makedirs(val_dir)
 
+    logger.info("Validating household ...")
+    validate_household(val_dir, synpop_data, household)
+
+    logger.info("Validating base population (gender) ...")
     validate_base_pop_and_age(
         val_dir, synpop_data, pop_gender, "gender", ["male", "female"]
     )
 
+    logger.info("Validating base population (ethnicity) ...")
     validate_base_pop_and_age(
         val_dir,
         synpop_data,

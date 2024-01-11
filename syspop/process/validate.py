@@ -1,5 +1,59 @@
-from pandas import DataFrame
+from pandas import DataFrame, merge
 from process.vis import validate_vis_barh
+
+
+def validate_household(
+    val_dir: str, synpop_data: DataFrame, household_census_data: DataFrame
+):
+    """Validate household (e.g., The number of household based on
+    the number of children)
+
+    Args:
+        val_dir (str): Validation directory
+        synpop_data (DataFrame): Synthetic population
+        household_census_data (DataFrame): Census data
+    """
+    synpop_area = set(synpop_data["area"])
+    census_area = set(household_census_data["area"])
+
+    # Find the intersection of sets
+    overlapping_areas = list(synpop_area.intersection(census_area))
+
+    # get model:
+    data_model = synpop_data[["area", "household"]]
+    data_model = data_model[data_model["area"].isin(overlapping_areas)]
+    data_model["children_num"] = data_model["household"].str.split("_").str[1]
+
+    # get truth:
+    data_truth = household_census_data[
+        household_census_data["area"].isin(overlapping_areas)
+    ]
+
+    # Convert the extracted values to numeric if needed
+    data_model["children_num"] = data_model["children_num"].astype(int)
+
+    err_ratio = {}
+
+    for proc_children_num in [0, 1, 2, 3, 4]:
+        data_truth[proc_children_num] = data_truth[proc_children_num].astype(int)
+        proc_truth = data_truth[proc_children_num].sum()
+        proc_model = data_model["children_num"].value_counts().get(proc_children_num, 0)
+
+        proc_model = data_model.loc[data_model["children_num"] == proc_children_num]
+
+        # Extract unique households from the filtered DataFrame
+        proc_model = len(proc_model["household"].unique())
+
+        err_ratio[proc_children_num] = 100.0 * (proc_model - proc_truth) / proc_truth
+
+    validate_vis_barh(
+        val_dir,
+        err_ratio,
+        f"Validation: number of children in a household",
+        f"validation_household",
+        "Error (%): (model - truth) / truth",
+        "Number of children",
+    )
 
 
 def validate_base_pop_and_age(
@@ -101,114 +155,6 @@ def validate_base_pop_and_age(
             proc_err_ratio,
             f"Validation {key_to_verify} (distribution) and age {proc_value}",
             f"validation_age_{key_to_verify}_{proc_value}",
-            "Error (%): (model - truth) / truth",
-            "Age",
-        )
-
-
-def validate_gender_and_age(
-    val_dir: str, synpop_data: DataFrame, pop_gender: DataFrame, age_interval: int = 10
-) -> dict:
-    """Validate the data for gender and age
-
-    Args:
-        synpop_data (DataFrame): synthetic population data
-        pop_gender (DataFrame): census gender data
-        age_interval (int, optional): age interval to be used. Defaults to 10.
-
-    Returns:
-        dict: error information
-    """
-
-    pop_gender_truth = pop_gender[
-        pop_gender["area"].isin(list(synpop_data["area"].unique()))
-    ]
-
-    for proc_gender in ["male", "female", "total"]:
-        # ---------------------------
-        # Step 1: Get truth data
-        # ---------------------------
-        if proc_gender == "total":
-            pop_gender_truth_verif = pop_gender_truth
-        else:
-            pop_gender_truth_verif = pop_gender_truth[
-                pop_gender_truth["gender"] == proc_gender
-            ]
-
-        all_ages_list = [
-            item
-            for item in list(pop_gender_truth_verif.columns)
-            if item not in ["area", "gender"]
-        ]
-
-        pop_gender_truth_verif = {
-            col: pop_gender_truth_verif[col].sum() for col in all_ages_list
-        }
-
-        # ---------------------------
-        # Step 2: Get model data
-        # ---------------------------
-        if proc_gender == "total":
-            pop_gender_model_verif = synpop_data.groupby("age").size().to_dict()
-        else:
-            pop_gender_model_verif = (
-                synpop_data[synpop_data["gender"] == proc_gender]
-                .groupby("age")
-                .size()
-                .to_dict()
-            )
-
-        pop_gender_model_verif = {
-            key: pop_gender_model_verif.get(key, 0) for key in all_ages_list
-        }
-
-        # ---------------------------
-        # Step 3: sum the number of people from the age of
-        # interval of 1 years to age_interval
-        # ---------------------------
-        min_age = min(all_ages_list)
-        max_age = max(all_ages_list)
-        pop_gender_truth_verif_sum = {}
-        pop_gender_model_verif_sum = {}
-        for i in range(min_age, max_age + 1, age_interval):
-            pop_gender_truth_verif_sum[i] = sum(
-                pop_gender_truth_verif[j]
-                for j in range(
-                    i,
-                    i + age_interval if i + age_interval <= max_age else max_age + 1,
-                )
-            )
-
-            pop_gender_model_verif_sum[i] = sum(
-                pop_gender_model_verif[j]
-                for j in range(
-                    i,
-                    i + age_interval if i + age_interval <= max_age else max_age + 1,
-                )
-            )
-
-        # ---------------------------
-        # step 4: Get error ratio
-        # ---------------------------
-        proc_err_ratio = {}
-        for proc_key in range(min_age, max_age + 1, age_interval):
-            proc_err_ratio[proc_key] = (
-                100.0
-                * (
-                    pop_gender_model_verif_sum[proc_key]
-                    - pop_gender_truth_verif_sum[proc_key]
-                )
-                / pop_gender_truth_verif_sum[proc_key]
-            )
-
-        # ---------------------------
-        # step 5: Vis
-        # ---------------------------
-        validate_vis_barh(
-            val_dir,
-            proc_err_ratio,
-            f"Validation gender (distribution) and age {proc_gender}",
-            f"validation_age_{proc_gender}",
             "Error (%): (model - truth) / truth",
             "Age",
         )
