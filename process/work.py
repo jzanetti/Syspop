@@ -6,6 +6,8 @@ from numpy import NaN
 from numpy import vectorize as numpy_vectorize
 from logging import getLogger
 from process.commute import shared_transport
+from copy import deepcopy
+from process.address import add_random_address
 
 logger = getLogger()
 
@@ -153,8 +155,10 @@ def create_employers(employer_input: DataFrame, employer_num_factor: float = 1.0
 def work_and_commute_wrapper(
     business_data: dict,
     pop_data: DataFrame, 
+    base_address: DataFrame,
     commute_data: DataFrame,
     geo_hirarchy_data: DataFrame,
+    geo_address_data: DataFrame or None = None,
     use_parallel: bool = False,
     n_cpu: int = 4) -> DataFrame:
     """Create business and commute data
@@ -181,9 +185,17 @@ def work_and_commute_wrapper(
         use_parallel=use_parallel,
         n_cpu=n_cpu)
     
+    if geo_address_data is not None:
+        proc_address_data = add_random_address(
+            deepcopy(base_pop),
+            geo_address_data,
+            "company",
+            use_parallel=use_parallel)
+        base_address = concat([base_address, proc_address_data])
+
     base_pop = shared_transport(base_pop, geo_hirarchy_data)
 
-    return base_pop
+    return base_pop, base_address
 
 def work_wrapper(
         employer_data: DataFrame, 

@@ -21,7 +21,9 @@ def create_school_names(school_data: DataFrame) -> DataFrame:
 def school_wrapper(        
         school_data: DataFrame, 
         pop_data: DataFrame,
-        geography_hierarchy_data) -> DataFrame:
+        address_data: DataFrame,
+        geography_hierarchy_data: DataFrame,
+        assign_address_flag: bool = False) -> DataFrame:
     """Wrapper to assign school to individuals (Note this is a very slow process)
     We are not able to use multiprocessing since the school data 
     (e.g., how many people already in the school) is dynamically updated
@@ -62,6 +64,9 @@ def school_wrapper(
 
     processed_people = []
 
+    if assign_address_flag:
+        school_address = {"name": [], "latitude": [], "longitude": []}
+
     for i in range(total_school_people):
 
         proc_people = school_population.iloc[[i]]
@@ -93,7 +98,13 @@ def school_wrapper(
             students_in_this_school = school_assigned_people[proc_school_name]
             
             if students_in_this_school <= proc_school["max_students"].values[0]:
-                
+
+                # store the address of a school
+                if assign_address_flag and (proc_school_name not in school_address):
+                    school_address["name"].append(proc_school_name)
+                    school_address["latitude"].append(float(proc_school["latitude"].values[0]))
+                    school_address["longitude"].append(float(proc_school["longitude"].values[0]))
+
                 proc_people["school"] = proc_school_name
                 processed_people.append(proc_people)
                 break
@@ -106,6 +117,11 @@ def school_wrapper(
 
     pop_data = pop_data.drop(columns=["super_area", "region"])
 
+    if assign_address_flag:
+        school_address_df = DataFrame.from_dict(school_address)
+        school_address_df["type"] = "school"
+        address_data = concat([address_data, school_address_df])
+
     logger.info(f"School processing runtime: {round(((datetime.utcnow() - start_time).total_seconds()) / 60.0, 3)}")
 
-    return pop_data
+    return pop_data, address_data

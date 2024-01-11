@@ -23,9 +23,11 @@ def create_hospital_names(hospital_data: DataFrame) -> DataFrame:
     return hospital_data
 
 def hospital_wrapper(
-        hospital_data: DataFrame, 
+        hospital_data: DataFrame,
         pop_data: DataFrame,
-        geography_location_data: DataFrame):
+        address_data: DataFrame,
+        geography_location_data: DataFrame,
+        assign_address_flag: bool = False):
     """Create the nearest and second nearest hospital for each agent
 
     Args:
@@ -70,10 +72,36 @@ def hospital_wrapper(
     # Concatenate X1 and second_nearest_rows
     pop_data = concat([pop_data, second_nearest_rows], axis=1)
 
+    # Save address if needed:
+    if assign_address_flag:
+        address_data = get_hospital_address(pop_data, address_data)
+
     pop_data = pop_data.drop(columns=["latitude_hospital", "longitude_hospital", "beds", "area_hospital"])
     pop_data = pop_data.rename(columns={"hospital_name": "secondary_hospital"})
 
     # Final, remove area lat/lon:
     pop_data = pop_data.drop(columns=["latitude", "longitude"])
 
-    return pop_data
+    return pop_data, address_data
+
+
+def get_hospital_address(pop_data: DataFrame, address_data: DataFrame) -> DataFrame:
+    """Get hospital data address
+
+    Args:
+        pop_data (DataFrame): _description_
+
+    Returns:
+        DataFrame: _description_
+    """
+    unique_hospitals = pop_data[["hospital_name", "latitude_hospital", "longitude_hospital"]].drop_duplicates()
+    unique_hospitals = unique_hospitals.rename(columns={
+        "hospital_name": "name",
+        "latitude_hospital": "latitude",
+        "longitude_hospital": "longitude"
+    })
+    unique_hospitals["type"] = "hospital"
+
+    address_data = concat([address_data, unique_hospitals])
+
+    return address_data

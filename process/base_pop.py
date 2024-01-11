@@ -121,7 +121,10 @@ def base_pop_wrapper(
     end_time = datetime.utcnow()
     total_mins = (end_time - start_time).total_seconds() / 60.0
 
+    # create an empty address dataset
+    base_address = DataFrame(columns=["type", "name", "latitude", "longitude"])
+
     logger.info(f"Processing time (base population): {total_mins}")
 
     # Convert the population to a DataFrame
-    return DataFrame(population)
+    return DataFrame(population), base_address

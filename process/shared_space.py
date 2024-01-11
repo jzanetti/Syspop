@@ -6,8 +6,10 @@ def shared_space_wrapper(
         shared_space_name: str,
         shared_space_data: DataFrame, 
         pop_data: DataFrame,
+        address_data: DataFrame,
         geography_location_data: DataFrame,
-        num_nearest: int = 3):
+        num_nearest: int = 3,
+        assign_address_flag: bool = False):
     """Create synthetic shared space data
 
     Args:
@@ -54,4 +56,41 @@ def shared_space_wrapper(
 
     pop_data[shared_space_name] = pop_data[shared_space_name].str.rstrip(",")
     pop_data = pop_data.drop(columns=["latitude", "longitude"])
-    return pop_data
+
+    if assign_address_flag:
+        address_data = add_shared_space_address(
+            pop_data, 
+            shared_space_data, 
+            address_data, 
+            shared_space_name)
+
+    return pop_data, address_data
+
+
+def add_shared_space_address(pop_data: DataFrame, shared_space_data: DataFrame, address_data: DataFrame, shared_space_name: str) -> DataFrame:
+    """Add shared space address
+
+    Args:
+        shared_space_data (DataFrame): _description_
+        address_data (DataFrame): _description_
+
+    Returns:
+        DataFrame: Updated address dataset
+    """
+    unique_shared_space = list(set(pop_data[shared_space_name].str.split(',').explode()))
+
+    # get the lat/lon for unique shared space
+    unique_shared_space = (
+        shared_space_data[
+            shared_space_data[shared_space_name].apply(
+                lambda x: any(item in x for item in unique_shared_space))]).drop_duplicates()
+
+    unique_shared_space = unique_shared_space.rename(columns={
+        shared_space_name: "name",
+        f"latitude_{shared_space_name}": "latitude",
+        f"longitude_{shared_space_name}": "longitude"
+    })
+
+    unique_shared_space["type"] = shared_space_name
+
+    return concat([address_data, unique_shared_space])
