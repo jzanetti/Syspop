@@ -1,8 +1,8 @@
-
 # export PYTHONPATH=/home/zhangs/Github/Syspop/syspop
 
-from syspop import create as syspop_create
 from pickle import load as pickle_load
+
+from syspop import create as syspop_create
 
 with open("etc/data/test_data/population.pickle", "rb") as fid:
     pop_data = pickle_load(fid)
@@ -33,23 +33,23 @@ with open("etc/data/test_data/restaurant.pickle", "rb") as fid:
 
 
 syspop_create(
-    syn_areas = [135400, 111400, 110400],
-    output_dir = "/tmp/syspop_test",
-    pop_gender = pop_data["gender"],
-    pop_ethnicity = pop_data["ethnicity"],
-    geo_hierarchy = geog_data["hierarchy"],
-    geo_location = geog_data["location"],
-    geo_address = geog_data["address"],
-    household = household_data["household"],
-    socialeconomic = geog_data["socialeconomic"],
-    work_data = work_data,
-    home_to_work = commute_data["home_to_work"],
-    school_data = school_data["school"],
-    hospital_data = hospital_data["hospital"],
-    supermarket_data = supermarket_data["supermarket"],
-    restaurant_data = restaurant_data["restaurant"],
-    assign_address_flag = True,
-    rewrite_base_pop = True,
-    use_parallel = True,
-    ncpu = 8
+    syn_areas=[135400, 111400, 110400],
+    output_dir="/tmp/syspop_test",
+    pop_gender=pop_data["gender"],
+    pop_ethnicity=pop_data["ethnicity"],
+    geo_hierarchy=geog_data["hierarchy"],
+    geo_location=geog_data["location"],
+    geo_address=geog_data["address"],
+    household=household_data["household"],
+    socialeconomic=geog_data["socialeconomic"],
+    work_data=work_data,
+    home_to_work=commute_data["home_to_work"],
+    school_data=school_data["school"],
+    hospital_data=hospital_data["hospital"],
+    supermarket_data=supermarket_data["supermarket"],
+    restaurant_data=restaurant_data["restaurant"],
+    assign_address_flag=True,
+    rewrite_base_pop=True,
+    use_parallel=True,
+    ncpu=8,
 )

@@ -7,3 +7,5 @@ build
 cache
 dist
 *.egg-info
+.eggs*
+.vscode
