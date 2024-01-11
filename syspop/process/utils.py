@@ -1,14 +1,8 @@
 from datetime import datetime
-from gc import collect
 from logging import INFO, Formatter, StreamHandler, basicConfig, getLogger
 from os.path import join
-from time import time
 
-from numpy import array, mean
 from yaml import safe_load as yaml_load
-from typing import Tuple, Any
-
-import ray
 
 logger = getLogger()
 
@@ -19,7 +13,9 @@ def setup_logging(workdir: str = "/tmp", start_utc: datetime = datetime.utcnow()
     Returns:
         object: a logging object
     """
-    formatter = Formatter("%(asctime)s - %(name)s.%(lineno)d - %(levelname)s - %(message)s")
+    formatter = Formatter(
+        "%(asctime)s - %(name)s.%(lineno)d - %(levelname)s - %(message)s"
+    )
     ch = StreamHandler()
     ch.setLevel(INFO)
     ch.setFormatter(formatter)

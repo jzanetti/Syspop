@@ -14,6 +14,7 @@ The documentation for the package can be found [here](https://github.com/jzanett
 
 * [Installation](https://github.com/jzanetti/Syspop#installation)
 * [Usage](https://github.com/jzanetti/Syspop#usage)
+* [Release (for developer)](https://github.com/jzanetti/Syspop#release-for-developer)
 
 **Detailed documentation of SysPop can be found at [SysPop Wiki](https://github.com/jzanetti/Syspop/wiki)**
 
@@ -63,3 +64,5 @@ The package can be released by running:
 ```
 make publish
 ```
+
+Note that before the release, it is suggested to check the latest version by ``make pkg_version``, and then adjust the version number in ``setup.py`` accordingly.

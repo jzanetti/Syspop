@@ -3,6 +3,10 @@ from os.path import exists, join
 from pickle import load as pickle_load
 
 from pandas import DataFrame
+from pandas import read_csv as pandas_read_csv
+from process.utils import setup_logging
+from process.validate import validate_gender_and_age
+from process.vis import validate_vis_barh
 from wrapper_pop import (
     create_base_pop,
     create_hospital,
@@ -13,6 +17,22 @@ from wrapper_pop import (
     create_supermarket,
     create_work,
 )
+
+
+def validate(
+    output_dir: str = "",
+    pop_gender: DataFrame = None,  # census
+    pop_ethnicity: DataFrame = None,  # census
+    household: DataFrame or None = None,  # census
+):
+    syn_pop_path = join(output_dir, "syspop_base.csv")
+    synpop_data = pandas_read_csv(syn_pop_path)
+
+    val_dir = join(output_dir, "val")
+    if not exists(val_dir):
+        makedirs(val_dir)
+
+    validate_gender_and_age(val_dir, synpop_data, pop_gender)
 
 
 def create(
@@ -92,7 +112,10 @@ def create(
 
     tmp_data_path = join(tmp_dir, "synpop.pickle")
 
+    logger = setup_logging(workdir=output_dir)
+
     if (not exists(tmp_data_path)) or rewrite_base_pop:
+        logger.info("Creating base population ...")
         _check_dependancies(
             "base_pop", deps_list=["pop_gender", "pop_ethnicity", "syn_areas"]
         )
@@ -101,6 +124,7 @@ def create(
         )
 
     if household is not None:
+        logger.info("Adding household ...")
         _check_dependancies("household", address_deps=["geo_address"])
         create_household(tmp_data_path, household, geo_address, use_parallel, ncpu)
 
@@ -113,6 +137,7 @@ def create(
             deps_list=["home_to_work", "geo_hierarchy"],
             address_deps=["geo_address"],
         )
+        logger.info("Adding work ...")
         create_work(
             tmp_data_path,
             work_data,
@@ -125,20 +150,24 @@ def create(
 
     if school_data is not None:
         _check_dependancies("school", deps_list=["geo_hierarchy"], address_deps=[])
+        logger.info("Adding school ...")
         create_school(tmp_data_path, school_data, geo_hierarchy, assign_address_flag)
 
     if hospital_data is not None:
         _check_dependancies("hospital", deps_list=["geo_hierarchy"], address_deps=[])
+        logger.info("Adding hospital ...")
         create_hospital(tmp_data_path, hospital_data, geo_location, assign_address_flag)
 
     if supermarket_data is not None:
         _check_dependancies("supermarket", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding supermarket ...")
         create_supermarket(
             tmp_data_path, supermarket_data, geo_location, assign_address_flag
         )
 
     if restaurant_data is not None:
         _check_dependancies("restauraunt", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding restauraunt ...")
         create_restauraunt(
             tmp_data_path, restaurant_data, geo_location, assign_address_flag
         )

@@ -28,6 +28,9 @@ upload_data:
 # -----------------------
 # Publication
 # -----------------------
+pkg_version:
+	pip index versions syspop
+
 build_pkg:
 	rm -rf $(PKG).egg*
 	rm -rf dist
