@@ -2,7 +2,7 @@
 
 from pickle import load as pickle_load
 
-from syspop import create as syspop_create
+from syspop.syspop import create as syspop_create
 
 with open("etc/data/test_data/population.pickle", "rb") as fid:
     pop_data = pickle_load(fid)
