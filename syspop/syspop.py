@@ -2,7 +2,8 @@ from os import makedirs
 from os.path import exists, join
 from pickle import load as pickle_load
 
-from create_pop import (
+from pandas import DataFrame
+from wrapper_pop import (
     create_base_pop,
     create_hospital,
     create_household,
@@ -12,7 +13,6 @@ from create_pop import (
     create_supermarket,
     create_work,
 )
-from pandas import DataFrame
 
 
 def create(
