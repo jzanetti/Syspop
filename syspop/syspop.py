@@ -6,7 +6,11 @@ from pickle import load as pickle_load
 from pandas import DataFrame
 from pandas import read_csv as pandas_read_csv
 from process.utils import setup_logging
-from process.validate import validate_base_pop_and_age, validate_household
+from process.validate import (
+    validate_base_pop_and_age,
+    validate_household,
+    validate_work,
+)
 from wrapper_pop import (
     create_base_pop,
     create_hospital,
@@ -26,6 +30,7 @@ def validate(
     pop_gender: DataFrame = None,  # census
     pop_ethnicity: DataFrame = None,  # census
     household: DataFrame or None = None,  # census
+    work_data: DataFrame or None = None,  # census
 ):
     syn_pop_path = join(output_dir, "syspop_base.csv")
     synpop_data = pandas_read_csv(syn_pop_path)
@@ -33,6 +38,9 @@ def validate(
     val_dir = join(output_dir, "val")
     if not exists(val_dir):
         makedirs(val_dir)
+
+    logger.info("Valdating work ...")
+    validate_work(val_dir, synpop_data, work_data)
 
     logger.info("Validating household ...")
     validate_household(val_dir, synpop_data, household)

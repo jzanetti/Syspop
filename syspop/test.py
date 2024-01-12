@@ -70,4 +70,5 @@ if if_run_validation:
         pop_gender=pop_data["gender"],
         pop_ethnicity=pop_data["ethnicity"],
         household=household_data["household"],
+        work_data=work_data,
     )

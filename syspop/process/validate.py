@@ -2,6 +2,71 @@ from pandas import DataFrame, merge
 from process.vis import validate_vis_barh
 
 
+def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
+    """Get overlapped areas between area1 and area2
+
+    Args:
+        area1 (DataFrame): area1 dataset
+        area2 (DataFrame): area2 dataset
+
+    Returns:
+        list: the list of overlapped areas
+    """
+    area1 = set(area1)
+    area2 = set(area2)
+
+    # Find the intersection of sets
+    return list(area1.intersection(area2))
+
+
+def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFrame):
+    """Validate work data
+
+    Args:
+        val_dir (str): Validation directory
+        synpop_data (DataFrame): Synthetic population
+        work_census_data (DataFrame): Work census dataset
+    """
+    for work_type in ["employer", "employee"]:
+        census_data = work_census_data[work_type]
+
+        # Find the intersection of areas
+        all_areas = get_overlapped_areas(synpop_data["area"], census_data["area"])
+        truth_data = census_data[census_data["area"].isin(all_areas)]
+        model_data = synpop_data[synpop_data["area"].isin(all_areas)][
+            ["area", "company"]
+        ]
+        model_data = model_data[model_data["company"].notna()]
+        model_data["business_code"] = model_data["company"].str.split("_").str[0]
+
+        all_business_code = list(census_data["business_code"].unique())
+
+        err_ratio = {}
+        for proc_code in all_business_code:
+            total_truth = truth_data[truth_data["business_code"] == proc_code][
+                f"{work_type}_number"
+            ].sum()
+            if work_type == "employee":
+                total_model = len(model_data[model_data["business_code"] == proc_code])
+            elif work_type == "employer":
+                total_model = len(
+                    model_data[model_data["business_code"] == proc_code][
+                        "company"
+                    ].unique()
+                )
+
+            err_ratio[proc_code] = 100.0 * (total_model - total_truth) / total_truth
+
+        validate_vis_barh(
+            val_dir,
+            err_ratio,
+            f"Validation: number of {work_type} for different sectors",
+            f"validation_work_{work_type}",
+            "Error (%): (model - truth) / truth",
+            "Business code",
+        )
+
+
 def validate_household(
     val_dir: str, synpop_data: DataFrame, household_census_data: DataFrame
 ):
