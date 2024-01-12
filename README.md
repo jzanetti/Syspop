@@ -76,7 +76,7 @@ syspop_validate(
 )
 ```
 
-The above codes provide validation for the produced synthetic population, which must be stored in ``<output_dir>/syspop_base.csv``.
+The above codes provide validation for the produced synthetic population, which must be stored in ``<output_dir>/syspop_base.csv``. Details for synthetic population validation can be found [here](https://github.com/jzanetti/Syspop/wiki/Validation).
 
 ## Release (for developer)
 The package can be released by running:
