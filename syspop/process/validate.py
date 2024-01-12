@@ -1,5 +1,5 @@
 from pandas import DataFrame, merge
-from process.vis import validate_vis_barh
+from process.vis import validate_vis_barh, validate_vis_plot
 
 
 def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
@@ -17,6 +17,109 @@ def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
 
     # Find the intersection of sets
     return list(area1.intersection(area2))
+
+
+def validate_commute_area(
+    val_dir: str,
+    synpop_data: DataFrame,
+    commute_census_data: DataFrame,
+):
+    """Validate commute (work-home area)
+
+    Args:
+        val_dir (str): Validation directory
+        synpop_data (DataFrame): Synthetic population
+        commute_census_data (DataFrame): Commute census dataset
+    """
+    all_areas = get_overlapped_areas(
+        synpop_data["area"], commute_census_data["area_home"]
+    )
+
+    model_data = synpop_data[synpop_data["area"].isin(all_areas)][["area", "area_work"]]
+    model_data = model_data[model_data["area_work"] != -9999]
+    model_data = (
+        model_data.groupby(["area", "area_work"]).size().reset_index(name="total")
+    )
+    model_data = model_data.rename(columns={"area": "area_home"})
+
+    truth_data = commute_census_data[commute_census_data["area_home"].isin(all_areas)]
+    truth_data["total"] = truth_data[
+        [col for col in truth_data.columns if col not in ["area_home", "area_work"]]
+    ].sum(axis=1)
+    truth_data = truth_data[["area_home", "area_work", "total"]]
+
+    # get all unique home <-> work
+    unique_area_combinations = truth_data[["area_home", "area_work"]].drop_duplicates()
+
+    err_ratio = []
+    for i, proc_combination in unique_area_combinations.iterrows():
+        proc_truth = truth_data[
+            (truth_data["area_home"] == proc_combination["area_home"])
+            & (truth_data["area_work"] == proc_combination["area_work"])
+        ]["total"].values[0]
+
+        proc_model = model_data[
+            (model_data["area_home"] == proc_combination["area_home"])
+            & (model_data["area_work"] == proc_combination["area_work"])
+        ]
+
+        if len(proc_model) == 0:
+            continue
+
+        proc_model = proc_model["total"].values[0]
+
+        err_ratio.append(100.0 * (proc_model - proc_truth) / proc_truth)
+
+    validate_vis_plot(
+        val_dir,
+        err_ratio,
+        "Home and work commute",
+        "validation_work_commute",
+        "Area (between home and work)",
+        "Error (%): (model - truth) / truth",
+    )
+
+
+def validate_commute_mode(
+    val_dir: str,
+    synpop_data: DataFrame,
+    commute_census_data: DataFrame,
+):
+    """Validate commute (commute mode)
+
+    Args:
+        val_dir (str): Validation directory
+        synpop_data (DataFrame): Synthetic population
+        commute_census_data (DataFrame): Commute census dataset
+    """
+    all_areas = get_overlapped_areas(
+        synpop_data["area"], commute_census_data["area_home"]
+    )
+
+    model_data = synpop_data[synpop_data["area"].isin(all_areas)][["travel_mode_work"]]
+    model_data = model_data.dropna()
+    truth_data = commute_census_data[commute_census_data["area_home"].isin(all_areas)]
+
+    all_travel_methods = list(model_data["travel_mode_work"].unique())
+
+    err_ratio = {}
+    for proc_travel_method in all_travel_methods:
+        proc_model_data = len(
+            model_data[model_data["travel_mode_work"] == proc_travel_method]
+        )
+        proc_truth_data = truth_data[proc_travel_method].sum()
+        err_ratio[proc_travel_method] = (
+            100.0 * (proc_model_data - proc_truth_data) / proc_truth_data
+        )
+
+    validate_vis_barh(
+        val_dir,
+        err_ratio,
+        f"Validation: travel modes",
+        f"validation_work_travel_modes",
+        "Error (%): (model - truth) / truth",
+        "Travel methods",
+    )
 
 
 def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFrame):
@@ -78,11 +181,9 @@ def validate_household(
         synpop_data (DataFrame): Synthetic population
         household_census_data (DataFrame): Census data
     """
-    synpop_area = set(synpop_data["area"])
-    census_area = set(household_census_data["area"])
-
-    # Find the intersection of sets
-    overlapping_areas = list(synpop_area.intersection(census_area))
+    overlapping_areas = get_overlapped_areas(
+        synpop_data["area"], household_census_data["area"]
+    )
 
     # get model:
     data_model = synpop_data[["area", "household"]]

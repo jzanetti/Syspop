@@ -64,9 +64,19 @@ It's important to note that all arguments in the ``syspop.create`` function are 
 
 The produced syntehtic population from ``syspop.create`` can be validated using the function of ``syspop.validate``:
 
-_under development_
+```
+from syspop.syspop import validate as syspop_validate
+syspop_validate(
+    output_dir=output_dir,
+    pop_gender=pop_data["gender"],
+    pop_ethnicity=pop_data["ethnicity"],
+    household=household_data["household"],
+    work_data=work_data,
+    home_to_work=commute_data["home_to_work"],
+)
+```
 
-
+The above codes provide validation for the produced synthetic population, which must be stored in ``<output_dir>/syspop_base.csv``.
 
 ## Release (for developer)
 The package can be released by running:

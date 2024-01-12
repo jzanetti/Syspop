@@ -71,4 +71,5 @@ if if_run_validation:
         pop_ethnicity=pop_data["ethnicity"],
         household=household_data["household"],
         work_data=work_data,
+        home_to_work=commute_data["home_to_work"],
     )

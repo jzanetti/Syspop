@@ -8,6 +8,8 @@ from pandas import read_csv as pandas_read_csv
 from process.utils import setup_logging
 from process.validate import (
     validate_base_pop_and_age,
+    validate_commute_area,
+    validate_commute_mode,
     validate_household,
     validate_work,
 )
@@ -31,13 +33,26 @@ def validate(
     pop_ethnicity: DataFrame = None,  # census
     household: DataFrame or None = None,  # census
     work_data: DataFrame or None = None,  # census
+    home_to_work: DataFrame or None = None,  # census
 ):
+    """Doding the validation of synthetic population
+
+    Args:
+        output_dir (str, optional): Output drirectory. Defaults to "".
+        pop_gender (DataFrame, optional): synthetic population. Defaults to None.
+    """
     syn_pop_path = join(output_dir, "syspop_base.csv")
     synpop_data = pandas_read_csv(syn_pop_path)
 
     val_dir = join(output_dir, "val")
     if not exists(val_dir):
         makedirs(val_dir)
+
+    logger.info("Valdating commute (area) ...")
+    validate_commute_area(val_dir, synpop_data, home_to_work)
+
+    logger.info("Valdating commute (travel_mode) ...")
+    validate_commute_mode(val_dir, synpop_data, home_to_work)
 
     logger.info("Valdating work ...")
     validate_work(val_dir, synpop_data, work_data)
