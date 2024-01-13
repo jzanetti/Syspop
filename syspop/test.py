@@ -32,13 +32,13 @@ with open("etc/data/test_data/supermarket.pickle", "rb") as fid:
 with open("etc/data/test_data/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
-output_dir = "/tmp/syspop_test/Wellington"
+output_dir = "/tmp/syspop_test/Canterbury"
 # syn_areas = [135400, 111400, 110400]
 syn_areas = list(
-    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Wellington"]["area"]
+    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Canterbury"]["area"]
 )
 
-if_run_syspop_create = False
+if_run_syspop_create = True
 if_run_validation = True
 
 if if_run_syspop_create:
@@ -59,7 +59,7 @@ if if_run_syspop_create:
         supermarket_data=supermarket_data["supermarket"],
         restaurant_data=restaurant_data["restaurant"],
         assign_address_flag=True,
-        rewrite_base_pop=True,
+        rewrite_base_pop=False,
         use_parallel=True,
         ncpu=8,
     )

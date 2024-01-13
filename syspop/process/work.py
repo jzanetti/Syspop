@@ -1,17 +1,20 @@
-from pandas import DataFrame, concat
-from numpy.random import choice as numpy_choice
-from numpy.random import uniform as numpy_uniform
-from process.commute import home_and_work
+from copy import deepcopy
+from logging import getLogger
+
 from numpy import NaN
 from numpy import vectorize as numpy_vectorize
-from logging import getLogger
-from process.commute import shared_transport
-from copy import deepcopy
+from numpy.random import choice as numpy_choice
+from numpy.random import uniform as numpy_uniform
+from pandas import DataFrame, concat
 from process.address import add_random_address
+from process.commute import home_and_work, shared_transport
 
 logger = getLogger()
 
-def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict, use_for_loop: bool = False) -> DataFrame:
+
+def assign_employers_to_base_pop(
+    base_pop: DataFrame, all_employers: dict, use_for_loop: bool = False
+) -> DataFrame:
     """Assign employer/company to base population
 
     Args:
@@ -28,7 +31,6 @@ def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict, use_f
     if use_for_loop:
         i = 0
         for index, proc_row in base_pop.iterrows():
-            
             if i % 100000 == 0.0:
                 logger.info(f"Business processing: {i}/{total_people}")
 
@@ -51,18 +53,19 @@ def assign_employers_to_base_pop(base_pop: DataFrame, all_employers: dict, use_f
         valid_rows = base_pop[mask]
 
         # Use numpy_choice to generate random choices for each row in valid_rows
-        choices = numpy_vectorize(lambda x: numpy_choice(all_employers[x]))(valid_rows["area_work"])
+        choices = numpy_vectorize(lambda x: numpy_choice(all_employers[x]))(
+            valid_rows["area_work"]
+        )
 
         # Assign the choices back to the "company" column in the original dataframe
         base_pop.loc[mask, "company"] = choices
-
 
     return base_pop
 
 
 def align_commute_data_to_employee_data(
-        employee_input: DataFrame, 
-        commute_input: DataFrame) -> DataFrame:
+    employee_input: DataFrame, commute_input: DataFrame
+) -> DataFrame:
     """Align commute dataset (the number of people travel to work) to employee data
 
     Args:
@@ -76,24 +79,43 @@ def align_commute_data_to_employee_data(
         DataFrame: updated commute data
     """
 
-    total_employee_from_commute_data = commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
+    total_employee_from_commute_data = (
+        commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
+    )
     total_employee_from_employee_data = employee_input["employee_number"].sum()
 
-    # Step 1: scaling up/down the commute employee number
+    if total_employee_from_commute_data == 0:
+        commute_input.loc[
+            commute_input.index, "Other"
+        ] = total_employee_from_employee_data
+        return commute_input
 
-    scaling_factor = total_employee_from_employee_data / total_employee_from_commute_data
+    # Step 1: scaling up/down the commute employee number
+    scaling_factor = (
+        total_employee_from_employee_data / total_employee_from_commute_data
+    )
     # apply scaling factor to align commute data to employee data
     commute_input = commute_input.apply(
-        lambda x: x * scaling_factor if x.name not in ["area_home", "area_work"] else x, axis=0)
+        lambda x: x * scaling_factor if x.name not in ["area_home", "area_work"] else x,
+        axis=0,
+    )
 
-    commute_input = commute_input.apply(lambda x: x.astype(int) if x.name not in ["area_home", "area_work"] else x)
+    commute_input = commute_input.apply(
+        lambda x: x.astype(int) if x.name not in ["area_home", "area_work"] else x
+    )
 
     # Step 2: add remained employee numbers randomly
-    total_employee_from_commute_data = commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
+    total_employee_from_commute_data = (
+        commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
+    )
 
-    total_value_to_add = total_employee_from_employee_data - total_employee_from_commute_data
+    total_value_to_add = (
+        total_employee_from_employee_data - total_employee_from_commute_data
+    )
 
-    columns_to_adjust = [col for col in commute_input.columns if col not in ["area_home", "area_work"]]
+    columns_to_adjust = [
+        col for col in commute_input.columns if col not in ["area_home", "area_work"]
+    ]
 
     while total_value_to_add != 0.0:
         # Step 2.1: randomly select a column and row
@@ -104,36 +126,45 @@ def align_commute_data_to_employee_data(
         random_value_range = total_value_to_add / 3.0
 
         if total_value_to_add > 0:
-            random_value = int(min(numpy_uniform(0, random_value_range), random_value_range))
+            random_value = int(
+                min(numpy_uniform(0, random_value_range), random_value_range)
+            )
             random_value = random_value if random_value != 0 else 1
         else:
-            random_value = int(max(numpy_uniform(random_value_range, 0), random_value_range))
+            random_value = int(
+                max(numpy_uniform(random_value_range, 0), random_value_range)
+            )
             random_value = random_value if random_value != 0 else -1
 
         # Step 2.3: update the value
         updated_value = commute_input.at[row_index, column_name] + random_value
 
-        if updated_value < 0: # make sure that the number of employees are larger than zero
+        if (
+            updated_value < 0
+        ):  # make sure that the number of employees are larger than zero
             continue
 
         commute_input.at[row_index, column_name] = updated_value
-        
+
         # Step 2.4: Update the remaining total
         total_value_to_add -= random_value
 
     # recalculate the total commute (home and work) using updated data:
     commute_input["Total"] = commute_input.loc[
-        :, ~commute_input.columns.isin(["area_home", "area_work"])].sum(axis=1)
+        :, ~commute_input.columns.isin(["area_home", "area_work"])
+    ].sum(axis=1)
 
     return commute_input
 
 
-def create_employers(employer_input: DataFrame, employer_num_factor: float = 1.0) -> list:
-    """Create available employers 
+def create_employers(
+    employer_input: DataFrame, employer_num_factor: float = 1.0
+) -> list:
+    """Create available employers
 
     Args:
         employer_input (DataFrame): employers dataset
-        employer_num_factor (int): Should we reduce the number of employers 
+        employer_num_factor (int): Should we reduce the number of employers
             (so more people can get together ?)
 
     Returns:
@@ -146,21 +177,21 @@ def create_employers(employer_input: DataFrame, employer_num_factor: float = 1.0
         proc_employer_area = proc_row["area"]
 
         for employer_id in range(proc_employer_num):
-            employers.append(
-                f"{proc_employer_code}_{employer_id}_{proc_employer_area}"
-            )
-    
+            employers.append(f"{proc_employer_code}_{employer_id}_{proc_employer_area}")
+
     return employers
+
 
 def work_and_commute_wrapper(
     business_data: dict,
-    pop_data: DataFrame, 
+    pop_data: DataFrame,
     base_address: DataFrame,
     commute_data: DataFrame,
     geo_hirarchy_data: DataFrame,
     geo_address_data: DataFrame or None = None,
     use_parallel: bool = False,
-    n_cpu: int = 4) -> DataFrame:
+    n_cpu: int = 4,
+) -> DataFrame:
     """Create business and commute data
 
     Args:
@@ -178,32 +209,33 @@ def work_and_commute_wrapper(
     """
 
     base_pop = work_wrapper(
-        business_data["employer"], 
-        business_data["employee"], 
-        pop_data, 
+        business_data["employer"],
+        business_data["employee"],
+        pop_data,
         commute_data,
         use_parallel=use_parallel,
-        n_cpu=n_cpu)
-    
+        n_cpu=n_cpu,
+    )
+
     if geo_address_data is not None:
         proc_address_data = add_random_address(
-            deepcopy(base_pop),
-            geo_address_data,
-            "company",
-            use_parallel=use_parallel)
+            deepcopy(base_pop), geo_address_data, "company", use_parallel=use_parallel
+        )
         base_address = concat([base_address, proc_address_data])
 
     base_pop = shared_transport(base_pop, geo_hirarchy_data)
 
     return base_pop, base_address
 
+
 def work_wrapper(
-        employer_data: DataFrame, 
-        employee_data: DataFrame, 
-        pop_data: DataFrame, 
-        commute_data: DataFrame,
-        use_parallel: bool = False,
-        n_cpu: int = 4):
+    employer_data: DataFrame,
+    employee_data: DataFrame,
+    pop_data: DataFrame,
+    commute_data: DataFrame,
+    use_parallel: bool = False,
+    n_cpu: int = 4,
+):
     """Assign individuals to different companies:
 
     Args:
@@ -223,18 +255,20 @@ def work_wrapper(
         proc_employer_data = employer_data[employer_data["area"] == proc_area]
 
         proc_commute_data = align_commute_data_to_employee_data(
-            proc_employee_data, 
-            proc_commute_data)
-        
+            proc_employee_data, proc_commute_data
+        )
+
         all_commute_data.append(proc_commute_data)
-        
+
         all_employers[proc_area] = create_employers(proc_employer_data)
 
     all_commute_data = concat(all_commute_data, ignore_index=True)
 
     logger.info("Assign home and work locations ...")
 
-    base_pop = home_and_work(all_commute_data, pop_data, use_parallel=use_parallel, n_cpu=n_cpu)
+    base_pop = home_and_work(
+        all_commute_data, pop_data, use_parallel=use_parallel, n_cpu=n_cpu
+    )
 
     logger.info("Assign employers ...")
     base_pop = assign_employers_to_base_pop(base_pop, all_employers)
