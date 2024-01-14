@@ -4,7 +4,7 @@
 
 <p align="center">
     <img src="etc/wiki_img/syspop_wiki.png" alt="Sample Image" width="30%">
-    <img src="etc/wiki_img/agent.gif" alt="GIF Example" width="30%">
+    <img src="etc/wiki_img/agent.gif?raw=true" alt="GIF Example" width="30%">
 </p>
 
 
@@ -12,7 +12,7 @@
 
 The documentation for the package can be found [here](https://github.com/jzanetti/Syspop/wiki). Any questions please contact: _Sijin.Zhang@esr.cri.nz_
 
-_The above animation shows the movements of 100 agents sampled from the area code 252300 (Oriental Bay) in the morning._
+_The above animation shows the movements of synthetic residents sampled from the area code 251400 (Wellington Central) in the early morning._
 
 ### Contents:
 

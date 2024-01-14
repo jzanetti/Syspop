@@ -203,6 +203,7 @@ def create_frame(G, routes, total_frames):
                 G.nodes[current_edge[0]]["y"],
                 c=route_color,
             )
+        # ax.set_title(f"t = {i}")
 
         # Save the figure to a file
         filename = f"frame_{i}.png"
@@ -219,7 +220,7 @@ def create_frame(G, routes, total_frames):
 
 def write_gifs(images: list):
     # Create a GIF from the images
-    with imageio.get_writer("agent.gif", mode="I") as writer:
+    with imageio.get_writer("agent.gif", mode="I", loop=0, duration=0.5) as writer:
         for filename in images:
             image = imageio.imread(filename)
             writer.append_data(image)
@@ -234,7 +235,7 @@ if __name__ == "__main__":
     sypop_address_path = "/tmp/syspop_test/Wellington/syspop_location.csv"
     total_frames = 40
     starts, ends = read_data(
-        sypop_base_path, sypop_address_path, [251400], total_people=None
+        sypop_base_path, sypop_address_path, [251400], total_people=100
     )
     domain = get_domain({"starts": starts, "ends": ends})
     G = create_geo_object(domain)
