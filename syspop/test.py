@@ -50,7 +50,6 @@ if if_run_vis:
         plot_distribution=True,
         plot_travel=True,
         plot_location=True,
-        travel_sample_size=250,
     )
 
 if if_run_syspop_create:

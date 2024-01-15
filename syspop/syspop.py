@@ -35,7 +35,6 @@ def vis(
     plot_distribution: bool = True,
     plot_travel: bool = True,
     plot_location: bool = True,
-    travel_sample_size: int or None = 250,
 ):
     """Syntheric population visualization
 
