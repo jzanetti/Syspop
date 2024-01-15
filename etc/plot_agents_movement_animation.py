@@ -24,30 +24,34 @@ def read_data(
     synpop_data = pandas_read_csv(sypop_base_path)
     synpop_address = pandas_read_csv(sypop_address_path)
 
-    num_people = 0
     starts = []
     ends = []
     synpop_data = synpop_data[synpop_data["area"].isin(area_ids)]
+
+    synpop_data = synpop_data[~synpop_data["company"].isna()]
+
+    synpop_data = synpop_data.sample(total_people)
+
     for i, proc_agent in synpop_data.iterrows():
         proc_agent_loc1 = proc_agent["household"]
 
-        proc_agent_loc2 = None
-        for proc_key in ["company", "school"]:
-            proc_agent_loc2 = proc_agent[proc_key]
+        proc_agent_loc2 = proc_agent["company"]
 
-            if isinstance(proc_agent_loc2, str):
-                break
+        proc_agent_loc1_address = (
+            synpop_address[synpop_address["name"] == proc_agent_loc1][
+                ["latitude", "longitude"]
+            ]
+            .drop_duplicates()
+            .sample(1)
+        )
 
-        if not isinstance(proc_agent_loc2, str):
-            continue
-
-        proc_agent_loc1_address = synpop_address[
-            synpop_address["name"] == proc_agent_loc1
-        ][["latitude", "longitude"]].drop_duplicates()
-
-        proc_agent_loc2_address = synpop_address[
-            synpop_address["name"] == proc_agent_loc2
-        ][["latitude", "longitude"]].drop_duplicates()
+        proc_agent_loc2_address = (
+            synpop_address[synpop_address["name"] == proc_agent_loc2][
+                ["latitude", "longitude"]
+            ]
+            .drop_duplicates()
+            .sample(1)
+        )
 
         starts.append(
             (
@@ -62,12 +66,6 @@ def read_data(
                 proc_agent_loc2_address.iloc[0]["longitude"],
             )
         )
-
-        num_people += 1
-
-        if total_people is not None:
-            if num_people >= total_people:
-                return starts, ends
 
     return starts, ends
 
@@ -106,7 +104,7 @@ def create_geo_object(domain: dict):
 
 
 def create_routes(
-    G, starts, ends, total_frames, speed_km_h_range={"min": 50.0, "max": 300.0}
+    G, starts, ends, total_frames, speed_km_h_range={"min": 150.0, "max": 300.0}
 ):
     def _random_color():
         # Generate random values for red, green, and blue components
@@ -139,7 +137,8 @@ def create_routes(
                 uniform(speed_km_h_range["min"], speed_km_h_range["max"]) * 1000 / 3600
             )
             routes["color"].append(_random_color())
-            routes["start_frame"].append(randint(0, int(total_frames / 2)))
+            routes["start_frame"].append(0)
+            # routes["start_frame"].append(randint(0, int(total_frames / 2)))
         except nx.exception.NetworkXNoPath:
             continue
 
@@ -153,7 +152,7 @@ def create_frame(G, routes, total_frames):
         # Calculate how far along the route the agent should be
 
         for j in range(len(routes["routes"])):
-            print(f"processing {index} / {total_frames}")
+            print(f"processing {index} / {total_frames}: {j}")
 
             route = routes["routes"][j]
             if i == 0:
@@ -163,7 +162,7 @@ def create_frame(G, routes, total_frames):
             route_color = routes["color"][j]
             start_frame = routes["start_frame"][j]
 
-            if start_frame < i:
+            if start_frame > index:
                 continue
 
             distance = i * speed_m_s
@@ -196,8 +195,10 @@ def create_frame(G, routes, total_frames):
 
             # Draw the route
             # ox.plot_graph_route(G, route, route_color="r", route_linewidth=1, ax=ax)
-
             # Draw the agent
+            print(
+                f"{index}, {G.nodes[current_edge[0]]['x']}, {G.nodes[current_edge[0]]['y']}"
+            )
             ax.scatter(
                 G.nodes[current_edge[0]]["x"],
                 G.nodes[current_edge[0]]["y"],
@@ -220,7 +221,7 @@ def create_frame(G, routes, total_frames):
 
 def write_gifs(images: list):
     # Create a GIF from the images
-    with imageio.get_writer("agent.gif", mode="I", loop=0, duration=0.5) as writer:
+    with imageio.get_writer("agent.gif", mode="I", loop=0, duration=3.0) as writer:
         for filename in images:
             image = imageio.imread(filename)
             writer.append_data(image)
@@ -235,7 +236,7 @@ if __name__ == "__main__":
     sypop_address_path = "/tmp/syspop_test/Wellington/syspop_location.csv"
     total_frames = 40
     starts, ends = read_data(
-        sypop_base_path, sypop_address_path, [251400], total_people=100
+        sypop_base_path, sypop_address_path, [251400], total_people=30
     )
     domain = get_domain({"starts": starts, "ends": ends})
     G = create_geo_object(domain)
