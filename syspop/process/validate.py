@@ -1,3 +1,4 @@
+from numpy import NaN
 from pandas import DataFrame, merge
 from process.vis import validate_vis_barh, validate_vis_plot
 
@@ -52,6 +53,7 @@ def validate_commute_area(
     unique_area_combinations = truth_data[["area_home", "area_work"]].drop_duplicates()
 
     err_ratio = []
+    err = {"truth": [], "model": []}
     for i, proc_combination in unique_area_combinations.iterrows():
         proc_truth = truth_data[
             (truth_data["area_home"] == proc_combination["area_home"])
@@ -70,13 +72,26 @@ def validate_commute_area(
 
         err_ratio.append(100.0 * (proc_model - proc_truth) / proc_truth)
 
+        err["truth"].append(proc_truth)
+        err["model"].append(proc_model)
+
+    validate_vis_plot(
+        val_dir,
+        err,
+        "Home and work commute",
+        "validation_work_commute_err",
+        f"Travel areas (between home and work) \n Model: {sum(err['model'])}; Truth: {sum(err['truth'])}",
+        "Commute people",
+        plot_ratio=False,
+    )
+
     validate_vis_plot(
         val_dir,
         err_ratio,
         "Home and work commute",
         "validation_work_commute",
-        "Area (between home and work)",
-        "Error (%): (model - truth) / truth",
+        "Travel areas (between home and work)",
+        "Error (Commute people, %): (model - truth) / truth",
     )
 
 
@@ -98,11 +113,15 @@ def validate_commute_mode(
 
     model_data = synpop_data[synpop_data["area"].isin(all_areas)][["travel_mode_work"]]
     model_data = model_data.dropna()
-    truth_data = commute_census_data[commute_census_data["area_home"].isin(all_areas)]
+    truth_data = commute_census_data[
+        (commute_census_data["area_home"].isin(all_areas))
+        & (commute_census_data["area_work"].isin(all_areas))
+    ]
 
     all_travel_methods = list(model_data["travel_mode_work"].unique())
 
     err_ratio = {}
+    err = {"model": {}, "truth": {}}
     for proc_travel_method in all_travel_methods:
         proc_model_data = len(
             model_data[model_data["travel_mode_work"] == proc_travel_method]
@@ -111,7 +130,18 @@ def validate_commute_mode(
         err_ratio[proc_travel_method] = (
             100.0 * (proc_model_data - proc_truth_data) / proc_truth_data
         )
+        err["truth"][proc_travel_method] = proc_truth_data
+        err["model"][proc_travel_method] = proc_model_data
 
+    validate_vis_barh(
+        val_dir,
+        err,
+        f"Validation: travel modes",
+        f"validation_work_travel_modes_err",
+        f"Error: Model and Truth \n Model: {sum(err['model'].values())}; Truth: {sum(err['truth'].values())}",
+        "Business code",
+        plot_ratio=False,
+    )
     validate_vis_barh(
         val_dir,
         err_ratio,
@@ -145,10 +175,15 @@ def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFr
         all_business_code = list(census_data["business_code"].unique())
 
         err_ratio = {}
+        err = {"truth": {}, "model": {}}
         for proc_code in all_business_code:
             total_truth = truth_data[truth_data["business_code"] == proc_code][
                 f"{work_type}_number"
             ].sum()
+
+            if total_truth == 0:
+                err_ratio[proc_code] = NaN
+
             if work_type == "employee":
                 total_model = len(model_data[model_data["business_code"] == proc_code])
             elif work_type == "employer":
@@ -158,7 +193,22 @@ def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFr
                     ].unique()
                 )
 
-            err_ratio[proc_code] = 100.0 * (total_model - total_truth) / total_truth
+            err["truth"][proc_code] = total_truth
+            err["model"][proc_code] = total_model
+            if total_truth == 0:
+                err_ratio[proc_code] = NaN
+            else:
+                err_ratio[proc_code] = 100.0 * (total_model - total_truth) / total_truth
+
+        validate_vis_barh(
+            val_dir,
+            err,
+            f"Validation: number of {work_type} for different sectors",
+            f"validation_work_{work_type}_err",
+            f"Error: Model and Truth \n Model: {sum(err['model'].values())}; Truth: {sum(err['truth'].values())}",
+            "Business code",
+            plot_ratio=False,
+        )
 
         validate_vis_barh(
             val_dir,
@@ -199,7 +249,7 @@ def validate_household(
     data_model["children_num"] = data_model["children_num"].astype(int)
 
     err_ratio = {}
-
+    err = {"truth": {}, "model": {}}
     for proc_children_num in [0, 1, 2, 3, 4]:
         data_truth[proc_children_num] = data_truth[proc_children_num].astype(int)
         proc_truth = data_truth[proc_children_num].sum()
@@ -210,7 +260,20 @@ def validate_household(
         # Extract unique households from the filtered DataFrame
         proc_model = len(proc_model["household"].unique())
 
+        err["model"][proc_children_num] = proc_model
+        err["truth"][proc_children_num] = proc_truth
+
         err_ratio[proc_children_num] = 100.0 * (proc_model - proc_truth) / proc_truth
+
+    validate_vis_barh(
+        val_dir,
+        err,
+        f"Validation: number of children in a household",
+        f"validation_household_err",
+        f"Error: Model and Truth \n Model: {sum(err['model'].values())}; Truth: {sum(err['truth'].values())}",
+        "Number of children",
+        plot_ratio=False,
+    )
 
     validate_vis_barh(
         val_dir,
@@ -230,7 +293,7 @@ def validate_base_pop_and_age(
     values_to_verify: list,
     age_interval: int = 10,
 ):
-    """Validate the data for age/ethnicity and age
+    """Validate the data for age/ethnicity and age/gender
 
     Args:
         val_dir (str): validation directory
@@ -306,16 +369,30 @@ def validate_base_pop_and_age(
         # step 4: Get error ratio
         # ---------------------------
         proc_err_ratio = {}
+        proc_err = {"model": {}, "truth": {}}
         for proc_key in range(min_age, max_age + 1, age_interval):
             proc_err_ratio[proc_key] = (
                 100.0
                 * (proc_pop_model_sum[proc_key] - proc_census_truth_sum[proc_key])
                 / proc_census_truth_sum[proc_key]
             )
+            proc_err["model"][proc_key] = proc_pop_model_sum[proc_key]
+            proc_err["truth"][proc_key] = proc_census_truth_sum[proc_key]
 
         # ---------------------------
         # step 5: Vis
         # ---------------------------
+
+        validate_vis_barh(
+            val_dir,
+            proc_err,
+            f"Validation {key_to_verify} (distribution) and age {proc_value}",
+            f"validation_age_{key_to_verify}_{proc_value}_err",
+            f"Error: Model and Truth \n Model: {int(sum(proc_err['model'].values()))}; Truth: {int(sum(proc_err['truth'].values()))}",
+            "Age",
+            plot_ratio=False,
+        )
+
         validate_vis_barh(
             val_dir,
             proc_err_ratio,

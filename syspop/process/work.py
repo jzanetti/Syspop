@@ -64,7 +64,9 @@ def assign_employers_to_base_pop(
 
 
 def align_commute_data_to_employee_data(
-    employee_input: DataFrame, commute_input: DataFrame
+    employee_input: DataFrame,
+    commute_input: DataFrame,
+    process_remained_people: bool = False,
 ) -> DataFrame:
     """Align commute dataset (the number of people travel to work) to employee data
 
@@ -104,50 +106,53 @@ def align_commute_data_to_employee_data(
         lambda x: x.astype(int) if x.name not in ["area_home", "area_work"] else x
     )
 
-    # Step 2: add remained employee numbers randomly
-    total_employee_from_commute_data = (
-        commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
-    )
+    if process_remained_people:
+        # Step 2: add remained employee numbers randomly
+        total_employee_from_commute_data = (
+            commute_input.drop(columns=["area_home", "area_work"]).sum().sum()
+        )
 
-    total_value_to_add = (
-        total_employee_from_employee_data - total_employee_from_commute_data
-    )
+        total_value_to_add = (
+            total_employee_from_employee_data - total_employee_from_commute_data
+        )
 
-    columns_to_adjust = [
-        col for col in commute_input.columns if col not in ["area_home", "area_work"]
-    ]
+        columns_to_adjust = [
+            col
+            for col in commute_input.columns
+            if col not in ["area_home", "area_work"]
+        ]
 
-    while total_value_to_add != 0.0:
-        # Step 2.1: randomly select a column and row
-        column_name = numpy_choice(columns_to_adjust)
-        row_index = numpy_choice(commute_input.index)
+        while total_value_to_add != 0.0:
+            # Step 2.1: randomly select a column and row
+            column_name = numpy_choice(columns_to_adjust)
+            row_index = numpy_choice(commute_input.index)
 
-        # Step 2.2: create a random value to add
-        random_value_range = total_value_to_add / 3.0
+            # Step 2.2: create a random value to add
+            random_value_range = total_value_to_add / 3.0
 
-        if total_value_to_add > 0:
-            random_value = int(
-                min(numpy_uniform(0, random_value_range), random_value_range)
-            )
-            random_value = random_value if random_value != 0 else 1
-        else:
-            random_value = int(
-                max(numpy_uniform(random_value_range, 0), random_value_range)
-            )
-            random_value = random_value if random_value != 0 else -1
+            if total_value_to_add > 0:
+                random_value = int(
+                    min(numpy_uniform(0, random_value_range), random_value_range)
+                )
+                random_value = random_value if random_value != 0 else 1
+            else:
+                random_value = int(
+                    max(numpy_uniform(random_value_range, 0), random_value_range)
+                )
+                random_value = random_value if random_value != 0 else -1
 
-        # Step 2.3: update the value
-        updated_value = commute_input.at[row_index, column_name] + random_value
+            # Step 2.3: update the value
+            updated_value = commute_input.at[row_index, column_name] + random_value
 
-        if (
-            updated_value < 0
-        ):  # make sure that the number of employees are larger than zero
-            continue
+            if (
+                updated_value < 0
+            ):  # make sure that the number of employees are larger than zero
+                continue
 
-        commute_input.at[row_index, column_name] = updated_value
+            commute_input.at[row_index, column_name] = updated_value
 
-        # Step 2.4: Update the remaining total
-        total_value_to_add -= random_value
+            # Step 2.4: Update the remaining total
+            total_value_to_add -= random_value
 
     # recalculate the total commute (home and work) using updated data:
     commute_input["Total"] = commute_input.loc[
@@ -249,7 +254,6 @@ def work_wrapper(
     all_commute_data = []
     all_employers = {}
     for proc_area in all_work_areas:
-
         proc_commute_data = commute_data[commute_data["area_work"] == proc_area]
         proc_employee_data = employee_data[employee_data["area"] == proc_area]
         proc_employer_data = employer_data[employer_data["area"] == proc_area]
