@@ -57,11 +57,22 @@ def vis(
     # 1. plot distributions
     # ---------------------------
     if plot_distribution:
+        synpop_data["children_number_in_household"] = (
+            synpop_data["household"].str.split("_").str[1]
+        )
         plot_pie_charts(
             vis_dir,
-            synpop_data[["social_economics", "travel_mode_work"]],
+            synpop_data[
+                [
+                    "age",
+                    "gender",
+                    "ethnicity",
+                    "children_number_in_household",
+                    "social_economics",
+                    "travel_mode_work",
+                ]
+            ],
         )
-
     # ---------------------------
     # 2. plot locations
     # ---------------------------
@@ -71,10 +82,13 @@ def vis(
     address_data = pandas_read_csv(sys_address_path)
 
     # -----------------
-    # 2.1 plot work - home
+    # 2.1 plot travel: work - home
     # -----------------
     if plot_travel:
-        household_company_data = synpop_data[["household", "company"]]
+        most_common_area = synpop_data["area"].value_counts().idxmax()
+        household_company_data = synpop_data[synpop_data["area"] == most_common_area][
+            ["household", "company"]
+        ]
         household_company_data = household_company_data[
             household_company_data["company"].notna()
         ]
@@ -96,8 +110,8 @@ def vis(
             ["start_lat", "start_lon", "end_lat", "end_lon"]
         ]
         df = df.dropna()
-        if travel_sample_size is not None:
-            df = df.sample(travel_sample_size)
+        # if travel_sample_size is not None:
+        #    df = df.sample(travel_sample_size)
         plot_travel_html(vis_dir, df, "home_to_work")
 
     # -----------------
