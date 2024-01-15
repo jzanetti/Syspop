@@ -47,6 +47,10 @@ if_run_vis = True
 if if_run_vis:
     syspop_vis(
         output_dir=output_dir,
+        plot_distribution=True,
+        plot_travel=True,
+        plot_location=True,
+        travel_sample_size=250,
     )
 
 if if_run_syspop_create:

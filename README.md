@@ -82,6 +82,24 @@ syspop_validate(
 
 The above codes provide validation for the produced synthetic population, which must be stored in ``<output_dir>/syspop_base.csv``. Details for synthetic population validation can be found [here](https://github.com/jzanetti/Syspop/wiki/Validation).
 
+### syspop.vis
+
+The produced syntehtic population from ``syspop.create`` can be plotted using the function of ``syspop.vis``:
+
+```
+from syspop.syspop import vis as syspop_vis
+syspop_vis(
+    output_dir=output_dir,
+    plot_distribution=True,
+    plot_travel=True,
+    plot_location=True,
+    travel_sample_size=250,
+)
+```
+The above codes provide validation for the produced synthetic population, which must be stored in ``<output_dir>/syspop_base.csv``. Details for synthetic population visualization can be found [here](https://github.com/jzanetti/Syspop/wiki/Visualization).
+
+
+
 ## Release (for developer)
 The package can be released by running:
 

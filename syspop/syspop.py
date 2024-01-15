@@ -37,16 +37,26 @@ def vis(
     plot_location: bool = True,
     travel_sample_size: int or None = 250,
 ):
+    """Syntheric population visualization
+
+    Args:
+        output_dir (str, optional): _description_. Defaults to "".
+        plot_distribution (bool, optional): _description_. Defaults to True.
+        plot_travel (bool, optional): _description_. Defaults to True.
+        plot_location (bool, optional): _description_. Defaults to True.
+        travel_sample_size (intorNone, optional): _description_. Defaults to 250.
+    """
     vis_dir = join(output_dir, "vis")
     if not exists(vis_dir):
         makedirs(vis_dir)
+
+    syn_pop_path = join(output_dir, "syspop_base.csv")
+    synpop_data = pandas_read_csv(syn_pop_path)
 
     # ---------------------------
     # 1. plot distributions
     # ---------------------------
     if plot_distribution:
-        syn_pop_path = join(output_dir, "syspop_base.csv")
-        synpop_data = pandas_read_csv(syn_pop_path)
         plot_pie_charts(
             vis_dir,
             synpop_data[["social_economics", "travel_mode_work"]],
@@ -303,5 +313,9 @@ def create(
     with open(tmp_data_path, "rb") as fid:
         synpop_data = pickle_load(fid)
 
-    synpop_data["synpop"].to_csv(output_syn_pop_path)
+    synpop_base_data = synpop_data["synpop"]
+    if "Unnamed: 0" in list(synpop_base_data.columns):
+        synpop_base_data = synpop_base_data.drop("Unnamed: 0", axis=1)
+
+    synpop_base_data.to_csv(output_syn_pop_path)
     synpop_data["synadd"].to_csv(output_loc_path)
