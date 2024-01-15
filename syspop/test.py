@@ -4,6 +4,7 @@ from pickle import load as pickle_load
 
 from syspop import create as syspop_create
 from syspop import validate as syspop_validate
+from syspop import vis as syspop_vis
 
 with open("etc/data/test_data/population.pickle", "rb") as fid:
     pop_data = pickle_load(fid)
@@ -40,7 +41,13 @@ syn_areas = list(
 )
 
 if_run_syspop_create = False
-if_run_validation = True
+if_run_validation = False
+if_run_vis = True
+
+if if_run_vis:
+    syspop_vis(
+        output_dir=output_dir,
+    )
 
 if if_run_syspop_create:
     syspop_create(

@@ -4,6 +4,8 @@ from os.path import exists, join
 from pickle import load as pickle_load
 
 from pandas import DataFrame
+from pandas import concat as pandas_concat
+from pandas import merge as pandas_merge
 from pandas import read_csv as pandas_read_csv
 from process.utils import setup_logging
 from process.validate import (
@@ -13,6 +15,7 @@ from process.validate import (
     validate_household,
     validate_work,
 )
+from process.vis import plot_map_html, plot_pie_charts, plot_travel_html
 from wrapper_pop import (
     create_base_pop,
     create_hospital,
@@ -25,6 +28,88 @@ from wrapper_pop import (
 )
 
 logger = getLogger()
+
+
+def vis(
+    output_dir: str = "",
+    plot_distribution: bool = True,
+    plot_travel: bool = True,
+    plot_location: bool = True,
+    travel_sample_size: int or None = 250,
+):
+    vis_dir = join(output_dir, "vis")
+    if not exists(vis_dir):
+        makedirs(vis_dir)
+
+    # ---------------------------
+    # 1. plot distributions
+    # ---------------------------
+    if plot_distribution:
+        syn_pop_path = join(output_dir, "syspop_base.csv")
+        synpop_data = pandas_read_csv(syn_pop_path)
+        plot_pie_charts(
+            vis_dir,
+            synpop_data[["social_economics", "travel_mode_work"]],
+        )
+
+    # ---------------------------
+    # 2. plot locations
+    # ---------------------------
+    sys_address_path = join(output_dir, "syspop_location.csv")
+    if not exists(sys_address_path):
+        return
+    address_data = pandas_read_csv(sys_address_path)
+
+    # -----------------
+    # 2.1 plot work - home
+    # -----------------
+    if plot_travel:
+        household_company_data = synpop_data[["household", "company"]]
+        household_company_data = household_company_data[
+            household_company_data["company"].notna()
+        ]
+        start_df = pandas_merge(
+            household_company_data,
+            address_data,
+            left_on="household",
+            right_on="name",
+            how="left",
+        ).rename(columns={"latitude": "start_lat", "longitude": "start_lon"})
+        end_df = pandas_merge(
+            household_company_data,
+            address_data,
+            left_on="company",
+            right_on="name",
+            how="left",
+        ).rename(columns={"latitude": "end_lat", "longitude": "end_lon"})
+        df = pandas_concat([start_df, end_df], axis=1)[
+            ["start_lat", "start_lon", "end_lat", "end_lon"]
+        ]
+        df = df.dropna()
+        if travel_sample_size is not None:
+            df = df.sample(travel_sample_size)
+        plot_travel_html(vis_dir, df, "home_to_work")
+
+    # -----------------
+    # 2.2 plot location heat map
+    # -----------------
+    if plot_location:
+        for data_name in list(address_data["type"].unique()):
+            if data_name == "school":
+                proc_data = address_data[address_data["type"] == data_name]
+                proc_data["school_types"] = proc_data["name"].apply(
+                    lambda x: x.split("_", 1)[1].rsplit("_", 1)[0]
+                )
+                for proc_school_type in list(proc_data["school_types"].unique()):
+                    proc_data2 = proc_data[
+                        proc_data["school_types"] == proc_school_type
+                    ][["latitude", "longitude"]]
+                    plot_map_html(vis_dir, proc_data2, f"school_{proc_school_type}")
+            else:
+                proc_data = address_data[address_data["type"] == data_name][
+                    ["latitude", "longitude"]
+                ]
+                plot_map_html(vis_dir, proc_data, data_name)
 
 
 def validate(
