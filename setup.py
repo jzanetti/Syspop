@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="syspop",
-    version="0.0.9",
+    version="0.0.10",
     setup_requires=["setuptools-git-versioning"],
     packages=find_packages(),
     install_requires=[
