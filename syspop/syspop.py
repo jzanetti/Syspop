@@ -326,9 +326,8 @@ def create(
     with open(tmp_data_path, "rb") as fid:
         synpop_data = pickle_load(fid)
 
-    synpop_base_data = synpop_data["synpop"]
-    if "Unnamed: 0" in list(synpop_base_data.columns):
-        synpop_base_data = synpop_base_data.drop("Unnamed: 0", axis=1)
+    synpop_data["synpop"]["id"] = synpop_data["synpop"].index
+    synpop_data["synpop"].insert(0, "id", synpop_data["synpop"].pop("id"))
 
-    synpop_base_data.to_csv(output_syn_pop_path)
-    synpop_data["synadd"].to_csv(output_loc_path)
+    synpop_data["synpop"].to_csv(output_syn_pop_path, index=False)
+    synpop_data["synadd"].to_csv(output_loc_path, index=False)
