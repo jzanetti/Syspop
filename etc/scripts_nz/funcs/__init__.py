@@ -31,6 +31,26 @@ TRAINING_ENS_MEMBERS = 1
 
 RANDOM_ENSEMBLES = 2
 
+DEPENDENT_CHILDREN_COUNT_CODE = {
+    11: 0,
+    111: 1,
+    211: 2,
+    311: 3,
+    411: 4,
+    412: 5,
+    413: 6,
+    414: 7,
+    415: 8,
+    416: 9,
+    417: 10,
+    418: 11,
+    419: 12,
+    420: 13,
+    421: 14,
+    422: 15,
+    911: None,
+}
+
 
 # ---------------------------------
 # Synthentic data information
@@ -42,7 +62,7 @@ RAW_DATA = {
         # due to the sizes of address and sa2 shapefile data, we are not able to save the data in git
         # the data can be downloaded in https://koordinates.com/data/?q=sa2+area
         "address_data": "etc/data/raw_nz/address_dataset/nz-addresses/nz-addresses.shp",
-        "sa2_area_data": "etc/data/raw_nz/address_dataset/statistical-area-2-2022-generalised/statistical-area-2-2022-generalised.shp"
+        "sa2_area_data": "etc/data/raw_nz/address_dataset/statistical-area-2-2022-generalised/statistical-area-2-2022-generalised.shp",
     },
     "population": {
         "socialeconomics": "etc/data/raw_nz/socialeconomics-2018.csv",
@@ -72,12 +92,14 @@ RAW_DATA = {
             "population_by_gender": "etc/data/raw_nz/population_by_gender-2022.csv",
         },
     },
-    "household": {"household_number": "etc/data/raw_nz/household_by_children_number-2018.csv"},
+    "household": {
+        "household_number": "etc/data/raw_nz/household_composition.csv"
+    },  # "etc/data/raw_nz/household_by_children_number-2018.csv"},
     "venue": {
         "hospital": "etc/data/raw_nz/nz-facilities-2022.csv",
         "school": "etc/data/raw_nz/nz-facilities-2022.csv",
         "supermarket": "etc/data/raw_nz/shop_supermarket.csv",
-        "restaurant": "etc/data/raw_nz/amenity_restaurant.csv"
+        "restaurant": "etc/data/raw_nz/amenity_restaurant.csv",
     },
 }
 
@@ -159,4 +181,3 @@ AREAS_CONSISTENCY_CHECK = {
         "super_area": ["Area of residence", "Area of workplace"]
     },
 }
-
