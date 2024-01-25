@@ -6,10 +6,12 @@ from random import sample as random_sample
 
 import ray
 from numpy import NaN, isnan
+from numpy.random import choice as numpy_choice
 from numpy.random import choice as random_choice
 from numpy.random import randint
 from numpy.random import randint as numpy_randint
 from pandas import DataFrame, concat, isna
+from pandas import merge as pandas_merge
 from process.address import add_random_address
 
 logger = getLogger()
@@ -429,7 +431,6 @@ def create_household_composition_v2(
 
     total_households_num = houshold_dataset[all_possible_children_num].sum().sum()
 
-
     # ---------------------------------
     # Step 2: extract adults and children from the population
     # ---------------------------------
@@ -612,6 +613,166 @@ def create_household_composition(
     return proc_base_pop
 
 
+def assign_any_remained_people(
+    proc_base_pop: DataFrame, adults: DataFrame, children: DataFrame
+) -> DataFrame:
+    """Randomly assign remained people to existing household"""
+
+    # Randomly assign remaining adults and children to existing households
+    existing_households = proc_base_pop["household"].unique()
+    existing_households = [
+        x
+        for x in existing_households
+        if x != "NaN" and not (isinstance(x, float) and isnan(x))
+    ]
+
+    while len(adults) > 0:
+        household_id = numpy_choice(existing_households)
+        num_adults_to_add = numpy_randint(0, 3)
+
+        if num_adults_to_add > len(adults):
+            num_adults_to_add = len(adults)
+
+        adult_ids = adults.sample(num_adults_to_add).index.tolist()
+        proc_base_pop.loc[
+            proc_base_pop.index.isin(adult_ids), "household"
+        ] = household_id
+        adults = adults.loc[~adults.index.isin(adult_ids)]
+
+    while len(children) > 0:
+        household_id = numpy_choice(existing_households)
+        num_children_to_add = numpy_randint(0, 3)
+
+        if num_children_to_add > len(children):
+            num_children_to_add = len(children)
+
+        children_ids = children.sample(num_children_to_add).index.tolist()
+        proc_base_pop.loc[
+            proc_base_pop.index.isin(children_ids), "household"
+        ] = household_id
+        children = children.loc[~children.index.isin(children_ids)]
+
+    return proc_base_pop
+
+
+def rename_household_id(df: DataFrame, proc_area: str) -> DataFrame:
+    """Rename household id from {id} to {adult_num}_{children_num}_{id}
+
+    Args:
+        df (DataFrame): base popualtion data
+
+    Returns:
+        DataFrame: updated population data
+    """
+    # Compute the number of adults and children in each household
+
+    df["is_adult"] = df["age"] >= 18
+    df["household"] = df["household"].astype(int)
+
+    grouped = (
+        df.groupby("household")["is_adult"]
+        .agg(num_adults="sum", num_children=lambda x: len(x) - sum(x))
+        .reset_index()
+    )
+
+    # Merge the counts back into the original DataFrame
+    df = pandas_merge(df, grouped, on="household")
+
+    # Create the new household_id column based on the specified format
+    df["household"] = (
+        f"{proc_area}_"
+        + df["num_adults"].astype(str)
+        + "_"
+        + df["num_children"].astype(str)
+        + "_"
+        + df["household"].astype(str)
+    )
+
+    # Drop the temporary 'is_adult' column and other intermediate columns if needed
+    return df.drop(["is_adult", "num_adults", "num_children"], axis=1)
+
+
+def create_household_composition_v3(
+    proc_houshold_dataset: DataFrame, proc_base_pop: DataFrame, proc_area: int or str
+) -> DataFrame:
+    """Create household composition (V3)
+
+    Args:
+        proc_houshold_dataset (DataFrame): Household dataset
+        proc_base_pop (DataFrame): Base population dataset
+        proc_area (intorstr): Area to use
+
+    Returns:
+        DataFrame: Updated population dataset
+    """
+    sorted_proc_houshold_dataset = proc_houshold_dataset.sort_values(
+        by="household_num", ascending=False, inplace=False
+    )
+
+    unassigned_adults = proc_base_pop[proc_base_pop["age"] >= 18].copy()
+    unassigned_children = proc_base_pop[proc_base_pop["age"] < 18].copy()
+
+    household_id = 0
+    for _, row in sorted_proc_houshold_dataset.iterrows():
+        for _ in range(row["household_num"]):
+            if (
+                len(unassigned_adults) < row["adult_num"]
+                or len(unassigned_children) < row["children_num"]
+            ):
+                print("Not enough adults or children to assign.")
+                continue
+
+            adult_ids = unassigned_adults.sample(row["adult_num"])["index"].tolist()
+
+            try:
+                adult_majority_ethnicity = (
+                    proc_base_pop.loc[proc_base_pop["index"].isin(adult_ids)][
+                        "ethnicity"
+                    ]
+                    .mode()
+                    .iloc[0]
+                )
+                children_ids = (
+                    unassigned_children[
+                        unassigned_children["ethnicity"] == adult_majority_ethnicity
+                    ]
+                    .sample(row["children_num"])["index"]
+                    .tolist()
+                )
+            except (
+                ValueError,
+                IndexError,
+            ):
+                # Value Error: not enough children for a particular ethnicity to be sampled from;
+                # IndexError: len(adults_id) = 0 so mode() does not work
+                children_ids = unassigned_children.sample(row["children_num"])[
+                    "index"
+                ].tolist()
+
+            # Update the household_id for the selected adults and children in the proc_base_pop DataFrame
+            proc_base_pop.loc[
+                proc_base_pop["index"].isin(adult_ids), "household"
+            ] = f"{household_id}"
+            proc_base_pop.loc[
+                proc_base_pop["index"].isin(children_ids), "household"
+            ] = f"{household_id}"
+
+            unassigned_adults = unassigned_adults.loc[
+                ~unassigned_adults["index"].isin(adult_ids)
+            ]
+            unassigned_children = unassigned_children.loc[
+                ~unassigned_children["index"].isin(children_ids)
+            ]
+
+            household_id += 1
+
+    proc_base_pop = assign_any_remained_people(
+        proc_base_pop, unassigned_adults, unassigned_children
+    )
+
+    return rename_household_id(proc_base_pop, proc_area)
+
+
 def household_wrapper(
     houshold_dataset: DataFrame,
     base_pop: DataFrame,
@@ -638,29 +799,27 @@ def household_wrapper(
     results = []
 
     for i, proc_area in enumerate(all_areas):
-        # if proc_area == 308800:
-        #    x = 3
-
         logger.info(f"{i}/{total_areas}: Processing {proc_area}")
 
-        proc_base_pop = base_pop[base_pop["area"] == proc_area]
+        proc_base_pop = base_pop[base_pop["area"] == proc_area].reset_index()
 
-        proc_houshold_dataset = match_household_and_pop(houshold_dataset, proc_base_pop)
+        proc_houshold_dataset = household_prep(houshold_dataset, proc_base_pop)
 
         if len(proc_base_pop) == 0:
             continue
 
-        proc_base_pop = create_household_composition_v2(
-            proc_houshold_dataset,
-            proc_base_pop,
-            proc_area,
+        proc_base_pop = create_household_composition_v3(
+            proc_houshold_dataset, proc_base_pop, proc_area
         )
 
         results.append(proc_base_pop)
 
     for result in results:
-        base_pop.loc[result.index] = result
+        result_index = result["index"]
+        result_content = result.drop("index", axis=1)
+        base_pop.iloc[result_index] = result_content
 
+    base_pop[["area", "age"]] = base_pop[["area", "age"]].astype(int)
     end_time = datetime.utcnow()
 
     total_mins = round((end_time - start_time).total_seconds() / 60.0, 3)
@@ -679,10 +838,50 @@ def household_wrapper(
     return base_pop, base_address
 
 
-def match_household_and_pop(
-    household_input: DataFrame, synpop_input: DataFrame
+def obtain_household_adult_num(proc_household_data: DataFrame) -> DataFrame:
+    """Obtain household adult number based on total people and children
+
+    Args:
+        proc_household_data (DataFrame): Household dataset
+
+    Returns:
+        DataFrame: Updated household
+    """
+    proc_household_data["adult_num"] = (
+        proc_household_data["people_num"] - proc_household_data["children_num"]
+    )
+
+    proc_household_data["adult_num"] = proc_household_data["adult_num"].clip(lower=0)
+
+    return proc_household_data
+
+
+def get_household_scaling_factor(
+    proc_base_synpop: DataFrame, proc_household_data: DataFrame
+) -> float:
+    """Get household scaling factor
+
+    Args:
+        proc_base_synpop (DataFrame): Base synthetic population
+        proc_household_data (DataFrame): Base household dataset
+
+    Returns:
+        dict: Scaling factor for both adult and children
+    """
+    scaling_factor = (
+        len(proc_base_synpop)
+        / (
+            proc_household_data["people_num"] * proc_household_data["household_num"]
+        ).sum()
+    )
+
+    return scaling_factor
+
+
+def household_prep(
+    household_input: DataFrame, synpop_input: DataFrame, scaling: bool = False
 ) -> DataFrame:
-    """Match people number from the census household to the synthetic population
+    """Splitting and child and adults
 
     Args:
         household_input (DataFrame): Household data
@@ -696,36 +895,23 @@ def match_household_and_pop(
     proc_household_data = household_input[household_input["area"] == proc_area]
     proc_base_synpop = synpop_input[synpop_input["area"] == proc_area]
 
-    # ---------------------------
-    # Get children number
-    # ---------------------------
-    target_children_num = len(proc_base_synpop[proc_base_synpop["age"] < 18])
+    proc_household_data = obtain_household_adult_num(proc_household_data)
 
-    keys_to_process = [
-        col for col in proc_household_data.columns if col not in ["area", 0]
+    if scaling:
+        scaling_factor = get_household_scaling_factor(
+            proc_base_synpop, proc_household_data
+        )
+
+        proc_household_data["household_num"] = (
+            proc_household_data["household_num"] * scaling_factor
+        )
+
+        proc_household_data["household_num"] = proc_household_data[
+            "household_num"
+        ].apply(lambda x: max(1, round(x)))
+
+    proc_household_data = proc_household_data[
+        ["area", "adult_num", "children_num", "household_num"]
     ]
 
-    proc_children_num = 0
-    for proc_key in keys_to_process:
-        if proc_key == "area":
-            continue
-
-        proc_children_num += proc_key * int(proc_household_data[proc_key].values[0])
-
-    if proc_children_num == 0:
-        return proc_household_data[proc_household_data.columns].astype(int)
-
-    scaling_factor = target_children_num / proc_children_num
-
-    proc_household_data[keys_to_process] = proc_household_data[keys_to_process].astype(
-        int
-    )
-    proc_household_data[keys_to_process] = (
-        proc_household_data[keys_to_process] * scaling_factor
-    )
-
-    proc_household_data[keys_to_process] = proc_household_data[keys_to_process].astype(
-        int
-    )
-
-    return proc_household_data[proc_household_data.columns].astype(int)
+    return proc_household_data

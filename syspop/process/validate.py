@@ -238,32 +238,45 @@ def validate_household(
     # get model:
     data_model = synpop_data[["area", "household"]]
     data_model = data_model[data_model["area"].isin(overlapping_areas)]
-    data_model["children_num"] = data_model["household"].str.split("_").str[1]
-
+    data_model["household_composition"] = (
+        data_model["household"].str.split("_").apply(lambda x: "_".join(x[1:-1]))
+    )
     # get truth:
     data_truth = household_census_data[
         household_census_data["area"].isin(overlapping_areas)
     ]
+    data_truth["adult_num"] = data_truth["people_num"] - data_truth["children_num"]
+    data_truth["adult_num"] = data_truth["adult_num"].clip(lower=0)
+    data_truth["household_composition"] = (
+        data_truth["adult_num"].astype(str)
+        + "_"
+        + data_truth["children_num"].astype(str)
+    )
 
     # Convert the extracted values to numeric if needed
-    data_model["children_num"] = data_model["children_num"].astype(int)
+    all_household_composition = set(
+        list(data_model["household_composition"].unique())
+        + list(data_truth["household_composition"].unique())
+    )
 
     err_ratio = {}
     err = {"truth": {}, "model": {}}
-    for proc_children_num in [0, 1, 2, 3, 4]:
-        data_truth[proc_children_num] = data_truth[proc_children_num].astype(int)
-        proc_truth = data_truth[proc_children_num].sum()
-        proc_model = data_model["children_num"].value_counts().get(proc_children_num, 0)
+    for proc_household_composition in all_household_composition:
+        proc_truth = data_truth[
+            data_truth["household_composition"] == proc_household_composition
+        ]["household_num"].sum()
+        proc_model = len(
+            data_model[
+                data_model["household_composition"] == proc_household_composition
+            ]["household"].unique()
+        )
 
-        proc_model = data_model.loc[data_model["children_num"] == proc_children_num]
+        err["model"][proc_household_composition] = proc_model
+        err["truth"][proc_household_composition] = proc_truth
 
-        # Extract unique households from the filtered DataFrame
-        proc_model = len(proc_model["household"].unique())
-
-        err["model"][proc_children_num] = proc_model
-        err["truth"][proc_children_num] = proc_truth
-
-        err_ratio[proc_children_num] = 100.0 * (proc_model - proc_truth) / proc_truth
+        err_ratio[proc_household_composition] = (
+            100.0 * (proc_model - proc_truth) / proc_truth
+        )
 
     validate_vis_barh(
         val_dir,
@@ -271,8 +284,9 @@ def validate_household(
         f"Validation: number of children in a household",
         f"validation_household_err",
         f"Error: Model and Truth \n Model: {sum(err['model'].values())}; Truth: {sum(err['truth'].values())}",
-        "Number of children",
+        "Number of cdifference household composition",
         plot_ratio=False,
+        figure_size=(6, 10),
     )
 
     validate_vis_barh(

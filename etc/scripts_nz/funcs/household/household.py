@@ -45,5 +45,10 @@ def create_household_number(workdir):
 
     data = data[["area", "people_num", "children_num", "household_num"]]
 
+    # remove duplicated household composition
+    data = data.groupby(["area", "people_num", "children_num"], as_index=False)[
+        "household_num"
+    ].sum()
+
     with open(join(workdir, "household.pickle"), "wb") as fid:
         pickle_dump({"household": data}, fid)

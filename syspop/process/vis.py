@@ -60,6 +60,7 @@ def validate_vis_barh(
     y_label: str = None,
     plot_ratio: bool = True,
     add_polyfit: bool = False,
+    figure_size: tuple or None = None,
 ):
     """Validdate vis for barh
 
@@ -71,7 +72,11 @@ def validate_vis_barh(
         y_label (str, optional): y label in text. Defaults to None.
     """
     # Create figure and axes
-    _, ax = subplots()
+    if figure_size is None:
+        fig, ax = subplots()
+    else:
+        fig, ax = subplots(figsize=figure_size)
+    fig.tight_layout()
 
     # Set bar width
     bar_width = 0.35

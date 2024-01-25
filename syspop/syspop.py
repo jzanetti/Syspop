@@ -56,8 +56,11 @@ def vis(
     # 1. plot distributions
     # ---------------------------
     if plot_distribution:
-        synpop_data["children_number_in_household"] = (
+        synpop_data["adults_number_in_household"] = (
             synpop_data["household"].str.split("_").str[1]
+        )
+        synpop_data["children_number_in_household"] = (
+            synpop_data["household"].str.split("_").str[2]
         )
         plot_pie_charts(
             vis_dir,
@@ -66,6 +69,7 @@ def vis(
                     "age",
                     "gender",
                     "ethnicity",
+                    "adults_number_in_household",
                     "children_number_in_household",
                     "social_economics",
                     "travel_mode_work",
