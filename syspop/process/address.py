@@ -1,16 +1,18 @@
-from pandas import DataFrame
-from numpy import NaN
+from copy import deepcopy
 from datetime import datetime
 from logging import getLogger
+
 import ray
-from copy import deepcopy
+from numpy import NaN
+from pandas import DataFrame
+
 logger = getLogger()
+
 
 @ray.remote
 def assign_place_to_address_remote(
-        address_type: str,
-        pop_data_input: DataFrame,
-        address_data_input: DataFrame):
+    address_type: str, pop_data_input: DataFrame, address_data_input: DataFrame
+):
     """Randomly assign each household to an address (for parallel processing)
 
     Args:
@@ -21,14 +23,13 @@ def assign_place_to_address_remote(
         DataFrame: Processed population data
     """
     return assign_place_to_address(
-        address_type,
-        deepcopy(pop_data_input),
-        address_data_input)
+        address_type, deepcopy(pop_data_input), address_data_input
+    )
+
 
 def assign_place_to_address(
-        address_type: str,
-        pop_data_input: DataFrame,
-        address_data_input: DataFrame) -> DataFrame:
+    address_type: str, pop_data_input: DataFrame, address_data_input: DataFrame
+) -> DataFrame:
     """Randomly assign each household to an address
 
     Args:
@@ -41,23 +42,25 @@ def assign_place_to_address(
     """
 
     all_address = []
-    all_households = list(pop_data_input[address_type].unique())
+    all_address_names = list(pop_data_input[address_type].unique())
 
-    for proc_household in all_households:
-        
+    for proc_address_name in all_address_names:
         if len(address_data_input) > 0:
             proc_address = address_data_input.sample(n=1)
-            all_address.append(f"{proc_household}, {round(proc_address['latitude'].values[0], 5)},{round(proc_address['longitude'].values[0], 5)}")
-    
+            all_address.append(
+                f"{proc_address_name}, {round(proc_address['latitude'].values[0], 5)},{round(proc_address['longitude'].values[0], 5)}"
+            )
+
     return all_address
 
 
 def add_random_address(
-        base_pop: DataFrame,
-        address_data: DataFrame,
-        address_type: str, 
-        use_parallel: bool = False, 
-        n_cpu: int = 16) -> DataFrame:
+    base_pop: DataFrame,
+    address_data: DataFrame,
+    address_type: str,
+    use_parallel: bool = False,
+    n_cpu: int = 16,
+) -> DataFrame:
     """Add address (lat and lon) to each household
 
     Args:
@@ -80,30 +83,30 @@ def add_random_address(
     results = []
 
     for i, proc_area in enumerate(all_areas):
-
         logger.info(f"{i}/{len(all_areas)}: Processing {proc_area}")
 
         proc_address_data = address_data[address_data["area"] == proc_area]
-        proc_pop_data = base_pop[base_pop["area"] == proc_area]
+
+        area_type = "area"
+        if address_type == "company":
+            area_type = "area_work"
+
+        proc_pop_data = base_pop[base_pop[area_type] == proc_area]
 
         if use_parallel:
             processed_address = assign_place_to_address_remote.remote(
-                address_type,
-                proc_pop_data,
-                proc_address_data)
+                address_type, proc_pop_data, proc_address_data
+            )
         else:
             processed_address = assign_place_to_address(
-                address_type,
-                proc_pop_data,
-                proc_address_data)
-        
+                address_type, proc_pop_data, proc_address_data
+            )
+
         results.append(processed_address)
-    
 
     if use_parallel:
         results = ray.get(results)
         ray.shutdown()
-
 
     flattened_results = [item for sublist in results for item in sublist]
     results_dict = {"name": [], "latitude": [], "longitude": []}
@@ -112,13 +115,13 @@ def add_random_address(
         results_dict["name"].append(proc_value[0])
         results_dict["latitude"].append(float(proc_value[1]))
         results_dict["longitude"].append(float(proc_value[2]))
-    
+
     results_df = DataFrame.from_dict(results_dict)
     results_df["type"] = address_type
 
     end_time = datetime.utcnow()
 
-    total_mins = round((end_time - start_time).total_seconds() / 60.0 , 3)
+    total_mins = round((end_time - start_time).total_seconds() / 60.0, 3)
     logger.info(f"Processing time (address): {total_mins}")
 
     return results_df
