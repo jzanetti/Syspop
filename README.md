@@ -71,7 +71,7 @@ The daily activity (diary) for the produced synthetic population can be created 
 from syspop import diary as syspop_diary
 syspop_diary(output_dir="/tmp/syspop", n_cpu=1)
 ```
-where ``output_dir`` refers to the directory where the synthetic population is stored (e.g., ``/tmp/syspop/syspop_base.parquet``). The output will be stored in the directory as ``<output_dir>/diaries.parquet``.
+where ``output_dir`` refers to the directory where the synthetic population is stored (e.g., ``/tmp/syspop/syspop_base.parquet``). The output will be stored in the directory as ``<output_dir>/diaries.parquet``. The details of creating diaries for synthetic population can be found [here](https://github.com/jzanetti/Syspop/wiki/Synthetic-diary)
 
 ### syspop.validate
 
