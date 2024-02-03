@@ -3,6 +3,7 @@
 from pickle import load as pickle_load
 
 from syspop import create as syspop_create
+from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
@@ -33,16 +34,17 @@ with open("etc/data/test_data/supermarket.pickle", "rb") as fid:
 with open("etc/data/test_data/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
-output_dir = "/tmp/syspop_test/Auckland"
-# syn_areas = [135400, 111400, 110400]
+output_dir = "/tmp/syspop_test/test"
+syn_areas = [135400, 111400, 110400]
 # syn_areas = [135400]
-syn_areas = list(
-    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Auckland"]["area"]
-)
+# syn_areas = list(
+#    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Auckland"]["area"]
+# )
 # syn_areas = [135400, 111400, 110400]
 
 
 if_run_syspop_create = True
+if_run_diary = True
 if_run_validation = True
 if_run_vis = True
 
@@ -69,6 +71,9 @@ if if_run_syspop_create:
         use_parallel=True,
         ncpu=8,
     )
+
+if if_run_diary:
+    syspop_diary(output_dir=output_dir)
 
 if if_run_validation:
     syspop_validate(

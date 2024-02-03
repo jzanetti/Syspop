@@ -1,12 +1,16 @@
+from datetime import datetime
 from logging import getLogger
 from os import makedirs
 from os.path import exists, join
 from pickle import load as pickle_load
 
+import ray
 from pandas import DataFrame
 from pandas import concat as pandas_concat
+from pandas import cut as pandas_cut
 from pandas import merge as pandas_merge
-from pandas import read_csv as pandas_read_csv
+from pandas import read_parquet as pandas_read_parquet
+from process.diary import create_diary, create_diary_remote
 from process.utils import setup_logging
 from process.validate import (
     validate_base_pop_and_age,
@@ -49,8 +53,8 @@ def vis(
     if not exists(vis_dir):
         makedirs(vis_dir)
 
-    syn_pop_path = join(output_dir, "syspop_base.csv")
-    synpop_data = pandas_read_csv(syn_pop_path)
+    syn_pop_path = join(output_dir, "syspop_base.parquet")
+    synpop_data = pandas_read_parquet(syn_pop_path)
 
     # ---------------------------
     # 1. plot distributions
@@ -79,10 +83,10 @@ def vis(
     # ---------------------------
     # 2. plot locations
     # ---------------------------
-    sys_address_path = join(output_dir, "syspop_location.csv")
+    sys_address_path = join(output_dir, "syspop_location.parquet")
     if not exists(sys_address_path):
         return
-    address_data = pandas_read_csv(sys_address_path)
+    address_data = pandas_read_parquet(sys_address_path)
 
     # -----------------
     # 2.1 plot travel: work - home
@@ -153,8 +157,8 @@ def validate(
         output_dir (str, optional): Output drirectory. Defaults to "".
         pop_gender (DataFrame, optional): synthetic population. Defaults to None.
     """
-    syn_pop_path = join(output_dir, "syspop_base.csv")
-    synpop_data = pandas_read_csv(syn_pop_path)
+    syn_pop_path = join(output_dir, "syspop_base.parquet")
+    synpop_data = pandas_read_parquet(syn_pop_path)
 
     val_dir = join(output_dir, "val")
     if not exists(val_dir):
@@ -185,6 +189,51 @@ def validate(
         "ethnicity",
         ["European", "Maori", "Pacific", "Asian", "MELAA"],
     )
+
+
+def diary(output_dir: str, ncpu: int = 1):
+    """Create diary data from synthetic population
+
+    Args:
+        output_dir (str): Output directory
+        ncpu (int): Number of CPU to be used
+    """
+
+    start_t = datetime.utcnow()
+
+    logger.info(f"Diary: reading synthetic population")
+    syspop_data = pandas_read_parquet(join(output_dir, "syspop_base.parquet"))
+
+    syspop_data_partitions = [
+        df for _, df in syspop_data.groupby(pandas_cut(syspop_data.index, ncpu))
+    ]
+
+    logger.info(f"Diary: initiating Ray [cpu: {ncpu}]...")
+    if ncpu > 1:
+        ray.init(num_cpus=ncpu, include_dashboard=False)
+
+    logger.info("Diary: start processing diary ...")
+    outputs = []
+    for i, proc_syspop_data in enumerate(syspop_data_partitions):
+        if ncpu == 1:
+            outputs.append(create_diary(proc_syspop_data, ncpu, print_log=True))
+        else:
+            outputs.append(
+                create_diary_remote.remote(proc_syspop_data, ncpu, print_log=i == 0)
+            )
+
+    if ncpu > 1:
+        outputs = ray.get(outputs)
+        ray.shutdown()
+
+    outputs = pandas_concat(outputs, axis=0, ignore_index=True)
+    end_t = datetime.utcnow()
+
+    processing_mins = round((end_t - start_t).total_seconds() / 60.0, 2)
+
+    outputs.to_parquet(join(output_dir, "diaries.parquet"))
+
+    logger.info(f"Diary: created within {processing_mins} minutes ...")
 
 
 def create(
@@ -324,8 +373,8 @@ def create(
             tmp_data_path, restaurant_data, geo_location, assign_address_flag
         )
 
-    output_syn_pop_path = join(output_dir, "syspop_base.csv")
-    output_loc_path = join(output_dir, "syspop_location.csv")
+    output_syn_pop_path = join(output_dir, "syspop_base.parquet")
+    output_loc_path = join(output_dir, "syspop_location.parquet")
 
     with open(tmp_data_path, "rb") as fid:
         synpop_data = pickle_load(fid)
@@ -333,5 +382,5 @@ def create(
     synpop_data["synpop"]["id"] = synpop_data["synpop"].index
     synpop_data["synpop"].insert(0, "id", synpop_data["synpop"].pop("id"))
 
-    synpop_data["synpop"].to_csv(output_syn_pop_path, index=False)
-    synpop_data["synadd"].to_csv(output_loc_path, index=False)
+    synpop_data["synpop"].to_parquet(output_syn_pop_path, index=False)
+    synpop_data["synadd"].to_parquet(output_loc_path, index=False)
