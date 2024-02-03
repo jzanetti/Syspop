@@ -34,12 +34,12 @@ with open("etc/data/test_data/supermarket.pickle", "rb") as fid:
 with open("etc/data/test_data/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
-output_dir = "/tmp/syspop_test/test"
-syn_areas = [135400, 111400, 110400]
+output_dir = "/tmp/syspop_test/Auckland"
+# syn_areas = [135400, 111400, 110400]
 # syn_areas = [135400]
-# syn_areas = list(
-#    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Auckland"]["area"]
-# )
+syn_areas = list(
+    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Auckland"]["area"]
+)
 # syn_areas = [135400, 111400, 110400]
 
 

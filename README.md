@@ -62,6 +62,17 @@ Detailed descriptions of the input data for each argument can be found in [Input
 
 It's important to note that all arguments in the ``syspop.create`` function are optional, and their requirement depends on the specific synthetic information that needs to be generated. To understand the interdependencies between different synthetic information, refer to the documentation available [here](https://github.com/jzanetti/Syspop/wiki/Synthetic-population)
 
+
+### syspop.diary
+
+The daily activity (diary) for the produced synthetic population can be created using the function ``syspop.diary``:
+
+```
+from syspop import diary as syspop_diary
+syspop_diary(output_dir="/tmp/syspop", n_cpu=1)
+```
+where ``output_dir`` refers to the directory where the synthetic population is stored (e.g., ``/tmp/syspop/syspop_base.parquet``). The output will be stored in the directory as ``<output_dir>/diaries.parquet``.
+
 ### syspop.validate
 
 The produced syntehtic population from ``syspop.create`` can be validated using the function of ``syspop.validate``:

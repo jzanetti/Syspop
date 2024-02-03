@@ -191,7 +191,7 @@ def validate(
     )
 
 
-def diary(output_dir: str, ncpu: int = 1):
+def diary(output_dir: str, n_cpu: int = 1):
     """Create diary data from synthetic population
 
     Args:
@@ -205,24 +205,24 @@ def diary(output_dir: str, ncpu: int = 1):
     syspop_data = pandas_read_parquet(join(output_dir, "syspop_base.parquet"))
 
     syspop_data_partitions = [
-        df for _, df in syspop_data.groupby(pandas_cut(syspop_data.index, ncpu))
+        df for _, df in syspop_data.groupby(pandas_cut(syspop_data.index, n_cpu))
     ]
 
-    logger.info(f"Diary: initiating Ray [cpu: {ncpu}]...")
-    if ncpu > 1:
-        ray.init(num_cpus=ncpu, include_dashboard=False)
+    logger.info(f"Diary: initiating Ray [cpu: {n_cpu}]...")
+    if n_cpu > 1:
+        ray.init(num_cpus=n_cpu, include_dashboard=False)
 
     logger.info("Diary: start processing diary ...")
     outputs = []
     for i, proc_syspop_data in enumerate(syspop_data_partitions):
-        if ncpu == 1:
-            outputs.append(create_diary(proc_syspop_data, ncpu, print_log=True))
+        if n_cpu == 1:
+            outputs.append(create_diary(proc_syspop_data, n_cpu, print_log=True))
         else:
             outputs.append(
-                create_diary_remote.remote(proc_syspop_data, ncpu, print_log=i == 0)
+                create_diary_remote.remote(proc_syspop_data, n_cpu, print_log=i == 0)
             )
 
-    if ncpu > 1:
+    if n_cpu > 1:
         outputs = ray.get(outputs)
         ray.shutdown()
 
