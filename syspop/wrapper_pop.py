@@ -192,68 +192,6 @@ def create_hospital(
         pickle_dump({"synpop": base_pop, "synadd": base_address}, fid)
 
 
-def create_supermarket(
-    tmp_data_path: str,
-    supermarket_data: DataFrame,
-    geo_location: DataFrame,
-    assign_address_flag: bool,
-):
-    """Create supermarket data, if required, address of each supermarket as well
-
-    Args:
-        tmp_data_path (str): where to save the population data
-        supermarket_data (DataFrame): supermarket data to be used
-        geo_location (DataFrame): geo location data, e.g., lat/lon for each area
-        assign_address_flag (bool): if write hospital address
-    """
-    with open(tmp_data_path, "rb") as fid:
-        base_pop = pickle_load(fid)
-
-    base_pop, address_data = shared_space_wrapper(
-        "supermarket",
-        supermarket_data,
-        base_pop["synpop"],
-        base_pop["synadd"],
-        geo_location,
-        num_nearest=2,
-        assign_address_flag=assign_address_flag,
-    )
-
-    with open(tmp_data_path, "wb") as fid:
-        pickle_dump({"synpop": base_pop, "synadd": address_data}, fid)
-
-
-def create_restauraunt(
-    tmp_data_path: str,
-    restaurant_data: DataFrame,
-    geo_location: DataFrame,
-    assign_address_flag: bool,
-):
-    """Create synthetic restaurant, if requred, address as well
-
-    Args:
-        tmp_data_path (str): where to save the population data
-        restaurant_data (DataFrame): restaurant_data to be used
-        geo_location (DataFrame): geo location data, e.g., lat/lon for each area
-        assign_address_flag (bool): if write hospital address
-    """
-    with open(tmp_data_path, "rb") as fid:
-        base_pop = pickle_load(fid)
-
-    base_pop, address_data = shared_space_wrapper(
-        "restaurant",
-        restaurant_data,
-        base_pop["synpop"],
-        base_pop["synadd"],
-        geo_location,
-        num_nearest=4,
-        assign_address_flag=assign_address_flag,
-    )
-
-    with open(tmp_data_path, "wb") as fid:
-        pickle_dump({"synpop": base_pop, "synadd": address_data}, fid)
-
-
 def create_shared_space(
     tmp_data_path: str,
     shared_space_data: DataFrame,
@@ -281,7 +219,7 @@ def create_shared_space(
         base_pop["synpop"],
         base_pop["synadd"],
         geo_location,
-        num_nearest=selected_num, # 4,
+        num_nearest=selected_num,  # 4,
         assign_address_flag=assign_address_flag,
     )
 

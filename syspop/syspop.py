@@ -19,7 +19,7 @@ from process.validate import (
     validate_work,
 )
 from process.vis import plot_map_html, plot_pie_charts, plot_travel_html
-from wrapper_pop import (  # create_restauraunt,; create_supermarket,
+from wrapper_pop import (
     create_base_pop,
     create_hospital,
     create_household,
@@ -382,12 +382,12 @@ def create(
         )
 
     if restaurant_data is not None:
-        _check_dependancies("restauraunt", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding restauraunt ...")
+        _check_dependancies("restaurant", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding restaurant ...")
         create_shared_space(
             tmp_data_path,
             restaurant_data,
-            "restauraunt",
+            "restaurant",
             4,
             geo_location,
             assign_address_flag,
