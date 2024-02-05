@@ -1,9 +1,9 @@
-
-from OSMPythonTools.nominatim import Nominatim
-from OSMPythonTools.overpass import overpassQueryBuilder, Overpass
-from pandas import DataFrame
 from os.path import join
+
 from numpy import NaN
+from OSMPythonTools.nominatim import Nominatim
+from OSMPythonTools.overpass import Overpass, overpassQueryBuilder
+from pandas import DataFrame
 
 overpass = Overpass()
 nominatim = Nominatim()
@@ -26,9 +26,14 @@ def query_results(query_keys: dict, region: str, country: str, output_dir: str):
         areaId = nominatim.query(f"{country}").areaId()
 
     for proc_key in query_keys:
-        
+
         for proc_value in query_keys[proc_key]:
-            query = overpassQueryBuilder(area=areaId, elementType="node", selector=f'"{proc_key}"="{proc_value}"', out="body")
+            query = overpassQueryBuilder(
+                area=areaId,
+                elementType="node",
+                selector=f'"{proc_key}"="{proc_value}"',
+                out="body",
+            )
             result = overpass.query(query)
 
             outputs = {"name": [], "lat": [], "lon": []}
@@ -43,10 +48,11 @@ def query_results(query_keys: dict, region: str, country: str, output_dir: str):
             df = DataFrame.from_dict(outputs)
             df.to_csv(join(output_dir, f"{proc_key}_{proc_value}.csv"), index=False)
 
+
 if __name__ == "__main__":
-    region = NaN # can be NaN, or sth like Auckland
+    region = NaN  # can be NaN, or sth like Auckland
     country = "New Zealand"
-    query_keys = {"amenity": ["restaurant"], "shop": ["supermarket"]}
+    query_keys = {"amenity": ["restaurant", "pharmacy"], "shop": ["supermarket"]}
     output_dir = "etc/data/raw_nz"
 
     query_results(query_keys, region, country, output_dir)

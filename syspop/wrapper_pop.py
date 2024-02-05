@@ -252,3 +252,38 @@ def create_restauraunt(
 
     with open(tmp_data_path, "wb") as fid:
         pickle_dump({"synpop": base_pop, "synadd": address_data}, fid)
+
+
+def create_shared_space(
+    tmp_data_path: str,
+    shared_space_data: DataFrame,
+    shared_space_type: str,
+    selected_num: int,
+    geo_location: DataFrame,
+    assign_address_flag: bool,
+):
+    """Create synthetic restaurant/supermarket/pharmacy, if requred, address as well
+
+    Args:
+        tmp_data_path (str): where to save the population data
+        shared_space_data (DataFrame): shared space data to be used (e.g., restaurant, supermarket, pharmacy etc.)
+        shared_space_type (str): name of the shared space (e.g., restaurant etc.)
+        selected_num (int): number of shared space to visit for each agent
+        geo_location (DataFrame): geo location data, e.g., lat/lon for each area
+        assign_address_flag (bool): if write hospital address
+    """
+    with open(tmp_data_path, "rb") as fid:
+        base_pop = pickle_load(fid)
+
+    base_pop, address_data = shared_space_wrapper(
+        shared_space_type,  # "restaurant",
+        shared_space_data,  # restaurant_data,
+        base_pop["synpop"],
+        base_pop["synadd"],
+        geo_location,
+        num_nearest=selected_num, # 4,
+        assign_address_flag=assign_address_flag,
+    )
+
+    with open(tmp_data_path, "wb") as fid:
+        pickle_dump({"synpop": base_pop, "synadd": address_data}, fid)

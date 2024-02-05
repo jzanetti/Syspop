@@ -34,6 +34,10 @@ with open("etc/data/test_data/supermarket.pickle", "rb") as fid:
 with open("etc/data/test_data/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
+with open("etc/data/test_data/pharmacy.pickle", "rb") as fid:
+    pharmacy_data = pickle_load(fid)
+
+
 output_dir = "/tmp/syspop_test/Auckland"
 # syn_areas = [135400, 111400, 110400]
 # syn_areas = [135400]
@@ -66,6 +70,7 @@ if if_run_syspop_create:
         hospital_data=hospital_data["hospital"],
         supermarket_data=supermarket_data["supermarket"],
         restaurant_data=restaurant_data["restaurant"],
+        pharmacy_data=pharmacy_data["pharmacy"],
         assign_address_flag=True,
         rewrite_base_pop=True,
         use_parallel=True,
@@ -73,7 +78,7 @@ if if_run_syspop_create:
     )
 
 if if_run_diary:
-    syspop_diary(output_dir=output_dir)
+    syspop_diary(output_dir=output_dir, activities_cfg=None)
 
 if if_run_validation:
     syspop_validate(

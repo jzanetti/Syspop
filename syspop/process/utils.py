@@ -7,7 +7,11 @@ from yaml import safe_load as yaml_load
 logger = getLogger()
 
 
-def setup_logging(workdir: str = "/tmp", start_utc: datetime = datetime.utcnow()):
+def setup_logging(
+    workdir: str = "/tmp",
+    log_type: str = "syspop",
+    start_utc: datetime = datetime.utcnow(),
+):
     """set up logging system for tasks
 
     Returns:
@@ -19,7 +23,7 @@ def setup_logging(workdir: str = "/tmp", start_utc: datetime = datetime.utcnow()
     ch = StreamHandler()
     ch.setLevel(INFO)
     ch.setFormatter(formatter)
-    logger_path = join(workdir, f"syspop.{start_utc.strftime('%Y%m%d')}")
+    logger_path = join(workdir, f"{log_type}.{start_utc.strftime('%Y%m%d')}")
     basicConfig(filename=logger_path),
     logger = getLogger()
     logger.setLevel(INFO)

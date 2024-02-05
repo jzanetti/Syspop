@@ -9,22 +9,25 @@ from pandas import DataFrame
 
 DIARY_CFG = {
     "worker": {
-        "household": {"weight": 0.25, "time_ranges": [(0, 8), (15, 24)]},
+        "household": {"weight": 0.3, "time_ranges": [(0, 8), (15, 24)]},
         "travel": {"weight": 0.15, "time_ranges": [(7, 9), (16, 19)]},
         "company": {"weight": 0.4, "time_ranges": [(9, 17)]},
         "supermarket": {"weight": 0.1, "time_ranges": [(8, 9), (17, 20)]},
         "restaurant": {"weight": 0.1, "time_ranges": [(7, 8), (18, 20)]},
+        "pharmacy": {"weight": 0.00001, "time_ranges": [(9, 17)]},
     },
     "student": {
         "household": {"weight": 0.3, "time_ranges": [(0, 8), (15, 24)]},
         "school": {"weight": 0.5, "time_ranges": [(9, 15)]},
         "supermarket": {"weight": 0.1, "time_ranges": [(8, 9), (17, 20)]},
         "restaurant": {"weight": 0.1, "time_ranges": [(7, 8), (18, 20)]},
+        "pharmacy": {"weight": 0.00001, "time_ranges": [(9, 17)]},
     },
     "default": {
         "household": {"weight": 0.6, "time_ranges": [(0, 24)]},
         "supermarket": {"weight": 0.2, "time_ranges": [(8, 9), (17, 20)]},
         "restaurant": {"weight": 0.2, "time_ranges": [(7, 8), (18, 20)]},
+        "pharmacy": {"weight": 0.0001, "time_ranges": [(9, 17)]},
     },
 }
 
@@ -94,7 +97,7 @@ def create_diary_single_person(
 
 @ray.remote
 def create_diary_remote(
-    syspop_data: DataFrame, ncpu: int, print_log: bool
+    syspop_data: DataFrame, ncpu: int, print_log: bool, activities: dict or None = None
 ) -> DataFrame:
     """Create diaries in parallel processing
 
@@ -104,10 +107,15 @@ def create_diary_remote(
         ncpu (int): Number of CPUs in total
             (this is just for displaying the progress)
     """
-    return create_diary(syspop_data, ncpu, print_log)
+    return create_diary(syspop_data, ncpu, print_log, activities_cfg=activities)
 
 
-def create_diary(syspop_data: DataFrame, ncpu: int, print_log: bool) -> DataFrame:
+def create_diary(
+    syspop_data: DataFrame,
+    ncpu: int,
+    print_log: bool,
+    activities_cfg: dict or None = None,
+) -> DataFrame:
     """Create diaries
 
     Args:
@@ -116,6 +124,10 @@ def create_diary(syspop_data: DataFrame, ncpu: int, print_log: bool) -> DataFram
         ncpu (int): Number of CPUs in total
             (this is just for displaying the progress)
     """
+
+    if activities_cfg is None:
+        activities_cfg = DIARY_CFG
+
     all_diaries = {proc_hour: [] for proc_hour in range(24)}
     all_diaries["id"] = []
     total_people = len(syspop_data)
@@ -126,13 +138,13 @@ def create_diary(syspop_data: DataFrame, ncpu: int, print_log: bool) -> DataFram
                 f"Processing [{i}/{total_people}]x{ncpu}: {100.0 * round(i/total_people, 2)}x{ncpu} %"
             )
 
-        output = create_diary_single_person(
-            activities=DIARY_CFG.get(
-                "worker"
-                if isinstance(proc_people["company"], str)
-                else "student" if isinstance(proc_people["school"], str) else "default"
-            )
+        proc_activities = activities_cfg.get(
+            "worker"
+            if isinstance(proc_people["company"], str)
+            else "student" if isinstance(proc_people["school"], str) else "default"
         )
+
+        output = create_diary_single_person(activities=proc_activities)
 
         all_diaries["id"].append(proc_people.id)
 

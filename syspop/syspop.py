@@ -1,5 +1,4 @@
 from datetime import datetime
-from logging import getLogger
 from os import makedirs
 from os.path import exists, join
 from pickle import load as pickle_load
@@ -20,18 +19,17 @@ from process.validate import (
     validate_work,
 )
 from process.vis import plot_map_html, plot_pie_charts, plot_travel_html
-from wrapper_pop import (
+from wrapper_pop import (  # create_restauraunt,; create_supermarket,
     create_base_pop,
     create_hospital,
     create_household,
-    create_restauraunt,
     create_school,
+    create_shared_space,
     create_socialeconomics,
-    create_supermarket,
     create_work,
 )
 
-logger = getLogger()
+logger = setup_logging(workdir="")
 
 
 def vis(
@@ -191,7 +189,7 @@ def validate(
     )
 
 
-def diary(output_dir: str, n_cpu: int = 1):
+def diary(output_dir: str, n_cpu: int = 1, activities_cfg: dict or None = None):
     """Create diary data from synthetic population
 
     Args:
@@ -216,10 +214,22 @@ def diary(output_dir: str, n_cpu: int = 1):
     outputs = []
     for i, proc_syspop_data in enumerate(syspop_data_partitions):
         if n_cpu == 1:
-            outputs.append(create_diary(proc_syspop_data, n_cpu, print_log=True))
+            outputs.append(
+                create_diary(
+                    proc_syspop_data,
+                    n_cpu,
+                    print_log=True,
+                    activities_cfg=activities_cfg,
+                )
+            )
         else:
             outputs.append(
-                create_diary_remote.remote(proc_syspop_data, n_cpu, print_log=i == 0)
+                create_diary_remote.remote(
+                    proc_syspop_data,
+                    n_cpu,
+                    print_log=i == 0,
+                    activities_cfg=activities_cfg,
+                )
             )
 
     if n_cpu > 1:
@@ -252,6 +262,7 @@ def create(
     hospital_data: DataFrame = None,
     supermarket_data: DataFrame = None,
     restaurant_data: DataFrame = None,
+    pharmacy_data: DataFrame = None,
     assign_address_flag: bool = False,
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
@@ -275,6 +286,7 @@ def create(
         hospital_data (DataFrame, optional): hospital data. Defaults to None.
         supermarket_data (DataFrame, optional): supermarket data. Defaults to None.
         restaurant_data (DataFrame, optional): restaurant data. Defaults to None.
+        pharmacy_data (DataFrame, optional): pharmacy data. Defaults to None.
         assign_address_flag (bool, optional): if assign lat/lon to different venues. Defaults to False.
         rewrite_base_pop (bool, optional): if re-write base population. Defaults to False.
         use_parallel (bool, optional): use parallel processing. Defaults to False.
@@ -312,8 +324,6 @@ def create(
         makedirs(tmp_dir)
 
     tmp_data_path = join(tmp_dir, "synpop.pickle")
-
-    logger = setup_logging(workdir=output_dir)
 
     if (not exists(tmp_data_path)) or rewrite_base_pop:
         logger.info("Creating base population ...")
@@ -362,15 +372,37 @@ def create(
     if supermarket_data is not None:
         _check_dependancies("supermarket", deps_list=["geo_location"], address_deps=[])
         logger.info("Adding supermarket ...")
-        create_supermarket(
-            tmp_data_path, supermarket_data, geo_location, assign_address_flag
+        create_shared_space(
+            tmp_data_path,
+            supermarket_data,
+            "supermarket",
+            2,
+            geo_location,
+            assign_address_flag,
         )
 
     if restaurant_data is not None:
         _check_dependancies("restauraunt", deps_list=["geo_location"], address_deps=[])
         logger.info("Adding restauraunt ...")
-        create_restauraunt(
-            tmp_data_path, restaurant_data, geo_location, assign_address_flag
+        create_shared_space(
+            tmp_data_path,
+            restaurant_data,
+            "restauraunt",
+            4,
+            geo_location,
+            assign_address_flag,
+        )
+
+    if pharmacy_data is not None:
+        _check_dependancies("pharmacy", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding pharmacy ...")
+        create_shared_space(
+            tmp_data_path,
+            pharmacy_data,
+            "pharmacy",
+            2,
+            geo_location,
+            assign_address_flag,
         )
 
     output_syn_pop_path = join(output_dir, "syspop_base.parquet")

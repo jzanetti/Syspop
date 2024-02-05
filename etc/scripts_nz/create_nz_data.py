@@ -19,11 +19,6 @@ def import_raw_data(workdir: str):
         makedirs(workdir)
 
     # -----------------------------
-    # Create shared space
-    # -----------------------------
-    create_shared_space_wrapper(workdir)
-
-    # -----------------------------
     # Create geography
     # -----------------------------
     create_geography_wrapper(workdir)
@@ -57,6 +52,11 @@ def import_raw_data(workdir: str):
     # Create hospital
     # -----------------------------
     create_hospital_wrapper(workdir)
+
+    # -----------------------------
+    # Create shared space
+    # -----------------------------
+    create_shared_space_wrapper(workdir)
 
     print("Job done ...")
 
