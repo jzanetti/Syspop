@@ -272,9 +272,9 @@ def randomly_assign_people_to_household(
                 # If there is, assign the label to these rows
                 mask = selected_rows["age"] < 18
                 children_num = len(selected_rows[mask])
-                proc_base_pop.loc[
-                    selected_rows.index, "household"
-                ] = f"{proc_area}_{children_num}_random{index_unassigned}"
+                proc_base_pop.loc[selected_rows.index, "household"] = (
+                    f"{proc_area}_{children_num}_random{index_unassigned}"
+                )
                 no_adult_family_tries = 0
             else:
                 # If there isn't a row with age > 18, put the rows back and try again
@@ -287,18 +287,18 @@ def randomly_assign_people_to_household(
                     no_adult_family_tries == 5
                 ):  # if we are not able to find adults any more ...
                     children_num = len(selected_rows)
-                    proc_base_pop.loc[
-                        selected_rows.index, "household"
-                    ] = f"{proc_area}_{children_num}_noadult{index_unassigned_noadult}"
+                    proc_base_pop.loc[selected_rows.index, "household"] = (
+                        f"{proc_area}_{children_num}_noadult{index_unassigned_noadult}"
+                    )
                     no_adult_family_tries = 0
                     index_unassigned_noadult += 1
                 else:
                     continue
         else:
             # If there isn't a row with age < 18, assign the label to these rows
-            proc_base_pop.loc[
-                selected_rows.index, "household"
-            ] = f"{proc_area}_0_random{index_unassigned}"
+            proc_base_pop.loc[selected_rows.index, "household"] = (
+                f"{proc_area}_0_random{index_unassigned}"
+            )
             no_adult_family_tries = 0
 
         unassigned_people = proc_base_pop[isna(proc_base_pop["household"])]
@@ -614,7 +614,11 @@ def create_household_composition(
 
 
 def assign_any_remained_people(
-    proc_base_pop: DataFrame, adults: DataFrame, children: DataFrame
+    proc_base_pop: DataFrame,
+    adults: DataFrame,
+    children: DataFrame,
+    assign_children: bool = True,
+    assign_adults: bool = False,
 ) -> DataFrame:
     """Randomly assign remained people to existing household"""
 
@@ -626,7 +630,7 @@ def assign_any_remained_people(
         if x != "NaN" and not (isinstance(x, float) and isnan(x))
     ]
 
-    while len(adults) > 0:
+    while len(adults) > 0 and assign_adults:
         household_id = numpy_choice(existing_households)
         num_adults_to_add = numpy_randint(0, 3)
 
@@ -634,12 +638,12 @@ def assign_any_remained_people(
             num_adults_to_add = len(adults)
 
         adult_ids = adults.sample(num_adults_to_add).index.tolist()
-        proc_base_pop.loc[
-            proc_base_pop.index.isin(adult_ids), "household"
-        ] = household_id
+        proc_base_pop.loc[proc_base_pop.index.isin(adult_ids), "household"] = (
+            household_id
+        )
         adults = adults.loc[~adults.index.isin(adult_ids)]
 
-    while len(children) > 0:
+    while len(children) > 0 and assign_children:
         household_id = numpy_choice(existing_households)
         num_children_to_add = numpy_randint(0, 3)
 
@@ -647,9 +651,9 @@ def assign_any_remained_people(
             num_children_to_add = len(children)
 
         children_ids = children.sample(num_children_to_add).index.tolist()
-        proc_base_pop.loc[
-            proc_base_pop.index.isin(children_ids), "household"
-        ] = household_id
+        proc_base_pop.loc[proc_base_pop.index.isin(children_ids), "household"] = (
+            household_id
+        )
         children = children.loc[~children.index.isin(children_ids)]
 
     return proc_base_pop
@@ -750,9 +754,9 @@ def create_household_composition_v3(
                 ].tolist()
 
             # Update the household_id for the selected adults and children in the proc_base_pop DataFrame
-            proc_base_pop.loc[
-                proc_base_pop["index"].isin(adult_ids), "household"
-            ] = f"{household_id}"
+            proc_base_pop.loc[proc_base_pop["index"].isin(adult_ids), "household"] = (
+                f"{household_id}"
+            )
             proc_base_pop.loc[
                 proc_base_pop["index"].isin(children_ids), "household"
             ] = f"{household_id}"
@@ -770,7 +774,23 @@ def create_household_composition_v3(
         proc_base_pop, unassigned_adults, unassigned_children
     )
 
+    proc_base_pop = name_single_person_family(proc_base_pop, household_id)
+
     return rename_household_id(proc_base_pop, proc_area)
+
+
+def name_single_person_family(
+    proc_base_pop: DataFrame, start_household_id: int
+) -> DataFrame:
+    """Here we just give family with only person a name (usually under household column it has value of NaN)
+
+    Args:
+        proc_base_pop (DataFrame): Updated base population
+    """
+    proc_base_pop["household"] = proc_base_pop["household"].fillna(
+        proc_base_pop["household"].isnull().cumsum() + start_household_id
+    )
+    return proc_base_pop
 
 
 def household_wrapper(

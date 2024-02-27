@@ -62,5 +62,5 @@ def import_raw_data(workdir: str):
 
 
 if __name__ == "__main__":
-    workdir = "/tmp/syspop"
+    workdir = "/tmp/syspop_v2.0"
     import_raw_data(workdir)
