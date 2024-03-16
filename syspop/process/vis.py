@@ -1,3 +1,4 @@
+from collections import Counter
 from os.path import join
 
 from folium import Map as folium_map
@@ -5,6 +6,7 @@ from folium import PolyLine as folium_polyline
 from folium.plugins import HeatMap
 from matplotlib.pyplot import (
     axvline,
+    bar,
     close,
     legend,
     plot,
@@ -12,6 +14,7 @@ from matplotlib.pyplot import (
     subplots,
     title,
     xlabel,
+    xticks,
     ylabel,
 )
 from numpy import arange as numpy_arange
@@ -189,3 +192,45 @@ def plot_travel_html(output_dir: str, df: DataFrame, data_name: str):
 
     # Display the map
     m.save(join(output_dir, f"{data_name}.html"))
+
+
+def plot_location_timeseries_charts(output_dir: str, location_counts: dict):
+
+    for proc_loc in location_counts:
+        proc_data = location_counts[proc_loc]
+        # Create lists for the plot
+        hours = list(proc_data.keys())
+        people = list(proc_data.values())
+
+        plot(hours, people, marker="o")  # Plot the data
+        xticks(range(0, max(hours)))  # Set the x-ticks to be hourly
+        xlabel("Hour")  # Set x-axis label
+        ylabel("Number of People")  # Set y-axis label
+        title(f"Number of People by Hour \n {proc_loc}")  # Set title
+        savefig(join(output_dir, f"{proc_loc}_distribution.png"), bbox_inches="tight")
+        close()
+
+
+def plot_location_occurence_charts_by_hour(
+    output_dir: str,
+    location_counts: dict,
+    hour: int,
+    data_type: str,
+):
+    counts = list(location_counts.values())
+
+    counts_processed = Counter(counts)
+
+    # Extract unique values and their counts
+    values = list(counts_processed.keys())
+    occurrences = list(counts_processed.values())
+
+    # Plotting
+    bar(values, occurrences)
+    title(
+        f"Number of People distribution \n Hour: {hour}, Data: {data_type}"
+    )  # Set title
+    xlabel("Number of people")
+    ylabel(f"Number of places ({data_type})")
+    savefig(join(output_dir, f"{data_type}_{hour}_hist.png"), bbox_inches="tight")
+    close()

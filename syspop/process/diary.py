@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime, timedelta
 from logging import getLogger
 
@@ -6,38 +7,35 @@ from numpy import array as numpy_array
 from numpy.random import choice as numpy_choice
 from numpy.random import normal as numpy_normal
 from pandas import DataFrame
-
-DIARY_CFG = {
-    "worker": {
-        "household": {"weight": 0.3, "time_ranges": [(0, 8), (15, 24)]},
-        "travel": {"weight": 0.15, "time_ranges": [(7, 9), (16, 19)]},
-        "company": {"weight": 0.4, "time_ranges": [(9, 17)]},
-        "supermarket": {"weight": 0.1, "time_ranges": [(8, 9), (17, 20)]},
-        "restaurant": {"weight": 0.1, "time_ranges": [(7, 8), (18, 20)]},
-        "pharmacy": {"weight": 0.00001, "time_ranges": [(9, 17)]},
-    },
-    "student": {
-        "household": {"weight": 0.3, "time_ranges": [(0, 8), (15, 24)]},
-        "school": {"weight": 0.5, "time_ranges": [(9, 15)]},
-        "supermarket": {"weight": 0.1, "time_ranges": [(8, 9), (17, 20)]},
-        "restaurant": {"weight": 0.1, "time_ranges": [(7, 8), (18, 20)]},
-        "pharmacy": {"weight": 0.00001, "time_ranges": [(9, 17)]},
-    },
-    "default": {
-        "household": {"weight": 0.6, "time_ranges": [(0, 24)]},
-        "supermarket": {"weight": 0.2, "time_ranges": [(8, 9), (17, 20)]},
-        "restaurant": {"weight": 0.2, "time_ranges": [(7, 8), (18, 20)]},
-        "pharmacy": {"weight": 0.0001, "time_ranges": [(9, 17)]},
-    },
-}
-
+from process import DIARY_CFG
+from process.utils import round_a_datetime
 
 logger = getLogger()
 
 
+def _get_updated_weight(target_value: int, target_weight: dict):
+    """Get updated weight from age_weight and time_weight
+
+    Args:
+        target_value (int): For example, age like 13
+        target_weight (dict): age update weight such as:
+            {0-3: 123, 23-123: 123, ...}
+    Returns:
+        _type_: _description_
+    """
+    if target_weight is None:
+        return 1.0
+
+    for key in target_weight:
+        start_target_weight, end_target_weight = map(int, key.split("-"))
+        if start_target_weight <= target_value <= end_target_weight:
+            return target_weight[key]
+    return 1.0
+
+
 def create_diary_single_person(
     ref_time: datetime = datetime(1970, 1, 1, 0),
-    time_var: numpy_array = numpy_normal(0.0, 2.0, 100),
+    time_var: numpy_array or None = numpy_normal(0.0, 1.5, 100),
     activities: dict = DIARY_CFG["default"],
 ) -> dict:
     """Create diary for one single person
@@ -56,17 +54,16 @@ def create_diary_single_person(
 
     output = {}
     ref_time_proc = ref_time_start
-    while ref_time_proc <= ref_time_end:
+    while ref_time_proc < ref_time_end:
         # Get all activities that can be chosen at this time
         available_activities = []
         for activity in activities:
             for start, end in activities[activity]["time_ranges"]:
-                start2 = ref_time_start + timedelta(
-                    hours=(start - abs(numpy_choice(time_var)))
+                time_choice = abs(numpy_choice(time_var)) if time_var is not None else 0
+                start2 = round_a_datetime(
+                    ref_time + timedelta(hours=start - time_choice)
                 )
-                end2 = ref_time_start + timedelta(
-                    hours=(end + abs(numpy_choice(time_var)))
-                )
+                end2 = round_a_datetime(ref_time + timedelta(hours=end + time_choice))
 
                 if start2 <= ref_time_proc < end2:
                     available_activities.append(activity)
@@ -75,6 +72,9 @@ def create_diary_single_person(
             # Choose an activity based on the probabilities
             available_probabilities = [
                 activities[proc_activity]["weight"]
+                * _get_updated_weight(
+                    ref_time_proc.hour, activities[proc_activity]["time_weight"]
+                )
                 for proc_activity in available_activities
             ]
 
@@ -108,6 +108,27 @@ def create_diary_remote(
             (this is just for displaying the progress)
     """
     return create_diary(syspop_data, ncpu, print_log, activities_cfg=activities)
+
+
+def update_weight_by_age(activities_input: dict, age: int) -> dict:
+    """Update the activity weight
+
+    Args:
+        activities_input (dict): activity configuration, e.g.,
+            {'weight': 0.0001, 'time_ranges': [(...)],
+            'age_weight': {'0-5': 0.1, '60-70': 0.1, '70-80': 0.01, '80-999': 1e-05}}
+        age (int): such as 13
+
+    Returns:
+        dict: Updated activity
+    """
+    activities_output = deepcopy(activities_input)
+
+    for proc_activity_name in activities_output:
+        activities_output[proc_activity_name]["weight"] *= _get_updated_weight(
+            age, activities_output[proc_activity_name]["age_weight"]
+        )
+    return activities_output
 
 
 def create_diary(
@@ -144,7 +165,9 @@ def create_diary(
             else "student" if isinstance(proc_people["school"], str) else "default"
         )
 
-        output = create_diary_single_person(activities=proc_activities)
+        proc_activities_updated = update_weight_by_age(proc_activities, proc_people.age)
+
+        output = create_diary_single_person(activities=proc_activities_updated)
 
         all_diaries["id"].append(proc_people.id)
 

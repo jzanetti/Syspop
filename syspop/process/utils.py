@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging import INFO, Formatter, StreamHandler, basicConfig, getLogger
 from os.path import join
 
@@ -52,3 +52,10 @@ def read_cfg(cfg_path: str, key: str = None) -> dict:
 
 def round_a_list(input: list, sig_figures: int = 3):
     return [round(x, sig_figures) for x in input]
+
+
+def round_a_datetime(dt):
+    # If minutes are 30 or more, round up to the next hour
+    if dt.minute >= 30:
+        dt += timedelta(hours=1)
+    return dt.replace(minute=0, second=0, microsecond=0)

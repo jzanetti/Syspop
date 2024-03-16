@@ -4,6 +4,8 @@ from os.path import exists, join
 from pickle import load as pickle_load
 
 import ray
+from numpy import unique as numpy_unique
+from numpy.random import choice as numpy_choice
 from pandas import DataFrame
 from pandas import concat as pandas_concat
 from pandas import cut as pandas_cut
@@ -18,7 +20,13 @@ from process.validate import (
     validate_household,
     validate_work,
 )
-from process.vis import plot_map_html, plot_pie_charts, plot_travel_html
+from process.vis import (
+    plot_location_occurence_charts_by_hour,
+    plot_location_timeseries_charts,
+    plot_map_html,
+    plot_pie_charts,
+    plot_travel_html,
+)
 from wrapper_pop import (
     create_base_pop,
     create_hospital,
@@ -37,6 +45,8 @@ def vis(
     plot_distribution: bool = True,
     plot_travel: bool = True,
     plot_location: bool = True,
+    plot_diary: bool = True,
+    plot_all_data: bool = True,
 ):
     """Syntheric population visualization
 
@@ -140,6 +150,63 @@ def vis(
                 ]
                 plot_map_html(vis_dir, proc_data, data_name)
 
+    # ---------------------------
+    # 3. plot diary
+    # ---------------------------
+    if plot_diary:
+        # ---------------------------
+        # 3.1 plot diary distribution in general
+        # ---------------------------
+        sys_diary_path = join(output_dir, "diaries.parquet")
+        if not exists(sys_diary_path):
+            return
+        diary_data = pandas_read_parquet(sys_diary_path)
+        diary_data = diary_data.drop(columns=["id"])
+        # Create a dictionary to store the counts
+
+        location_counts = {}
+        for proc_place in numpy_unique(diary_data.values):
+            location_counts[proc_place] = {}
+            for proc_hr in range(24):
+                location_counts[proc_place][proc_hr] = 0
+
+        # Iterate through each location
+        for proc_hr in range(24):
+            value_counts = diary_data[[str(proc_hr)]].value_counts().to_dict()
+            for proc_place in value_counts:
+                proc_place2 = proc_place[0]
+                if proc_place2 in location_counts:
+                    location_counts[proc_place2][proc_hr] += value_counts[proc_place]
+
+        plot_location_timeseries_charts(vis_dir, location_counts)
+
+        # ---------------------------
+        # 3.2. plot diary/place distribution
+        # ---------------------------
+        sys_all_data_path = join(output_dir, "syspop_and_diary.parquet")
+        if not exists(sys_diary_path):
+            return
+        syspop_and_diary = pandas_read_parquet(sys_all_data_path)
+
+        vis_dir_syspop_and_diary = join(vis_dir, "syspop_and_diary_dist")
+        if not exists(vis_dir_syspop_and_diary):
+            makedirs(vis_dir_syspop_and_diary)
+
+        for proc_hr in range(24):
+
+            all_loc_types = list(numpy_unique(diary_data[[str(proc_hr)]].values))
+            proc_syspop_and_diary_hr = syspop_and_diary[[str(proc_hr)]]
+
+            for proc_type in all_loc_types:
+                proc_mask_type = diary_data[[str(proc_hr)]] == proc_type
+                proc_syspop_and_diary = proc_syspop_and_diary_hr[proc_mask_type]
+
+                value_counts = proc_syspop_and_diary.value_counts().to_dict()
+
+                plot_location_occurence_charts_by_hour(
+                    vis_dir_syspop_and_diary, value_counts, proc_hr, proc_type
+                )
+
 
 def validate(
     output_dir: str = "",
@@ -189,7 +256,12 @@ def validate(
     )
 
 
-def diary(output_dir: str, n_cpu: int = 1, activities_cfg: dict or None = None):
+def diary(
+    output_dir: str,
+    n_cpu: int = 1,
+    activities_cfg: dict or None = None,
+    map_loc_flag: bool = False,
+):
     """Create diary data from synthetic population
 
     Args:
@@ -197,7 +269,7 @@ def diary(output_dir: str, n_cpu: int = 1, activities_cfg: dict or None = None):
         ncpu (int): Number of CPU to be used
     """
 
-    start_t = datetime.utcnow()
+    start_t = datetime.now()
 
     logger.info(f"Diary: reading synthetic population")
     syspop_data = pandas_read_parquet(join(output_dir, "syspop_base.parquet"))
@@ -237,13 +309,18 @@ def diary(output_dir: str, n_cpu: int = 1, activities_cfg: dict or None = None):
         ray.shutdown()
 
     outputs = pandas_concat(outputs, axis=0, ignore_index=True)
-    end_t = datetime.utcnow()
+
+    end_t = datetime.now()
 
     processing_mins = round((end_t - start_t).total_seconds() / 60.0, 2)
 
     outputs.to_parquet(join(output_dir, "diaries.parquet"))
 
     logger.info(f"Diary: created within {processing_mins} minutes ...")
+
+    if map_loc_flag:
+        logger.info(f"Diary: start mapping location to diary ...")
+        _map_loc_to_diary(output_dir)
 
 
 def create(
@@ -416,3 +493,75 @@ def create(
 
     synpop_data["synpop"].to_parquet(output_syn_pop_path, index=False)
     synpop_data["synadd"].to_parquet(output_loc_path, index=False)
+
+
+def _map_loc_to_diary(output_dir: str):
+    """Create a completed dataset, where replace the place type like supermarket to
+        a actual supermarket name for all agents
+
+    Args:
+        output_dir (str): _description_
+        print_log (bool, optional): _description_. Defaults to False.
+
+    Raises:
+        Exception: _description_
+    """
+
+    syn_pop_path = join(output_dir, "syspop_base.parquet")
+    synpop_data = pandas_read_parquet(syn_pop_path)
+
+    sys_diary_path = join(output_dir, "diaries.parquet")
+    if not exists(sys_diary_path):
+        raise Exception("Diary data not exists ...")
+    diary_data = pandas_read_parquet(sys_diary_path)
+
+    time_start = datetime.utcnow()
+
+    def _process_person(proc_people: DataFrame):
+        proc_people_id = proc_people["id"]
+        proc_people_attr = synpop_data.loc[proc_people_id]
+
+        for proc_hr in range(24):
+            if proc_people.iloc[proc_hr] == "travel":
+                proc_people_attr_value = proc_people_attr["public_transport_trip"]
+            else:
+                proc_people_attr_value = numpy_choice(
+                    proc_people_attr[proc_people.iloc[proc_hr]].split(",")
+                )
+            proc_people.at[str(proc_hr)] = proc_people_attr_value
+
+        return proc_people
+
+    diary_data = diary_data.apply(_process_person, axis=1)
+    time_end = datetime.utcnow()
+
+    logger.info(
+        f"Completed within seconds: {(time_end - time_start).total_seconds()} ..."
+    )
+    """
+    total_people = len(diary_data)
+
+    for i in range(total_people):
+
+        proc_people = diary_data.iloc[i]
+
+        if print_log:
+            logger.info(
+                f"{i} / {total_people} ({round(i/float(total_people), 3)}%) being processed ..."
+            )
+
+        proc_people_id = proc_people["id"]
+        proc_people_attr = synpop_data[synpop_data["id"] == proc_people_id]
+
+        for proc_hr in range(24):
+            if proc_people.iloc[proc_hr] == "travel":
+                proc_people_attr_value = proc_people_attr[
+                    "public_transport_trip"
+                ].values[0]
+            else:
+                proc_people_attr_value = numpy_choice(
+                    proc_people_attr[proc_people.iloc[proc_hr]].values[0].split(",")
+                )
+            diary_data.loc[i, str(proc_hr)] = proc_people_attr_value
+    """
+    diary_data.to_parquet(join(output_dir, "syspop_and_diary.parquet"), index=False)
