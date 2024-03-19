@@ -1,3 +1,4 @@
+from collections import Counter as collections_counter
 from copy import deepcopy
 from datetime import datetime, timedelta
 from logging import getLogger
@@ -66,7 +67,19 @@ def create_diary_single_person(
                 end2 = round_a_datetime(ref_time + timedelta(hours=end + time_choice))
 
                 if start2 <= ref_time_proc < end2:
-                    available_activities.append(activity)
+
+                    if activities[activity]["max_occurrence"] is None:
+                        available_activities.append(activity)
+                    else:
+                        activity_counts = dict(collections_counter(output.values()))
+                        if activity not in activity_counts:
+                            available_activities.append(activity)
+                        else:
+                            if (
+                                activity_counts[activity]
+                                <= activities[activity]["max_occurrence"]
+                            ):
+                                available_activities.append(activity)
 
         if available_activities:
             # Choose an activity based on the probabilities

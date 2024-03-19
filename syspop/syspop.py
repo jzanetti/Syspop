@@ -207,6 +207,10 @@ def vis(
                     vis_dir_syspop_and_diary, value_counts, proc_hr, proc_type
                 )
 
+        # ---------------------------
+        # 3.3. plot diary weights
+        # ---------------------------
+
 
 def validate(
     output_dir: str = "",
