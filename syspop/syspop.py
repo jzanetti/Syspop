@@ -5,6 +5,7 @@ from pickle import load as pickle_load
 
 import ray
 from numpy import unique as numpy_unique
+from numpy import zeros as numpy_zeros
 from numpy.random import choice as numpy_choice
 from pandas import DataFrame
 from pandas import concat as pandas_concat
@@ -21,6 +22,7 @@ from process.validate import (
     validate_work,
 )
 from process.vis import (
+    plot_average_occurence_charts,
     plot_location_occurence_charts_by_hour,
     plot_location_timeseries_charts,
     plot_map_html,
@@ -192,6 +194,10 @@ def vis(
         if not exists(vis_dir_syspop_and_diary):
             makedirs(vis_dir_syspop_and_diary)
 
+        average_counts = {}
+        for proc_key in location_counts.keys():
+            average_counts[proc_key] = list(numpy_zeros(24))
+
         for proc_hr in range(24):
 
             all_loc_types = list(numpy_unique(diary_data[[str(proc_hr)]].values))
@@ -202,14 +208,30 @@ def vis(
                 proc_syspop_and_diary = proc_syspop_and_diary_hr[proc_mask_type]
 
                 value_counts = proc_syspop_and_diary.value_counts().to_dict()
+                keys_counts = proc_syspop_and_diary[str(proc_hr)].values
+
+                # remove nan
+                keys_counts = [
+                    value
+                    for value in list(set(list(keys_counts)))
+                    if isinstance(value, str)
+                ]
 
                 plot_location_occurence_charts_by_hour(
                     vis_dir_syspop_and_diary, value_counts, proc_hr, proc_type
                 )
 
-        # ---------------------------
-        # 3.3. plot diary weights
-        # ---------------------------
+                average_counts[proc_type][proc_hr] = round(
+                    sum(value_counts.values()) / len(keys_counts),
+                    3,
+                )
+
+        for proc_data_type in average_counts:
+            plot_average_occurence_charts(
+                vis_dir_syspop_and_diary,
+                average_counts[proc_data_type],
+                proc_data_type,
+            )
 
 
 def validate(

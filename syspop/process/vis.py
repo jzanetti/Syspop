@@ -234,3 +234,15 @@ def plot_location_occurence_charts_by_hour(
     ylabel(f"Number of places ({data_type})")
     savefig(join(output_dir, f"{data_type}_{hour}_hist.png"), bbox_inches="tight")
     close()
+
+
+def plot_average_occurence_charts(output_dir: str, data_counts: list, data_type: str):
+
+    plot(data_counts)
+    title(f"Average number of people per {data_type}")
+    xlabel("Hour")
+    ylabel("Number of people")
+    savefig(
+        join(output_dir, f"average_{data_type}_timeseries.png"), bbox_inches="tight"
+    )
+    close()

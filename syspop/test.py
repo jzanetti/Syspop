@@ -46,7 +46,7 @@ syn_areas = list(
 
 
 if_run_syspop_create = False
-if_run_diary = True
+if_run_diary = False
 if_run_validation = False
 if_run_vis = True
 
