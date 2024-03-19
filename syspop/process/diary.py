@@ -59,6 +59,10 @@ def create_diary_single_person(
         # Get all activities that can be chosen at this time
         available_activities = []
         for activity in activities:
+
+            if activity == "random_seeds":
+                continue
+
             for start, end in activities[activity]["time_ranges"]:
                 time_choice = abs(numpy_choice(time_var)) if time_var is not None else 0
                 start2 = round_a_datetime(
@@ -91,9 +95,15 @@ def create_diary_single_person(
                 for proc_activity in available_activities
             ]
 
+            total_p = sum(available_probabilities)
+
+            if total_p < 1.0:
+                available_activities.append(activities["random_seeds"])
+                available_probabilities.append(1.0 - total_p)
+
             # scale up the probability to 1.0
             available_probabilities = numpy_array(available_probabilities)
-            available_probabilities /= available_probabilities.sum()
+            available_probabilities /= total_p
 
             activity = numpy_choice(available_activities, p=available_probabilities)
 
@@ -138,6 +148,8 @@ def update_weight_by_age(activities_input: dict, age: int) -> dict:
     activities_output = deepcopy(activities_input)
 
     for proc_activity_name in activities_output:
+        if proc_activity_name == "random_seeds":
+            continue
         activities_output[proc_activity_name]["weight"] *= _get_updated_weight(
             age, activities_output[proc_activity_name]["age_weight"]
         )
