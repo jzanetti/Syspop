@@ -7,34 +7,34 @@ from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
-with open("etc/data/test_data_v0.2/population.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/population.pickle", "rb") as fid:
     pop_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/geography.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/geography.pickle", "rb") as fid:
     geog_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/household.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/household.pickle", "rb") as fid:
     household_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/commute.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/commute.pickle", "rb") as fid:
     commute_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/work.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/work.pickle", "rb") as fid:
     work_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/school.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/school.pickle", "rb") as fid:
     school_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/hospital.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/hospital.pickle", "rb") as fid:
     hospital_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/supermarket.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/supermarket.pickle", "rb") as fid:
     supermarket_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/restaurant.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
-with open("etc/data/test_data_v0.2/pharmacy.pickle", "rb") as fid:
+with open("etc/data/test_data_latest/pharmacy.pickle", "rb") as fid:
     pharmacy_data = pickle_load(fid)
 
 
@@ -45,9 +45,9 @@ syn_areas = list(
 # syn_areas = [135400, 111400, 110400]
 
 
-if_run_syspop_create = False
+if_run_syspop_create = True
 if_run_diary = True
-if_run_validation = False
+if_run_validation = True
 if_run_vis = True
 
 
