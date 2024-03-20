@@ -479,9 +479,9 @@ def create(
             tmp_data_path,
             supermarket_data,
             "supermarket",
-            2,
             geo_location,
             assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 2, "area_work": 1},
         )
 
     if restaurant_data is not None:
@@ -491,9 +491,9 @@ def create(
             tmp_data_path,
             restaurant_data,
             "restaurant",
-            4,
             geo_location,
             assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 3, "area_work": 1},
         )
 
     if pharmacy_data is not None:
@@ -503,9 +503,9 @@ def create(
             tmp_data_path,
             pharmacy_data,
             "pharmacy",
-            2,
             geo_location,
             assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 2},
         )
 
     output_syn_pop_path = join(output_dir, "syspop_base.parquet")

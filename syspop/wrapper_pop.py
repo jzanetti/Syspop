@@ -196,9 +196,9 @@ def create_shared_space(
     tmp_data_path: str,
     shared_space_data: DataFrame,
     shared_space_type: str,
-    selected_num: int,
     geo_location: DataFrame,
     assign_address_flag: bool,
+    area_name_keys_and_selected_nums: list = {"area": 2},
 ):
     """Create synthetic restaurant/supermarket/pharmacy, if requred, address as well
 
@@ -213,15 +213,19 @@ def create_shared_space(
     with open(tmp_data_path, "rb") as fid:
         base_pop = pickle_load(fid)
 
-    base_pop, address_data = shared_space_wrapper(
-        shared_space_type,  # "restaurant",
-        shared_space_data,  # restaurant_data,
-        base_pop["synpop"],
-        base_pop["synadd"],
-        geo_location,
-        num_nearest=selected_num,  # 4,
-        assign_address_flag=assign_address_flag,
-    )
+    base_pop_data = base_pop["synpop"]
+    address_data = base_pop["synadd"]
+    for area_name_key in area_name_keys_and_selected_nums:
+        base_pop_data, address_data = shared_space_wrapper(
+            shared_space_type,  # "restaurant",
+            shared_space_data,  # restaurant_data,
+            base_pop_data,
+            address_data,
+            geo_location,
+            num_nearest=area_name_keys_and_selected_nums[area_name_key],  # 4,
+            assign_address_flag=assign_address_flag,
+            area_name_key=area_name_key,
+        )
 
     with open(tmp_data_path, "wb") as fid:
-        pickle_dump({"synpop": base_pop, "synadd": address_data}, fid)
+        pickle_dump({"synpop": base_pop_data, "synadd": address_data}, fid)

@@ -38,11 +38,11 @@ with open("etc/data/test_data_latest/pharmacy.pickle", "rb") as fid:
     pharmacy_data = pickle_load(fid)
 
 
-output_dir = "/tmp/syspop_test/Wellington"
-syn_areas = list(
-    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Wellington"]["area"]
-)
-# syn_areas = [135400, 111400, 110400]
+output_dir = "/tmp/syspop_test/test"
+# syn_areas = list(
+#    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Wellington"]["area"]
+# )
+syn_areas = [135400, 111400, 110400]
 
 
 if_run_syspop_create = True
