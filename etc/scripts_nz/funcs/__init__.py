@@ -68,6 +68,10 @@ RAW_DATA = {
         "supermarket": "etc/data/raw_nz_latest/shop_supermarket.csv",
         "restaurant": "etc/data/raw_nz_latest/amenity_restaurant.csv",
         "pharmacy": "etc/data/raw_nz_latest/amenity_pharmacy.csv",
+        "cafe": "etc/data/raw_nz_latest/amenity_cafe.csv",
+        "fast_food": "etc/data/raw_nz_latest/amenity_fast_food.csv",
+        "museum": "etc/data/raw_nz_latest/tourism_museum.csv",
+        "events_venue": "etc/data/raw_nz_latest/amenity_events_venue.csv",
     },
     "others": {"vaccine": "etc/data/raw_nz_latest/nz-vaccine.csv"},
 }

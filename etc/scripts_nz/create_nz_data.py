@@ -56,11 +56,21 @@ def import_raw_data(workdir: str):
     # -----------------------------
     # Create shared space
     # -----------------------------
-    create_shared_space_wrapper(workdir)
-
+    create_shared_space_wrapper(
+        workdir,
+        space_names=[
+            "supermarket",
+            "restaurant",
+            "pharmacy",
+            "cafe",
+            "fast_food",
+            "museum",
+            "events_venue",
+        ],
+    )
     print("Job done ...")
 
 
 if __name__ == "__main__":
-    workdir = "/tmp/syspop_v2.0"
+    workdir = "/tmp/syspop_v3.0"
     import_raw_data(workdir)

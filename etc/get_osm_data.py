@@ -59,6 +59,12 @@ def query_results(query_keys: dict, region: str, country: str, output_dir: str):
                 except KeyError:
                     actual_name = "Unknown"
 
+                try:
+                    parent_name = node.tags()["is_in"]
+                    actual_name += f", {parent_name}"
+                except KeyError:
+                    pass
+
                 actual_and_records_name_mapping[proc_key][proc_value][
                     recorded_name
                 ] = actual_name
@@ -75,7 +81,11 @@ def query_results(query_keys: dict, region: str, country: str, output_dir: str):
 if __name__ == "__main__":
     region = NaN  # can be NaN, or sth like Auckland
     country = "New Zealand"
-    query_keys = {"amenity": ["restaurant", "pharmacy"], "shop": ["supermarket"]}
+    query_keys = {
+        "amenity": ["restaurant", "pharmacy", "fast_food", "cafe", "events_venue"],
+        "shop": ["supermarket"],
+        "tourism": ["museum"],
+    }
     output_dir = "etc/data/raw_nz_latest"
 
     if not exists(output_dir):
