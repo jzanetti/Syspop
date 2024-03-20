@@ -24,52 +24,52 @@ DEPENDENT_CHILDREN_COUNT_CODE = {
 # ---------------------------------
 RAW_DATA = {
     "geography": {
-        "geography_hierarchy": "etc/data/raw_nz/geography_hierarchy-2023.csv",
-        "geography_location": "etc/data/raw_nz/geography_location-2018.csv",
+        "geography_hierarchy": "etc/data/raw_nz_latest/geography_hierarchy-2023.csv",
+        "geography_location": "etc/data/raw_nz_latest/geography_location-2018.csv",
         # due to the sizes of address and sa2 shapefile data, we are not able to save the data in git
         # the data can be downloaded in https://koordinates.com/data/?q=sa2+area
-        "address_data": "etc/data/raw_nz/address_dataset/nz-addresses/nz-addresses.shp",
-        "sa2_area_data": "etc/data/raw_nz/address_dataset/statistical-area-2-2022-generalised/statistical-area-2-2022-generalised.shp",
+        "address_data": "etc/data/raw_nz_latest/address_dataset/nz-addresses/nz-addresses.shp",
+        "sa2_area_data": "etc/data/raw_nz_latest/address_dataset/statistical-area-2-2022-generalised/statistical-area-2-2022-generalised.shp",
     },
     "population": {
-        "socialeconomics": "etc/data/raw_nz/socialeconomics-2018.csv",
-        "total_population": "etc/data/raw_nz/total_population-2018.xlsx",
-        "population_by_age_by_gender": "etc/data/raw_nz/population_age_gender-2022.csv",
+        "socialeconomics": "etc/data/raw_nz_latest/socialeconomics-2018.csv",
+        "total_population": "etc/data/raw_nz_latest/total_population-2018.xlsx",
+        "population_by_age_by_gender": "etc/data/raw_nz_latest/population_age_gender-2022.csv",
         "population_by_age_by_ethnicity": {
-            0: "etc/data/raw_nz/population_age_ethnicity_under_15years-2018.xlsx",
-            15: "etc/data/raw_nz/population_age_ethnicity_between_15_and_29years-2018.xlsx",
-            30: "etc/data/raw_nz/population_age_ethnicity_between_30_and_64years-2018.xlsx",
-            65: "etc/data/raw_nz/population_age_ethnicity_between_over_65years-2018.xlsx",
+            0: "etc/data/raw_nz_latest/population_age_ethnicity_under_15years-2018.xlsx",
+            15: "etc/data/raw_nz_latest/population_age_ethnicity_between_15_and_29years-2018.xlsx",
+            30: "etc/data/raw_nz_latest/population_age_ethnicity_between_30_and_64years-2018.xlsx",
+            65: "etc/data/raw_nz_latest/population_age_ethnicity_between_over_65years-2018.xlsx",
         },
-        "population_by_age": "etc/data/raw_nz/population_by_age-2022.xlsx",
+        "population_by_age": "etc/data/raw_nz_latest/population_by_age-2022.xlsx",
     },
     "business": {
         "employee_by_gender_by_sector": {
-            "employee_by_area": "etc/data/raw_nz/employee_by_area-2022.csv",
-            "leed": "etc/data/raw_nz/leed-2018.xlsx",
-            "anzsic_code": "etc/data/raw_nz/anzsic06_code.csv",
-            "geography_hierarchy": "etc/data/raw_nz/geography_hierarchy-2023.csv",
+            "employee_by_area": "etc/data/raw_nz_latest/employee_by_area-2022.csv",
+            "leed": "etc/data/raw_nz_latest/leed-2018.xlsx",
+            "anzsic_code": "etc/data/raw_nz_latest/anzsic06_code.csv",
+            "geography_hierarchy": "etc/data/raw_nz_latest/geography_hierarchy-2023.csv",
         },
         # "employers_by_employees_number": "etc/data/raw_nz/employers_by_employees_number-2022.csv",
-        "employers_by_sector": "etc/data/raw_nz/employers_by_sectors-2022.csv",
+        "employers_by_sector": "etc/data/raw_nz_latest/employers_by_sectors-2022.csv",
     },
     "commute": {
         "workplace_and_home_locations": {
-            "travel-to-work-info": "etc/data/raw_nz/travel-to-work-info-2018.csv",
-            "population_by_gender": "etc/data/raw_nz/population_by_gender-2022.csv",
+            "travel-to-work-info": "etc/data/raw_nz_latest/travel-to-work-info-2018.csv",
+            "population_by_gender": "etc/data/raw_nz_latest/population_by_gender-2022.csv",
         },
     },
     "household": {
-        "household_number": "etc/data/raw_nz/household_composition.csv"
+        "household_number": "etc/data/raw_nz_latest/household_composition.csv"
     },  # "etc/data/raw_nz/household_by_children_number-2018.csv"},
     "venue": {
-        "hospital": "etc/data/raw_nz/nz-facilities-2022.csv",
-        "school": "etc/data/raw_nz/nz-facilities-2022.csv",
-        "supermarket": "etc/data/raw_nz/shop_supermarket.csv",
-        "restaurant": "etc/data/raw_nz/amenity_restaurant.csv",
-        "pharmacy": "etc/data/raw_nz/amenity_pharmacy.csv",
+        "hospital": "etc/data/raw_nz_latest/nz-facilities-2022.csv",
+        "school": "etc/data/raw_nz_latest/nz-facilities-2022.csv",
+        "supermarket": "etc/data/raw_nz_latest/shop_supermarket.csv",
+        "restaurant": "etc/data/raw_nz_latest/amenity_restaurant.csv",
+        "pharmacy": "etc/data/raw_nz_latest/amenity_pharmacy.csv",
     },
-    "others": {"vaccine": "etc/data/raw_nz/nz-vaccine.csv"},
+    "others": {"vaccine": "etc/data/raw_nz_latest/nz-vaccine.csv"},
 }
 
 REGION_CODES = {
