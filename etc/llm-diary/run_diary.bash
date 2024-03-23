@@ -13,6 +13,9 @@ formatted_time=$(date -u +'%Y%m%dT%H')
 running=0
 
 workdir=/tmp/syspop_llm/run_$formatted_time
+
+mkdir -p $workdir
+
 # Loop through day types
 for people in "${peoples[@]}"; do
 
