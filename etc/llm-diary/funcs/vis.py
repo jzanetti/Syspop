@@ -38,7 +38,7 @@ def plot_diary_percentage(
     title_str_base = "Percentage of Different Locations for Each Hour"
 
     if title_str is not None:
-        title_str_base += f"/n {title_str}"
+        title_str_base += f" \n {title_str}"
 
     title(f"{title_str_base}")
     xlabel("Hour")
