@@ -1,5 +1,7 @@
 from logging import INFO, Formatter, Logger, StreamHandler, getLogger
 
+from funcs import LOCATIONS_CFG
+
 
 def create_logger():
     """Creating logging information
@@ -15,3 +17,12 @@ def create_logger():
     logger.addHandler(console_handler)
 
     return logger
+
+
+def check_locations(locations_to_check: list) -> bool:
+    """Check if the location is allowed
+
+    Args:
+        locations_to_check (list): _description_
+    """
+    return set(locations_to_check).issubset(set(LOCATIONS_CFG.keys()))

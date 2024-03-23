@@ -1,6 +1,6 @@
 from random import randint as random_randint
 
-from funcs import LOCATIONS_AND_COLORS
+from funcs import LOCATIONS_CFG
 from matplotlib.pyplot import close, cm, gca, legend, savefig, title, xlabel, ylabel
 from matplotlib.ticker import FuncFormatter
 from pandas import DataFrame
@@ -25,7 +25,7 @@ def plot_diary_percentage(
         kind="bar",
         stacked=True,
         figsize=(10, 7),
-        color=[LOCATIONS_AND_COLORS[col] for col in df_percentage.columns],
+        color=[LOCATIONS_CFG[col]["color"] for col in df_percentage.columns],
     )
 
     def to_percentage(y, _):

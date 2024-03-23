@@ -1,6 +1,6 @@
 from logging import getLogger
 
-from funcs import DEFAULT_MODEL_NAME, LOCATIONS_AND_COLORS, PROMPT_QUESTION
+from funcs import DEFAULT_MODEL_NAME, LOCATIONS_CFG, PROMPT_QUESTION
 from llama_cpp import Llama
 from numpy.random import choice as numpy_choice
 from pandas import DataFrame
@@ -60,6 +60,7 @@ def prompt_llm(
         work_status=agent_features["work_status"],
         income=agent_features["income"],
         others=agent_features["others"],
+        locations_list=agent_features["locations"],
     ).replace(" ,", "")
 
     my_llm = Llama(
@@ -129,9 +130,7 @@ def extract_keyword(value):
     # Split the value into words and filter out the keywords
     words = value.replace(",", "").split()
 
-    keywords_in_value = [
-        word for word in words if word in list(LOCATIONS_AND_COLORS.keys())
-    ]
+    keywords_in_value = [word for word in words if word in list(LOCATIONS_CFG.keys())]
 
     if len(keywords_in_value) == 0:
         keywords_in_value = ["others"]
@@ -180,3 +179,36 @@ def combine_data(data_list: list) -> DataFrame:
     all_data = pandas_concat(all_data, ignore_index=True)
 
     return all_data[["Time", "Hour", "Activity", "Location", "People_id"]]
+
+
+def update_locations_with_weights(
+    data: DataFrame, day_type: str, base_value: str = "home"
+) -> DataFrame:
+    """Update location occurence based on weight
+
+    Args:
+        data (DataFrame): Data to be updated
+        day_type (str): weekday or weekend
+        base_value (str, optional): The base value to use [Defaults to "home"].
+    """
+    for proc_loc in LOCATIONS_CFG:
+        proc_weight = LOCATIONS_CFG[proc_loc]["weight"]
+
+        if proc_weight is None:
+            continue
+
+        indices_to_replace = data.index[data["Location"] == proc_loc].tolist()
+
+        if len(indices_to_replace) == 0:
+            continue
+
+        num_values_to_replace = int(
+            len(indices_to_replace) * (1.0 - proc_weight[day_type])
+        )
+        indices_to_replace_random = numpy_choice(
+            indices_to_replace, size=num_values_to_replace, replace=False
+        )
+
+        data.loc[indices_to_replace_random, "Location"] = base_value
+
+    return data

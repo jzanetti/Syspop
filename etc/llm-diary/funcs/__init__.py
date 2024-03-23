@@ -9,8 +9,32 @@ PEOPLE_CFG = {
             "work_status": "kindergarten",
             "income": "",
             "others": "there is a chance this person may go to kindy",
+            "locations": [
+                "home",
+                "supermarket",
+                "mall",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
         },
-        "weekend": {"others": ""},
+        "weekend": {
+            "others": "",
+            "locations": [
+                "home",
+                "supermarket",
+                "mall",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
+        },
     },
     "student": {
         "default": {
@@ -18,8 +42,32 @@ PEOPLE_CFG = {
             "work_status": "student",
             "income": "",
             "others": "off school time is usually between 3pm and 5pm, but not necessary",
+            "locations": [
+                "home",
+                "supermarket",
+                "mall",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
         },
-        "weekend": {"others": ""},
+        "weekend": {
+            "others": "",
+            "locations": [
+                "home",
+                "supermarket",
+                "mall",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
+        },
     },
     "worker1": {
         "default": {
@@ -27,18 +75,73 @@ PEOPLE_CFG = {
             "work_status": "employed",
             "income": "low income",
             "others": "",
+            "locations": [
+                "home",
+                "supermarket",
+                "mall",
+                "pub",
+                "office",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
         },
-        "weekend": {"others": ""},
+        "weekend": {
+            "others": "",
+            "locations": [
+                "home",
+                "supermarket",
+                "mall",
+                "pub",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
+        },
     },
     "worker2": {
         "default": {
             "age": "18-65",
             "work_status": "employed",
             "income": "middle income",
-            # "others": "flexible working hours between T08-T20 for 7 hours a day",
             "others": "",
+            "locations": [
+                "home",
+                "gym",
+                "supermarket",
+                "mall",
+                "pub",
+                "office",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
         },
-        "weekend": {"others": ""},
+        "weekend": {
+            "others": "",
+            "locations": [
+                "home",
+                "gym",
+                "supermarket",
+                "mall",
+                "pub",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
+        },
     },
     "worker3": {
         "default": {
@@ -47,8 +150,37 @@ PEOPLE_CFG = {
             "income": "high income, rich",
             "others": "flexible working hours between T08-T20 for 7 hours a day",
             "others": "",
+            "locations": [
+                "home",
+                "gym",
+                "supermarket",
+                "mall",
+                "pub",
+                "office",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
         },
-        "weekend": {"others": ""},
+        "weekend": {
+            "others": "",
+            "locations": [
+                "home",
+                "gym",
+                "supermarket",
+                "mall",
+                "pub",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
+        },
     },
     "retiree": {
         "default": {
@@ -56,31 +188,65 @@ PEOPLE_CFG = {
             "work_status": "retired",
             "income": "",
             "others": "poor health",
+            "locations": [
+                "home",
+                "supermarket",
+                "mall",
+                "restaurant",
+                "cafe",
+                "school",
+                "park",
+                "travel",
+                "others",
+            ],
         }
     },
 }
 
-LOCATIONS_AND_COLORS = {
-    "home": "#ededed",
-    "gym": "blue",
-    "office": "green",
-    "supermarket": "orange",
-    "mall": "purple",
-    "restaurant": "cyan",
-    "cafe": "magenta",
-    "pub": "yellow",
+# ---------------------------------
+# Weight is calculated by: how many days it takes for a person to carry out an activity
+# For example, on average, a person may go to gym 1 time every 4 weeks during weekdays,
+#              the weight is calculated by: 1.0 / (5.0*4.0)
+# ---------------------------------
+LOCATIONS_CFG = {
+    "home": {"color": "#ededed", "weight": None},
+    "gym": {
+        "color": "blue",
+        "weight": {"weekday": 1.0 / 5.0, "weekend": 1.0 / 5.0},
+    },
+    "office": {"color": "green", "weight": None},
+    "supermarket": {
+        "color": "orange",
+        "weight": {"weekday": 1.0 / 5.0, "weekend": 1.0 / 2.0},
+    },
+    "mall": {
+        "color": "purple",
+        "weight": {"weekday": 1.0 / 30.0, "weekend": 1.0 / 10.0},
+    },
+    "restaurant": {
+        "color": "cyan",
+        "weight": {"weekday": 1.0 / 30.0, "weekend": 1.0 / 20.0},
+    },
+    "cafe": {
+        "color": "magenta",
+        "weight": {"weekday": 1.0 / 5.0, "weekend": 1.0 / 3.0},
+    },
+    "pub": {
+        "color": "yellow",
+        "weight": {"weekday": 1.0 / 5.0, "weekend": 1.0 / 4.0},
+    },
     # "playground": "brown",
-    "school": "lime",
-    "park": "pink",
-    "travel": "teal",
-    "others": "#b1bfa4",
+    "school": {"color": "lime", "weight": None},
+    "park": {"color": "pink", "weight": None},
+    "travel": {"color": "teal", "weight": None},
+    "others": {"color": "#b1bfa4", "weight": None},
 }
 
 PROMPT_QUESTION = (
     "Guess a 24-hour likely diary for a person "
     + "({age} year old, {gender}, {work_status}, {income}, {others}). "
     + "Use a table with 'hour', 'activity', and 'location' columns. "
-    + f"The value for the column Locations are chosen from {list(LOCATIONS_AND_COLORS.keys())}. "
+    + "The value for the column Locations are chosen from {locations_list}. "
     + "Activities should be one word. The schedule should run from 00:00 to 23:00."
 )
 

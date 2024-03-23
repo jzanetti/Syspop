@@ -6,8 +6,13 @@ from os.path import exists, join
 from pickle import dump as pickle_dump
 
 from funcs import MAX_ALLOWED_FAILURE, PEOPLE_CFG
-from funcs.create import combine_data, dict2df, prompt_llm
-from funcs.utils import create_logger
+from funcs.create import (
+    combine_data,
+    dict2df,
+    prompt_llm,
+    update_locations_with_weights,
+)
+from funcs.utils import check_locations, create_logger
 from funcs.vis import plot_diary_percentage
 
 
@@ -37,6 +42,7 @@ def diary_wrapper(
     failure_index = 0
     success_index = 0
     total_index = 0
+
     while success_index < scenarios:
         if logger is not None:
             logger.info(f"Processing {total_index} scenario ...")
@@ -52,6 +58,9 @@ def diary_wrapper(
                 agent_features[updated_key] = agent_features_update[updated_key]
         except KeyError:
             pass
+
+        if not check_locations(agent_features["locations"]):
+            raise Exception("There are unknown locations")
 
         try:
             proc_data = prompt_llm(
@@ -73,6 +82,8 @@ def diary_wrapper(
         total_data_list.append(proc_df)
 
     total_data = combine_data(total_data_list)
+
+    total_data = update_locations_with_weights(total_data, day_type)
 
     output_path = join(workdir, f"diary_{people}_{agent_features['age']}_{day_type}.p")
 
@@ -144,7 +155,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args(
-        # ["--day_type", "weekend", "--scenarios", "30", "--people", "retiree"]
+        # ["--day_type", "weekend", "--scenarios", "3", "--people", "retiree"]
     )
 
     output_path = diary_wrapper(
