@@ -1,9 +1,9 @@
-from logging import INFO, Formatter, Logger, StreamHandler, getLogger
+from logging import INFO, FileHandler, Formatter, StreamHandler, getLogger
 
 from funcs import LOCATIONS_CFG
 
 
-def create_logger():
+def create_logger(logger_path: str or None = None):
     """Creating logging information
 
     Returns:
@@ -12,7 +12,10 @@ def create_logger():
     logger = getLogger(__name__)
     logger.setLevel(INFO)
     formatter = Formatter("%(message)s")
-    console_handler = StreamHandler()
+    if logger_path is not None:
+        console_handler = FileHandler(logger_path)
+    else:
+        console_handler = StreamHandler(logger_path)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 

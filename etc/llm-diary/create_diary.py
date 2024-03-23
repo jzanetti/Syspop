@@ -33,10 +33,10 @@ def diary_wrapper(
     """
     start_time = datetime.utcnow()
 
-    logger = create_logger()  # nvidia-smi
-
     if not exists(workdir):
         makedirs(workdir)
+
+    logger = create_logger()  # nvidia-smi
 
     total_data_list = []
     failure_index = 0

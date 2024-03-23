@@ -4,19 +4,22 @@
 source activate llm_abm-kscprod-data3
 
 # Define array of arguments for the Python script
-peoples=("toddler" "student" "worker1" "worker2" "worker3" "retiree")
+peoples=("toddler" "student" "worker1" "worker2" "worker3" "retiree" "not_in_employment")
 scenarios=300 # Example scenarios, add more as needed
+
+formatted_time=$(date -u +'%Y%m%dT%H')
 
 # Counter to keep track of running processes
 running=0
 
+workdir=/tmp/syspop_llm/run_$formatted_time
 # Loop through day types
 for people in "${peoples[@]}"; do
 
     echo "Start" $people
     # Run Python script with arguments
-    nohup python create_diary.py --day_type weekday --scenarios $scenarios --people $people &> log_$people.weeday.log &
-    nohup python create_diary.py --day_type weekend --scenarios $scenarios --people $people &> log_$people.weekend.log &
+    nohup python create_diary.py --workdir $workdir --day_type weekday --scenarios $scenarios --people $people &> $workdir/log_$people.weeday.log &
+    nohup python create_diary.py --workdir $workdir --day_type weekend --scenarios $scenarios --people $people &> $workdir/log_$people.weekend.log &
 
     # Increment running counter
     ((running++))

@@ -88,10 +88,10 @@ if __name__ == "__main__":
     args = parser.parse_args(
         [
             "--people_list",
-            "toddler",
+            # "toddler",
             "student",
             "--age_list",
-            "2-5",
+            "6-18",
             "--day_list",
             "weekday",
             "weekend",
