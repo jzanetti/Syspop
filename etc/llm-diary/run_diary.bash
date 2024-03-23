@@ -5,7 +5,7 @@ source activate llm_abm-kscprod-data3
 
 # Define array of arguments for the Python script
 peoples=("toddler" "student" "worker1" "worker2" "worker3" "retiree")
-scenarios=100 # Example scenarios, add more as needed
+scenarios=300 # Example scenarios, add more as needed
 
 # Counter to keep track of running processes
 running=0
