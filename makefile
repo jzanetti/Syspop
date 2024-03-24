@@ -1,7 +1,7 @@
 override CONDA=$(CONDA_BASE)/bin/conda
 override MAMBA=$(CONDA_BASE)/bin/mamba
 override PKG=syspop
-
+SHELL := /bin/bash
 
 clear_env:
 	rm -rf $(CONDA_BASE)/envs/$(PKG)
@@ -45,3 +45,18 @@ upload_pkg:
 	twine upload dist/*
 
 publish: build_pkg upload_pkg
+
+# -----------------------
+# Viewer
+# -----------------------
+install_npm:
+	source $(CONDA_BASE)/bin/activate $(PKG) & mamba install nodejs -c conda-forge 
+	mkdir ~/.npm-global
+	npm config set prefix '~/.npm-global'
+	source $(CONDA_BASE)/bin/activate $(PKG) & export PATH=~/.npm-global/bin:$(PATH) & npm install --global http-server
+
+run_viewer:
+	~/.npm-global/bin/http-server $(DATA_DIR)
+
+check_port:
+	lsof -i -P -n

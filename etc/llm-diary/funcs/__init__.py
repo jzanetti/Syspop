@@ -259,5 +259,4 @@ PROMPT_QUESTION = (
     + "Activities should be one word. The schedule should run from 00:00 to 23:00."
 )
 
-
 DAY_TYPE_WEIGHT = {"weekday": {"weight": 5}, "weekend": {"weight": 2}}

@@ -10,3 +10,4 @@ dist
 .eggs*
 .vscode
 log
+package-lock.json
