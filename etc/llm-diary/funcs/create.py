@@ -212,3 +212,42 @@ def update_locations_with_weights(
         data.loc[indices_to_replace_random, "Location"] = base_value
 
     return data
+
+
+def update_location_name(data: DataFrame) -> DataFrame:
+    """Update data locations
+
+    Args:
+        data (DataFrame): Data to be updated
+
+    Returns:
+        DataFrame: Data has been updated
+    """
+
+    def _replace_with_prob(row, convert_map: dict, target_value: str):
+        if row["Location"] == target_value:
+            return numpy_choice(
+                list(convert_map.keys()),
+                p=list(convert_map.values()),
+            )
+        else:
+            return row["Location"]
+
+    all_data_locs = data["Location"].unique()
+
+    for proc_data_loc in all_data_locs:
+
+        if proc_data_loc in list(LOCATIONS_CFG.keys()):
+            proc_weight = LOCATIONS_CFG[proc_data_loc]["convert_map"]
+
+            if proc_weight is not None:
+                data["Location"] = data.apply(
+                    _replace_with_prob,
+                    args=(
+                        proc_weight,
+                        proc_data_loc,
+                    ),
+                    axis=1,
+                )
+
+    return data

@@ -10,6 +10,7 @@ from funcs.create import (
     combine_data,
     dict2df,
     prompt_llm,
+    update_location_name,
     update_locations_with_weights,
 )
 from funcs.utils import check_locations, create_logger
@@ -84,6 +85,8 @@ def diary_wrapper(
     total_data = combine_data(total_data_list)
 
     total_data = update_locations_with_weights(total_data, day_type)
+
+    total_data = update_location_name(total_data)
 
     output_path = join(workdir, f"diary_{people}_{agent_features['age']}_{day_type}.p")
 

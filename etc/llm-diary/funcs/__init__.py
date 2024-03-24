@@ -218,37 +218,50 @@ PEOPLE_CFG = {
 #              the weight is calculated by: 1.0 / (5.0*4.0)
 # ---------------------------------
 LOCATIONS_CFG = {
-    "home": {"color": "#ededed", "weight": None},
+    "home": {"color": "#ededed", "weight": None, "convert_map": None},
     "gym": {
         "color": "blue",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
+        "convert_map": {"outdoor": 0.75, "gym": 0.25},
     },
-    "office": {"color": "green", "weight": None},
+    "office": {"color": "green", "weight": None, "convert_map": None},
     "supermarket": {
         "color": "orange",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
+        "convert_map": None,
     },
     "mall": {
         "color": "purple",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
+        "convert_map": None,
     },
     "restaurant": {
         "color": "cyan",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
+        "convert_map": {"restaurant": 0.5, "fastfood": 0.5},
     },
     "cafe": {
         "color": "magenta",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
+        "convert_map": None,
     },
     "pub": {
         "color": "yellow",
-        "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
+        "weight": {
+            "weekday": 1.0 / 7.0,
+            "weekend": 1.0 / 7.0,
+        },
+        "convert_map": {"pub": 0.6, "club": 0.4},
     },
     # "playground": "brown",
-    "school": {"color": "lime", "weight": None},
-    "park": {"color": "pink", "weight": None},
-    "travel": {"color": "teal", "weight": None},
-    "others": {"color": "#b1bfa4", "weight": None},
+    "school": {"color": "lime", "weight": None, "convert_map": None},
+    "park": {
+        "color": "pink",
+        "weight": None,
+        "convert_map": {"park": 0.5, "outdoor": 0.5},
+    },
+    "travel": {"color": "teal", "weight": None, "convert_map": None},
+    "others": {"color": "#b1bfa4", "weight": None, "convert_map": None},
 }
 
 PROMPT_QUESTION = (
