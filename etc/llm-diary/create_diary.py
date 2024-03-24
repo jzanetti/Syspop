@@ -4,6 +4,7 @@ from logging import Logger
 from os import makedirs
 from os.path import exists, join
 from pickle import dump as pickle_dump
+from pickle import load as pickle_load
 
 from funcs import MAX_ALLOWED_FAILURE, PEOPLE_CFG
 from funcs.create import (
@@ -18,7 +19,13 @@ from funcs.vis import plot_diary_percentage
 
 
 def diary_wrapper(
-    day_type: str, scenarios: int, people: str, model_path: str, workdir: str
+    day_type: str,
+    scenarios: int,
+    people: str,
+    model_path: str,
+    workdir: str,
+    overwrite_data: bool = False,
+    overwrite_vis: bool = False,
 ) -> str:
     """Create diary wrapper
 
@@ -44,67 +51,80 @@ def diary_wrapper(
     success_index = 0
     total_index = 0
 
-    while success_index < scenarios:
-        if logger is not None:
-            logger.info(f"Processing {total_index} scenario ...")
-
-        total_index += 1
-
-        agent_features = PEOPLE_CFG[people]["default"]
-        agent_features["time"] = day_type
-
-        try:
-            agent_features_update = PEOPLE_CFG[people][day_type]
-            for updated_key in agent_features_update:
-                agent_features[updated_key] = agent_features_update[updated_key]
-        except KeyError:
-            pass
-
-        if not check_locations(agent_features["locations"]):
-            raise Exception("There are unknown locations")
-
-        try:
-            proc_data = prompt_llm(
-                agent_features=agent_features, model_path=model_path, print_log=True
-            )
-            proc_df = dict2df(proc_data)
-            success_index += 1
-            logger.info(
-                f"Successefully finished {success_index} (Target: {scenarios}; Failure: {failure_index}) ..."
-            )
-        except (ValueError, KeyError):
-            logger.info("Not able to decode data ...")
-            failure_index += 1
-
-            if MAX_ALLOWED_FAILURE is not None:
-                if failure_index > MAX_ALLOWED_FAILURE:
-                    raise Exception(f"Too many failures ({failure_index})")
-            continue
-        total_data_list.append(proc_df)
-
-    total_data = combine_data(total_data_list)
-
-    total_data = update_locations_with_weights(total_data, day_type)
-
-    total_data = update_location_name(total_data)
-
+    agent_features = PEOPLE_CFG[people]["default"]
+    agent_features["time"] = day_type
     output_path = join(workdir, f"diary_{people}_{agent_features['age']}_{day_type}.p")
 
-    pickle_dump(
-        {"data": total_data, "agent_features": agent_features, "people": people},
-        open(output_path, "wb"),
-    )
+    create_data_flag = False
+    if not exists(output_path) or overwrite_data:
+        create_data_flag = True
+
+    if create_data_flag:
+        while success_index < scenarios:
+            if logger is not None:
+                logger.info(f"Processing {total_index} scenario ...")
+
+            total_index += 1
+
+            try:
+                agent_features_update = PEOPLE_CFG[people][day_type]
+                for updated_key in agent_features_update:
+                    agent_features[updated_key] = agent_features_update[updated_key]
+            except KeyError:
+                pass
+
+            if not check_locations(agent_features["locations"]):
+                raise Exception("There are unknown locations")
+
+            try:
+                proc_data = prompt_llm(
+                    agent_features=agent_features, model_path=model_path, print_log=True
+                )
+                proc_df = dict2df(proc_data)
+                success_index += 1
+                logger.info(
+                    f"Successefully finished {success_index} (Target: {scenarios}; Failure: {failure_index}) ..."
+                )
+            except (ValueError, KeyError):
+                logger.info("Not able to decode data ...")
+                failure_index += 1
+
+                if MAX_ALLOWED_FAILURE is not None:
+                    if failure_index > MAX_ALLOWED_FAILURE:
+                        raise Exception(f"Too many failures ({failure_index})")
+                continue
+            total_data_list.append(proc_df)
+
+        total_data = combine_data(total_data_list)
+
+        total_data = update_locations_with_weights(total_data, day_type)
+
+        total_data = update_location_name(total_data)
+
+        pickle_dump(
+            {"data": total_data, "agent_features": agent_features, "people": people},
+            open(output_path, "wb"),
+        )
+    else:
+        with open(output_path, "rb") as fid:
+            total_data = pickle_load(fid)["data"]
 
     vis_dir = join(workdir, "vis")
+    vis_path = join(vis_dir, f"diary_{people}_{agent_features['age']}_{day_type}.png")
+    create_vis_flag = False
+    if not exists(vis_path) or overwrite_vis:
+        create_vis_flag = True
 
-    if not exists(vis_dir):
-        makedirs(vis_dir)
+    if create_vis_flag:
 
-    plot_diary_percentage(
-        total_data,
-        join(vis_dir, f"diary_{people}_{agent_features['age']}_{day_type}.png"),
-        title_str=f"{people}, {agent_features['age']}, {day_type}",
-    )
+        if not exists(vis_dir):
+            makedirs(vis_dir)
+
+        plot_diary_percentage(
+            total_data,
+            vis_path,
+            title_str=f"{people}, {agent_features['age']}, {day_type}",
+        )
 
     end_time = datetime.utcnow()
 
@@ -158,7 +178,16 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args(
-        # ["--day_type", "weekend", "--scenarios", "3", "--people", "retiree"]
+        # [
+        #    "--workdir",
+        #    "/tmp/syspop_llm/run_20240324T20/",
+        #    "--day_type",
+        #    "weekend",
+        #    "--scenarios",
+        #    "3",
+        #    "--people",
+        #    "student",
+        # ]
     )
 
     output_path = diary_wrapper(

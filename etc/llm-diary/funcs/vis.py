@@ -18,14 +18,18 @@ def plot_diary_percentage(
     df_grouped = data_to_plot.groupby(["Hour", "Location"]).size().unstack(fill_value=0)
     df_percentage = df_grouped.divide(df_grouped.sum(axis=1), axis=0)
 
-    # num_of_bars = len(df_percentage.columns)
-    # colormap = cm.get_cmap("tab20", num_of_bars)
+    colors = []
+    for col in df_percentage.columns:
+        if col not in LOCATIONS_CFG:
+            colors.append(LOCATIONS_CFG["others"]["color"])
+        else:
+            colors.append(LOCATIONS_CFG[col]["color"])
 
     df_percentage.plot(
         kind="bar",
         stacked=True,
         figsize=(10, 7),
-        color=[LOCATIONS_CFG[col]["color"] for col in df_percentage.columns],
+        color=colors,
     )
 
     def to_percentage(y, _):
