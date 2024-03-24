@@ -76,14 +76,23 @@ def create_all_data(workdir):
     """
     all_data = {}
     for proc_file in glob(join(workdir, "combined", "*.p")):
+
+        if proc_file.startswith("llm_diary*"):
+            continue
+
         with open(proc_file, "rb") as fid:
             proc_data = pickle_load(fid)
 
-        all_data[proc_data["type"]] = proc_data["data"]
+        df_grouped = (
+            proc_data["data"].groupby(["Hour", "Location"]).size().unstack(fill_value=0)
+        )
+        df_percentage = df_grouped.divide(df_grouped.sum(axis=1), axis=0)
+
+        all_data[proc_data["type"]] = df_percentage
 
     pickle_dump(
         all_data,
-        open(join(workdir, "combined", "combined_all.p"), "wb"),
+        open(join(workdir, "combined", "llm_diary.pickle"), "wb"),
     )
 
 
@@ -156,7 +165,7 @@ if __name__ == "__main__":
             "--day_list",
             "weekday",
             "weekend",
-            "--create_group_data",
+            # "--create_group_data",
             "--create_all_data",
         ]
     )

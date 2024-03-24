@@ -8,7 +8,7 @@ from numpy import array as numpy_array
 from numpy.random import choice as numpy_choice
 from numpy.random import normal as numpy_normal
 from pandas import DataFrame
-from process import DIARY_CFG
+from process import DIARY_CFG, MAPING_DIARY_CFG_LLM_DIARY
 from process.utils import round_a_datetime
 
 logger = getLogger()
@@ -98,8 +98,12 @@ def create_diary_single_person(
             total_p = sum(available_probabilities)
 
             if total_p < 1.0:
-                available_activities.append(activities["random_seeds"])
-                available_probabilities.append(1.0 - total_p)
+                available_activities.extend(activities["random_seeds"])
+                remained_p = 1.0 - total_p
+                remained_p = remained_p / (len(activities["random_seeds"]))
+                remained_p = len(activities["random_seeds"]) * [remained_p]
+                available_probabilities.extend(remained_p)
+                total_p = sum(available_probabilities)
 
             # scale up the probability to 1.0
             available_probabilities = numpy_array(available_probabilities)
@@ -120,7 +124,11 @@ def create_diary_single_person(
 
 @ray.remote
 def create_diary_remote(
-    syspop_data: DataFrame, ncpu: int, print_log: bool, activities: dict or None = None
+    syspop_data: DataFrame,
+    ncpu: int,
+    print_log: bool,
+    activities: dict or None = None,
+    llm_diary_data: dict or None = None,
 ) -> DataFrame:
     """Create diaries in parallel processing
 
@@ -130,7 +138,13 @@ def create_diary_remote(
         ncpu (int): Number of CPUs in total
             (this is just for displaying the progress)
     """
-    return create_diary(syspop_data, ncpu, print_log, activities_cfg=activities)
+    return create_diary(
+        syspop_data,
+        ncpu,
+        print_log,
+        activities_cfg=activities,
+        llm_diary_data=llm_diary_data,
+    )
 
 
 def update_weight_by_age(activities_input: dict, age: int) -> dict:
@@ -161,6 +175,7 @@ def create_diary(
     ncpu: int,
     print_log: bool,
     activities_cfg: dict or None = None,
+    llm_diary_data: dict or None = None,
 ) -> DataFrame:
     """Create diaries
 
@@ -184,15 +199,22 @@ def create_diary(
                 f"Processing [{i}/{total_people}]x{ncpu}: {100.0 * round(i/total_people, 2)}x{ncpu} %"
             )
 
-        proc_activities = activities_cfg.get(
-            "worker"
-            if isinstance(proc_people["company"], str)
-            else "student" if isinstance(proc_people["school"], str) else "default"
-        )
+        if llm_diary_data is None:
+            proc_activities = activities_cfg.get(
+                "worker"
+                if isinstance(proc_people["company"], str)
+                else "student" if isinstance(proc_people["school"], str) else "default"
+            )
 
-        proc_activities_updated = update_weight_by_age(proc_activities, proc_people.age)
+            proc_activities_updated = update_weight_by_age(
+                proc_activities, proc_people.age
+            )
 
-        output = create_diary_single_person(activities=proc_activities_updated)
+            output = create_diary_single_person(activities=proc_activities_updated)
+        else:
+            output = create_diary_single_person_llm(
+                llm_diary_data, proc_people.age, proc_people.company, proc_people.school
+            )
 
         all_diaries["id"].append(proc_people.id)
 
@@ -202,3 +224,61 @@ def create_diary(
     all_diaries = DataFrame.from_dict(all_diaries)
 
     return all_diaries
+
+
+def create_diary_single_person_llm(
+    llm_diary_data: dict, people_age: int, people_company: str, people_school: str
+) -> dict:
+    """Create diary from LLM_diary
+
+    Args:
+        llm_diary_data (dict): LLM diary data
+        people_age (int): agent's age
+        people_company (str): agent' company (can be None)
+        people_school (str): agent's school (can be None)
+
+    Returns:
+        dict: People's diary
+    """
+
+    proc_llm_data = llm_diary_data["student"]
+
+    """
+    if people_age < 6:
+        proc_llm_data = llm_diary_data["toddler"]
+    elif people_company is not None:
+        proc_llm_data = llm_diary_data["worker"]
+    elif people_school is not None:
+        proc_llm_data = llm_diary_data["student"]
+    else:
+        proc_llm_data = llm_diary_data["unemployed"]
+    """
+    output = {}
+    for hour in proc_llm_data.index:
+        probabilities = proc_llm_data.loc[hour]
+        location = numpy_choice(probabilities.index, p=probabilities.values)
+        output[hour] = location
+
+    """
+    all_unique_locs = []
+    for proc_key_loc in list(DIARY_CFG.keys()):
+        if proc_key_loc == "random_seeds":
+            continue
+        all_unique_locs.extend(list(DIARY_CFG[proc_key_loc].keys()))
+
+    all_unique_locs = list(set(all_unique_locs))
+    """
+    # Initialize an empty dictionary to store the converted values
+    updated_output = {}
+
+    # Iterate through the items in dict B
+    for key, value in output.items():
+        # Iterate through the items in dict A to find the key
+        for a_key, a_value in MAPING_DIARY_CFG_LLM_DIARY.items():
+            if value in a_value:
+                # Assign the key from dict A to the converted dictionary
+                updated_output[key] = a_key
+                break
+            updated_output[key] = value
+
+    return updated_output

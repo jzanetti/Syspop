@@ -37,6 +37,8 @@ with open("etc/data/test_data_latest/restaurant.pickle", "rb") as fid:
 with open("etc/data/test_data_latest/pharmacy.pickle", "rb") as fid:
     pharmacy_data = pickle_load(fid)
 
+with open("etc/data/test_data_latest/llm_diary.pickle", "rb") as fid:
+    llm_diary_data = pickle_load(fid)
 
 output_dir = "/tmp/syspop_test/test"
 # syn_areas = list(
@@ -45,9 +47,9 @@ output_dir = "/tmp/syspop_test/test"
 syn_areas = [135400, 111400, 110400]
 
 
-if_run_syspop_create = True
+if_run_syspop_create = False
 if_run_diary = True
-if_run_validation = True
+if_run_validation = False
 if_run_vis = True
 
 
@@ -76,7 +78,12 @@ if if_run_syspop_create:
     )
 
 if if_run_diary:
-    syspop_diary(output_dir=output_dir, activities_cfg=None, map_loc_flag=True)
+    syspop_diary(
+        output_dir=output_dir,
+        llm_diary_data=llm_diary_data,
+        activities_cfg=None,
+        map_loc_flag=True,
+    )
 
 if if_run_validation:
     syspop_validate(

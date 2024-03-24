@@ -4,6 +4,7 @@ from os.path import exists, join
 from pickle import load as pickle_load
 
 import ray
+from numpy import NaN as numpy_nan
 from numpy import unique as numpy_unique
 from numpy import zeros as numpy_zeros
 from numpy.random import choice as numpy_choice
@@ -221,10 +222,13 @@ def vis(
                     vis_dir_syspop_and_diary, value_counts, proc_hr, proc_type
                 )
 
-                average_counts[proc_type][proc_hr] = round(
-                    sum(value_counts.values()) / len(keys_counts),
-                    3,
-                )
+                try:
+                    average_counts[proc_type][proc_hr] = round(
+                        sum(value_counts.values()) / len(keys_counts),
+                        3,
+                    )
+                except ZeroDivisionError:
+                    average_counts[proc_type][proc_hr] = numpy_nan
 
         for proc_data_type in average_counts:
             plot_average_occurence_charts(
@@ -285,6 +289,7 @@ def validate(
 def diary(
     output_dir: str,
     n_cpu: int = 1,
+    llm_diary_data: dict or None = None,
     activities_cfg: dict or None = None,
     map_loc_flag: bool = False,
 ):
@@ -318,6 +323,7 @@ def diary(
                     n_cpu,
                     print_log=True,
                     activities_cfg=activities_cfg,
+                    llm_diary_data=llm_diary_data,
                 )
             )
         else:
@@ -327,6 +333,7 @@ def diary(
                     n_cpu,
                     print_log=i == 0,
                     activities_cfg=activities_cfg,
+                    llm_diary_data=llm_diary_data,
                 )
             )
 
@@ -551,9 +558,16 @@ def _map_loc_to_diary(output_dir: str):
             if proc_people.iloc[proc_hr] == "travel":
                 proc_people_attr_value = proc_people_attr["public_transport_trip"]
             else:
-                proc_people_attr_value = numpy_choice(
-                    proc_people_attr[proc_people.iloc[proc_hr]].split(",")
-                )
+                try:
+                    proc_people_attr_value = numpy_choice(
+                        proc_people_attr[proc_people.iloc[proc_hr]].split(",")
+                    )
+                except (
+                    KeyError,
+                    AttributeError,
+                ):  # people may in the park from the diary,
+                    # but it's not the current synthetic pop can support
+                    proc_people_attr_value = None
             proc_people.at[str(proc_hr)] = proc_people_attr_value
 
         return proc_people

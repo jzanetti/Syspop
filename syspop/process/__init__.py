@@ -1,3 +1,8 @@
+MAPING_DIARY_CFG_LLM_DIARY = {
+    "company": ["office"],
+    "household": ["home"],
+}
+
 DIARY_CFG = {
     "worker": {
         "random_seeds": ["household", "travel", "company"],
