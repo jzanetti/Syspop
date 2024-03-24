@@ -7,7 +7,10 @@ from pandas import DataFrame
 
 
 def plot_diary_percentage(
-    data_to_plot: DataFrame, diary_vis_path: str, title_str: str or None = None
+    data_to_plot: DataFrame,
+    diary_vis_path: str,
+    title_str: str or None = None,
+    color_unknown: str = "#bfbfbd",
 ):
     """Plot diary percentage
 
@@ -21,7 +24,7 @@ def plot_diary_percentage(
     colors = []
     for col in df_percentage.columns:
         if col not in LOCATIONS_CFG:
-            colors.append(LOCATIONS_CFG["others"]["color"])
+            colors.append(color_unknown)
         else:
             colors.append(LOCATIONS_CFG[col]["color"])
 
