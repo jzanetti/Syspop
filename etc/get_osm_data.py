@@ -82,8 +82,22 @@ if __name__ == "__main__":
     region = NaN  # can be NaN, or sth like Auckland
     country = "New Zealand"
     query_keys = {
-        "amenity": ["restaurant", "pharmacy", "fast_food", "cafe", "events_venue"],
-        "shop": ["supermarket"],
+        "amenity": [
+            "restaurant",
+            "pharmacy",
+            "fast_food",
+            "cafe",
+            "events_venue",
+            "pub",
+        ],
+        "shop": [
+            "supermarket",
+            "wholesale",
+            "general",
+            "department_store",
+            "convenience",
+        ],
+        "leisure": ["park"],
         "tourism": ["museum"],
     }
     output_dir = "etc/data/raw_nz_latest"

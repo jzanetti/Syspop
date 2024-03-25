@@ -1,16 +1,20 @@
-
-
 from copy import copy, deepcopy
 from math import ceil as math_ceil
 from os.path import join
 from re import match as re_match
 
-from numpy import inf, nan
-from pandas import DataFrame, concat, merge, pivot_table, read_csv, read_excel, to_numeric
-
 from funcs import RAW_DATA, RAW_DATA_INFO
 from funcs.utils import read_anzsic_code, read_leed
-
+from numpy import inf, nan
+from pandas import (
+    DataFrame,
+    concat,
+    merge,
+    pivot_table,
+    read_csv,
+    read_excel,
+    to_numeric,
+)
 
 
 def _read_employers_by_employees_data() -> DataFrame:
@@ -42,6 +46,7 @@ def _read_employers_by_employees_data() -> DataFrame:
     )
 
     return data.rename(columns={"Area": "region", "Value": "employer_num"})
+
 
 def read_leed(
     leed_path: str, anzsic_code: DataFrame, if_rate: bool = False
@@ -200,7 +205,9 @@ def create_employee_by_gender_by_sector(
     data["area"] = data["area"].str[1:].astype(int)
 
     data = data.merge(
-        geography_hierarchy_data[["area", "super_area", "region"]], on="area", how="left"
+        geography_hierarchy_data[["area", "super_area", "region"]],
+        on="area",
+        how="left",
     )
     data = data.dropna()
 
@@ -230,28 +237,37 @@ def create_employee_by_gender_by_sector(
             data[female_col] * data["ec_count"]
         )
 
-    anzsic_unique_values = data['anzsic06'].unique()
-    anzsic_mapping = {anzsic: [f"{anzsic},Male", f"{anzsic},Female"] for anzsic in anzsic_unique_values}
-    
+    anzsic_unique_values = data["anzsic06"].unique()
+    anzsic_mapping = {
+        anzsic: [f"{anzsic},Male", f"{anzsic},Female"]
+        for anzsic in anzsic_unique_values
+    }
+
     all_data = []
     for i in range(len(data)):
         proc_data = data.iloc[[i]]
         proc_anzsic = proc_data["anzsic06"].values[0]
         proc_data = proc_data[
-            ["area", "anzsic06", "geo_count", "ec_count"] + anzsic_mapping[proc_anzsic]]
-        proc_data.columns = [col.split(',')[1] if ',' in col else col for col in proc_data.columns]
+            ["area", "anzsic06", "geo_count", "ec_count"] + anzsic_mapping[proc_anzsic]
+        ]
+        proc_data.columns = [
+            col.split(",")[1] if "," in col else col for col in proc_data.columns
+        ]
         all_data.append(proc_data)
-    
+
     all_data = concat(all_data, ignore_index=True)
 
     # all_data["super_area"] = all_data["super_area"].astype(int)
 
-    all_data = all_data.rename(columns={
-        "geo_count": "employer_number", 
-        "ec_count": "employee_number",
-        "anzsic06": "business_code",
-        "Male": "employee_male_ratio", 
-        "Female": "employee_female_ratio"})
+    all_data = all_data.rename(
+        columns={
+            "geo_count": "employer_number",
+            "ec_count": "employee_number",
+            "anzsic06": "business_code",
+            "Male": "employee_male_ratio",
+            "Female": "employee_female_ratio",
+        }
+    )
 
     return all_data
 
@@ -304,9 +320,7 @@ def create_employers_by_employees_number(
         use_sa3_as_super_area (bool): Use SA3 as super area, otherwise using Regions
     """
 
-    pop = _add_region_to_pop(
-        pop, geography_hierarchy_definition
-    )
+    pop = _add_region_to_pop(pop, geography_hierarchy_definition)
 
     employer_data = _read_employers_by_employees_data()
 
@@ -315,14 +329,12 @@ def create_employers_by_employees_number(
         on="region",
         how="left",
     ).dropna()
-    df["employer_num_adjusted"] = (df["employer_num"] * df["total_pop_ratio"]).round().astype(int)
+    df["employer_num_adjusted"] = (
+        (df["employer_num"] * df["total_pop_ratio"]).round().astype(int)
+    )
 
     df = df[
-        [
-            "super_area", 
-            "Enterprise employee count size group", 
-            "employer_num_adjusted"
-        ]
+        ["super_area", "Enterprise employee count size group", "employer_num_adjusted"]
     ]
 
     data = df.rename(columns={"employer_num_adjusted": "employer_num"})
@@ -397,10 +409,10 @@ def write_employers_by_sector(
         columns_to_multiply = [
             item for item in scale_employers_by_sector if item not in ["MSOA", "factor"]
         ]
-        scale_employers_by_sector.loc[
-            :, columns_to_multiply
-        ] = scale_employers_by_sector.loc[:, columns_to_multiply].multiply(
-            scale_employers_by_sector.loc[:, "factor"], axis="index"
+        scale_employers_by_sector.loc[:, columns_to_multiply] = (
+            scale_employers_by_sector.loc[:, columns_to_multiply].multiply(
+                scale_employers_by_sector.loc[:, "factor"], axis="index"
+            )
         )
         scale_employers_by_sector = scale_employers_by_sector.fillna(0.0)
         scale_employers_by_sector[columns_to_multiply] = scale_employers_by_sector[
@@ -480,7 +492,7 @@ def _add_region_to_pop(
     df.drop_duplicates(inplace=True)
 
     df["total_pop_ratio"] = df.groupby(["region"])["total_pop"].transform(
-            lambda x: (x / x.sum())
+        lambda x: (x / x.sum())
     )
 
     return df

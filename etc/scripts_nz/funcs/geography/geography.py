@@ -3,12 +3,12 @@ from math import ceil as math_ceil
 from os.path import join
 from re import match as re_match
 
+import geopandas as gpd
+from funcs import RAW_DATA, REGION_CODES, REGION_NAMES_CONVERSIONS
 from numpy import inf, nan
 from pandas import DataFrame, concat, melt, merge, read_csv, read_excel, to_numeric
 
-from funcs import RAW_DATA, REGION_CODES, REGION_NAMES_CONVERSIONS
 
-import geopandas as gpd
 def create_geography_location_super_area(geography_hierarchy_data: DataFrame):
     data = read_csv(RAW_DATA["geography"]["geography_location"])
 
@@ -128,7 +128,9 @@ def create_address():
     combined_df["lon"] = combined_df.geometry.x
     combined_df["lat"] = combined_df.geometry.y
 
-    combined_df = combined_df.rename(columns={"SA22022_V1": "area", "lat": "latitude", "lon": "longitude"})
+    combined_df = combined_df.rename(
+        columns={"SA22022_V1": "area", "lat": "latitude", "lon": "longitude"}
+    )
 
     combined_df["area"] = combined_df["area"].astype(int)
 

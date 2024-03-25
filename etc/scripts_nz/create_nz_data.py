@@ -1,4 +1,5 @@
 # export PYTHONPATH=~/Github/Syspop/etc/scripts_nz
+from argparse import ArgumentParser
 from os import makedirs
 from os.path import exists
 
@@ -60,17 +61,36 @@ def import_raw_data(workdir: str):
         workdir,
         space_names=[
             "supermarket",
+            "wholesale",
+            "department_store",
             "restaurant",
             "pharmacy",
             "cafe",
             "fast_food",
             "museum",
             "events_venue",
+            "pub",
+            "park",
         ],
     )
     print("Job done ...")
 
 
 if __name__ == "__main__":
-    workdir = "/tmp/syspop_v3.0"
-    import_raw_data(workdir)
+    parser = ArgumentParser(description="Creating NZ data")
+
+    parser.add_argument(
+        "--workdir",
+        type=str,
+        required=False,
+        default="/tmp/syspop_v4.0",
+        help="Working directory",
+    )
+
+    args = parser.parse_args(
+        # [
+        #    "--workdir",
+        #    "/tmp/syspop_llm/run_20240323T21/"
+        # ]
+    )
+    import_raw_data(args.workdir)
