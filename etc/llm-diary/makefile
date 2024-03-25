@@ -11,4 +11,4 @@ create_diary:
 	nohup ./create_diary.bash >& log &
 
 combine_diary:
-	nohup ./combine_diary.bash >& log &
+	./combine_diary.bash

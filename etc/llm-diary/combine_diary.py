@@ -31,7 +31,6 @@ def create_group_data_wrapper(
                 proc_data_path = join(
                     workdir, f"diary_{proc_people}_{proc_age}_{proc_day}.p"
                 )
-
                 if not exists(proc_data_path):
                     continue
 
