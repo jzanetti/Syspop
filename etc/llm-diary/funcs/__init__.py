@@ -38,7 +38,7 @@ PEOPLE_CFG = {
             "age": "6-18",
             "work_status": "student",
             "income": "",
-            "others": "",
+            "others": "school time starts from 9am to 3pm",
             "locations": [
                 "home",
                 "supermarket",
