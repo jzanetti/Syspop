@@ -40,16 +40,16 @@ with open("etc/data/test_data_latest/pharmacy.pickle", "rb") as fid:
 with open("etc/data/test_data_latest/llm_diary.pickle", "rb") as fid:
     llm_diary_data = pickle_load(fid)
 
-output_dir = "/tmp/syspop_test/test"
-# syn_areas = list(
-#    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Wellington"]["area"]
-# )
-syn_areas = [135400, 111400, 110400]
+output_dir = "/tmp/syspop_test/Wellington"
+syn_areas = list(
+    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Wellington"]["area"]
+)
+# syn_areas = [135400, 111400, 110400]
 
 
-if_run_syspop_create = False
+if_run_syspop_create = True
 if_run_diary = True
-if_run_validation = False
+if_run_validation = True
 if_run_vis = True
 
 
@@ -98,8 +98,8 @@ if if_run_validation:
 if if_run_vis:
     syspop_vis(
         output_dir=output_dir,
-        plot_distribution=False,
-        plot_travel=False,
-        plot_location=False,
+        plot_distribution=True,
+        plot_travel=True,
+        plot_location=True,
         plot_diary=True,
     )
