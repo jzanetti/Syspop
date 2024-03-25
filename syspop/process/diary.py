@@ -241,18 +241,17 @@ def create_diary_single_person_llm(
         dict: People's diary
     """
 
-    proc_llm_data = llm_diary_data["student"]
-
-    """
     if people_age < 6:
         proc_llm_data = llm_diary_data["toddler"]
+    elif people_age > 65:
+        proc_llm_data = llm_diary_data["retiree"]
     elif people_company is not None:
         proc_llm_data = llm_diary_data["worker"]
     elif people_school is not None:
         proc_llm_data = llm_diary_data["student"]
     else:
-        proc_llm_data = llm_diary_data["unemployed"]
-    """
+        proc_llm_data = llm_diary_data["not_in_employment"]
+
     output = {}
     for hour in proc_llm_data.index:
         probabilities = proc_llm_data.loc[hour]

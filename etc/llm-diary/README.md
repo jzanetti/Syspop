@@ -20,7 +20,12 @@ python create_diary.py --day_type <DAY_TYPE> --scenarios <NUMBER OF SCENARIOS> -
 
 ### Run multiple jobs together
 ```
-make run_diary
+make create_diary
+```
+
+### Combine created diaries for Syspop
+```
+make combine_diary
 ```
 
 # Appendix:

@@ -152,22 +152,22 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args(
-        [
-            "--workdir",
-            "/tmp/syspop_llm/run_20240323T21/",
-            "--group_name",
-            "student",
-            "--people_list",
-            # "toddler",
-            "student",
-            "--age_list",
-            "6-18",
-            "--day_list",
-            "weekday",
-            "weekend",
-            # "--create_group_data",
-            "--create_all_data",
-        ]
+        # [
+        #    "--workdir",
+        #    "/tmp/syspop_llm/run_20240323T21/",
+        #    "--group_name",
+        #    "student",
+        #    "--people_list",
+        #    # "toddler",
+        #    "student",
+        #    "--age_list",
+        #    "6-18",
+        #    "--day_list",
+        #    "weekday",
+        #    "weekend",
+        #    # "--create_group_data",
+        #    "--create_all_data",
+        # ]
     )
 
     if args.create_group_data:
