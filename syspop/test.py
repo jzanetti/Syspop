@@ -52,6 +52,9 @@ with open("etc/data/test_data_latest/pub.pickle", "rb") as fid:
 with open("etc/data/test_data_latest/park.pickle", "rb") as fid:
     park_data = pickle_load(fid)
 
+with open("etc/data/test_data_latest/kindergarten.pickle", "rb") as fid:
+    kindergarten_data = pickle_load(fid)
+
 with open("etc/data/test_data_latest/llm_diary.pickle", "rb") as fid:
     llm_diary_data = pickle_load(fid)
 # llm_diary_data = None
@@ -65,7 +68,7 @@ syn_areas = [135400, 111400, 110400]
 
 if_run_syspop_create = False
 if_run_diary = True
-if_run_validation = True
+if_run_validation = False
 if_run_vis = True
 
 
@@ -83,6 +86,7 @@ if if_run_syspop_create:
         work_data=work_data,
         home_to_work=commute_data["home_to_work"],
         school_data=school_data["school"],
+        kindergarten_data=kindergarten_data["kindergarten"],
         hospital_data=hospital_data["hospital"],
         supermarket_data=supermarket_data["supermarket"],
         restaurant_data=restaurant_data["restaurant"],

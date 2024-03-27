@@ -379,6 +379,7 @@ def create(
     pub_data: DataFrame = None,
     park_data: DataFrame = None,
     cafe_data: DataFrame = None,
+    kindergarten_data: DataFrame = None,
     assign_address_flag: bool = False,
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
@@ -595,6 +596,18 @@ def create(
             area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
         )
 
+    if kindergarten_data is not None:
+        _check_dependancies("kindergarten", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding kindergarten ...")
+        create_shared_space(
+            tmp_data_path,
+            kindergarten_data,
+            "kindergarten",
+            geo_location,
+            assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 1},
+        )
+
     output_syn_pop_path = join(output_dir, "syspop_base.parquet")
     output_loc_path = join(output_dir, "syspop_location.parquet")
 
@@ -648,7 +661,11 @@ def _map_loc_to_diary(output_dir: str):
                 ):  # people may in the park from the diary,
                     # but it's not the current synthetic pop can support
                     # proc_people_attr_value = None
-                    raise Exception("Not able to get proc_people_attr_value")
+                    pass
+                    # logger.info(
+                    #    f"Not able to find {proc_people.iloc[proc_hr]} information in the people"
+                    # )
+                    # raise Exception("Not able to get proc_people_attr_value")
 
             proc_people.at[str(proc_hr)] = proc_people_attr_value
 

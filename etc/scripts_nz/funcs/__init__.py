@@ -78,6 +78,7 @@ RAW_DATA = {
         "wholesale": f"{RAW_DATA_DIR}/shop_wholesale.csv",
         "department_store": f"{RAW_DATA_DIR}/shop_department_store.csv",
         "park": f"{RAW_DATA_DIR}/leisure_park.csv",
+        "kindergarten": f"{RAW_DATA_DIR}/amenity_kindergarten.csv",
     },
     "others": {"vaccine": f"{RAW_DATA_DIR}/nz-vaccine.csv"},
 }

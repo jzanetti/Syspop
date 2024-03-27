@@ -6,7 +6,7 @@ PEOPLE_CFG = {
     "toddler": {
         "default": {
             "age": "2-5",
-            "work_status": "kindergarten",
+            "work_status": "kindergarten or childcare",
             "income": "",
             "others": "there is a chance this person may go to kindy",
             "locations": [
@@ -14,8 +14,8 @@ PEOPLE_CFG = {
                 "supermarket",
                 "mall",
                 "restaurant",
-                "cafe",
                 "kindergarten",
+                "childcare",
                 "park",
                 "others",
             ],
@@ -27,7 +27,6 @@ PEOPLE_CFG = {
                 "supermarket",
                 "mall",
                 "restaurant",
-                "cafe",
                 "park",
                 "others",
             ],
@@ -44,7 +43,6 @@ PEOPLE_CFG = {
                 "supermarket",
                 "mall",
                 "restaurant",
-                "cafe",
                 "school",
                 "park",
                 "others",
@@ -57,7 +55,6 @@ PEOPLE_CFG = {
                 "supermarket",
                 "mall",
                 "restaurant",
-                "cafe",
                 "park",
                 "others",
             ],
@@ -206,13 +203,23 @@ PEOPLE_CFG = {
 #              the weight is calculated by: 1.0 / (5.0*4.0)
 # ---------------------------------
 LOCATIONS_CFG = {
-    "home": {"color": "#ededed", "weight": None, "convert_map": None},
+    "home": {"color": "#ededed", "weight": None, "convert_map": {"household": 1.0}},
+    "household": {
+        "color": "#ededed",
+        "weight": None,
+        "convert_map": None,
+    },  # since home is renamed to household, so we need define it's color here ...
     "gym": {
         "color": "blue",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
         "convert_map": {"outdoor": 0.75, "gym": 0.25},
     },
     "office": {"color": "green", "weight": None, "convert_map": {"company": 1.0}},
+    "company": {
+        "color": "green",
+        "weight": None,
+        "convert_map": None,
+    },  # since office is renamed to company, so we need define it's color here ...
     "supermarket": {
         "color": "orange",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
@@ -242,9 +249,14 @@ LOCATIONS_CFG = {
             "weekday": 1.0 / 7.0,
             "weekend": 1.0 / 7.0,
         },
-        "convert_map": {"pub": 0.5, "club": 0.2, "fast_food": 0.3},
+        "convert_map": None,
     },
     "kindergarten": {"color": "lime", "weight": None, "convert_map": None},
+    "childcare": {
+        "color": "lime",
+        "weight": None,
+        "convert_map": {"kindergarten": 1.0},
+    },
     "school": {"color": "lime", "weight": None, "convert_map": None},
     "park": {
         "color": "pink",
