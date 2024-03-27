@@ -71,9 +71,13 @@ RAW_DATA = {
         "restaurant": f"{RAW_DATA_DIR}/amenity_restaurant.csv",
         "pharmacy": f"{RAW_DATA_DIR}/amenity_pharmacy.csv",
         "cafe": f"{RAW_DATA_DIR}/amenity_cafe.csv",
+        "pub": f"{RAW_DATA_DIR}/amenity_pub.csv",
         "fast_food": f"{RAW_DATA_DIR}/amenity_fast_food.csv",
         "museum": f"{RAW_DATA_DIR}/tourism_museum.csv",
         "events_venue": f"{RAW_DATA_DIR}/amenity_events_venue.csv",
+        "wholesale": f"{RAW_DATA_DIR}/shop_wholesale.csv",
+        "department_store": f"{RAW_DATA_DIR}/shop_department_store.csv",
+        "park": f"{RAW_DATA_DIR}/leisure_park.csv",
     },
     "others": {"vaccine": f"{RAW_DATA_DIR}/nz-vaccine.csv"},
 }

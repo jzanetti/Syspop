@@ -15,7 +15,7 @@ PEOPLE_CFG = {
                 "mall",
                 "restaurant",
                 "cafe",
-                "school",
+                "kindergarten",
                 "park",
                 "others",
             ],
@@ -212,7 +212,7 @@ LOCATIONS_CFG = {
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
         "convert_map": {"outdoor": 0.75, "gym": 0.25},
     },
-    "office": {"color": "green", "weight": None, "convert_map": None},
+    "office": {"color": "green", "weight": None, "convert_map": {"company": 1.0}},
     "supermarket": {
         "color": "orange",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
@@ -221,8 +221,10 @@ LOCATIONS_CFG = {
     "mall": {
         "color": "purple",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
-        "convert_map": None,
+        "convert_map": {"department_store": 0.5, "wholesale": 0.5},
     },
+    "department_store": {"color": "#c28686", "weight": None, "convert_map": None},
+    "wholesale": {"color": "#c6cca5", "weight": None, "convert_map": None},
     "restaurant": {
         "color": "cyan",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
@@ -233,22 +235,23 @@ LOCATIONS_CFG = {
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
         "convert_map": None,
     },
+    "fast_food": {"color": "brown", "weight": None, "convert_map": None},
     "pub": {
         "color": "yellow",
         "weight": {
             "weekday": 1.0 / 7.0,
             "weekend": 1.0 / 7.0,
         },
-        "convert_map": {"pub": 0.6, "club": 0.4},
+        "convert_map": {"pub": 0.5, "club": 0.2, "fast_food": 0.3},
     },
-    # "playground": "brown",
+    "kindergarten": {"color": "lime", "weight": None, "convert_map": None},
     "school": {"color": "lime", "weight": None, "convert_map": None},
     "park": {
         "color": "pink",
         "weight": None,
         "convert_map": {"park": 0.35, "outdoor": 0.65},
     },
-    # "travel": {"color": "teal", "weight": None, "convert_map": None},
+    "outdoor": {"color": "#657f80", "weight": None, "convert_map": None},
     "others": {"color": "#b1bfa4", "weight": None, "convert_map": None},
 }
 

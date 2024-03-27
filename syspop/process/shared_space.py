@@ -90,7 +90,9 @@ def shared_space_wrapper(
         )
         pop_data = pop_data.drop(columns=[f"tmp_{i}"])
 
-    pop_data[shared_space_name] = pop_data[shared_space_name].str.strip(",")
+    pop_data[shared_space_name] = (
+        pop_data[shared_space_name].str.replace(",,", ",").str.strip(",")
+    )
     pop_data = pop_data.drop(
         columns=[f"{area_name_key}_latitude", f"{area_name_key}_longitude"]
     )

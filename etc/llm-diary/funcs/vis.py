@@ -22,13 +22,15 @@ def plot_diary_percentage(
     df_percentage = df_grouped.divide(df_grouped.sum(axis=1), axis=0)
 
     colors = []
+    columns = []
     for col in df_percentage.columns:
         if col not in LOCATIONS_CFG:
             colors.append(color_unknown)
         else:
             colors.append(LOCATIONS_CFG[col]["color"])
+        columns.append(col)
 
-    df_percentage.plot(
+    df_percentage[columns].plot(
         kind="bar",
         stacked=True,
         figsize=(10, 7),

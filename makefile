@@ -60,3 +60,10 @@ run_viewer:
 
 check_port:
 	lsof -i -P -n
+
+
+# -----------------------
+# Create NZ data
+# -----------------------
+create_nz_data:
+	etc/scripts_nz/create_nz_data.bash

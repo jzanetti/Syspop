@@ -1,3 +1,4 @@
+from logging import getLogger
 from os import makedirs
 from os.path import exists, join
 from pickle import dump as pickle_dump
@@ -36,6 +37,8 @@ from funcs.venue.venue import (
     write_leisures,
 )
 
+logger = getLogger()
+
 
 def create_shared_space_wrapper(
     workdir: str, space_names: list = ["supermarket", "restaurant", "pharmacy"]
@@ -52,6 +55,7 @@ def create_shared_space_wrapper(
         geography_data = pickle_load(fid)
 
     for space_name in space_names:
+        print(f"Shared space: {space_name} ...")
         proc_data = create_shared_space(space_name, geography_data["location"])
         with open(join(workdir, f"{space_name}.pickle"), "wb") as fid:
             pickle_dump({space_name: proc_data}, fid)

@@ -115,7 +115,12 @@ def create_diary_single_person(
             output[ref_time_proc.hour] = activity
 
         else:
-            output[ref_time_proc.hour] = numpy_choice(list(activities.keys()))
+            try:
+                activity_list = list(activities.keys())
+                activity_list.remove("random_seeds")
+            except ValueError:
+                pass
+            output[ref_time_proc.hour] = numpy_choice(activity_list)
 
         ref_time_proc += timedelta(hours=1)
 
@@ -193,6 +198,7 @@ def create_diary(
     all_diaries["id"] = []
     total_people = len(syspop_data)
     for i in range(total_people):
+
         proc_people = syspop_data.iloc[i]
         if print_log:
             logger.info(

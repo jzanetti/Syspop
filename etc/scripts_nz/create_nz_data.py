@@ -64,11 +64,11 @@ def import_raw_data(workdir: str):
             "wholesale",
             "department_store",
             "restaurant",
-            "pharmacy",
+            # "pharmacy",
             "cafe",
             "fast_food",
-            "museum",
-            "events_venue",
+            # "museum",
+            # "events_venue",
             "pub",
             "park",
         ],
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         "--workdir",
         type=str,
         required=False,
-        default="/tmp/syspop_v4.0",
+        default="/tmp/syspop_v5.0",
         help="Working directory",
     )
 

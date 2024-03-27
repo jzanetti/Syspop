@@ -31,23 +31,39 @@ with open("etc/data/test_data_latest/hospital.pickle", "rb") as fid:
 with open("etc/data/test_data_latest/supermarket.pickle", "rb") as fid:
     supermarket_data = pickle_load(fid)
 
+with open("etc/data/test_data_latest/department_store.pickle", "rb") as fid:
+    department_store_data = pickle_load(fid)
+
+with open("etc/data/test_data_latest/wholesale.pickle", "rb") as fid:
+    wholesale_data = pickle_load(fid)
+
 with open("etc/data/test_data_latest/restaurant.pickle", "rb") as fid:
     restaurant_data = pickle_load(fid)
 
-with open("etc/data/test_data_latest/pharmacy.pickle", "rb") as fid:
-    pharmacy_data = pickle_load(fid)
+with open("etc/data/test_data_latest/fast_food.pickle", "rb") as fid:
+    fast_food_data = pickle_load(fid)
+
+with open("etc/data/test_data_latest/cafe.pickle", "rb") as fid:
+    cafe_data = pickle_load(fid)
+
+with open("etc/data/test_data_latest/pub.pickle", "rb") as fid:
+    pub_data = pickle_load(fid)
+
+with open("etc/data/test_data_latest/park.pickle", "rb") as fid:
+    park_data = pickle_load(fid)
 
 with open("etc/data/test_data_latest/llm_diary.pickle", "rb") as fid:
     llm_diary_data = pickle_load(fid)
+# llm_diary_data = None
 
-output_dir = "/tmp/syspop_test/Wellington"
-syn_areas = list(
-    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Wellington"]["area"]
-)
-# syn_areas = [135400, 111400, 110400]
+output_dir = "/tmp/syspop_test/test"
+# syn_areas = list(
+#    geog_data["hierarchy"][geog_data["hierarchy"]["region"] == "Wellington"]["area"]
+# )
+syn_areas = [135400, 111400, 110400]
 
 
-if_run_syspop_create = True
+if_run_syspop_create = False
 if_run_diary = True
 if_run_validation = True
 if_run_vis = True
@@ -70,7 +86,12 @@ if if_run_syspop_create:
         hospital_data=hospital_data["hospital"],
         supermarket_data=supermarket_data["supermarket"],
         restaurant_data=restaurant_data["restaurant"],
-        pharmacy_data=pharmacy_data["pharmacy"],
+        department_store_data=department_store_data["department_store"],
+        wholesale_data=wholesale_data["wholesale"],
+        fast_food_data=fast_food_data["fast_food"],
+        pub_data=pub_data["pub"],
+        park_data=park_data["park"],
+        cafe_data=cafe_data["cafe"],
         assign_address_flag=True,
         rewrite_base_pop=True,
         use_parallel=True,

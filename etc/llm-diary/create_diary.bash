@@ -4,7 +4,7 @@
 source activate llm_abm-kscprod-data3
 
 # Define array of arguments for the Python script
-peoples=("student" "toddler" "worker1" "worker2" "worker3" "retiree" "not_in_employment")
+peoples=("toddler" "student" "worker1" "worker2" "worker3" "retiree" "not_in_employment")
 scenarios=300 # Example scenarios, add more as needed
 
 formatted_time=$(date -u +'%Y%m%dT%H%M')

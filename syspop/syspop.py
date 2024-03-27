@@ -373,6 +373,12 @@ def create(
     supermarket_data: DataFrame = None,
     restaurant_data: DataFrame = None,
     pharmacy_data: DataFrame = None,
+    department_store_data: DataFrame = None,
+    wholesale_data: DataFrame = None,
+    fast_food_data: DataFrame = None,
+    pub_data: DataFrame = None,
+    park_data: DataFrame = None,
+    cafe_data: DataFrame = None,
     assign_address_flag: bool = False,
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
@@ -515,6 +521,80 @@ def create(
             area_name_keys_and_selected_nums={"area": 2},
         )
 
+    if cafe_data is not None:
+        _check_dependancies("cafe", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding cafe_data ...")
+        create_shared_space(
+            tmp_data_path,
+            cafe_data,
+            "cafe",
+            geo_location,
+            assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 2},
+        )
+
+    if department_store_data is not None:
+        _check_dependancies(
+            "department_store", deps_list=["geo_location"], address_deps=[]
+        )
+        logger.info("Adding department_store ...")
+        create_shared_space(
+            tmp_data_path,
+            department_store_data,
+            "department_store",
+            geo_location,
+            assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 2},
+        )
+
+    if wholesale_data is not None:
+        _check_dependancies("wholesale", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding wholesale ...")
+        create_shared_space(
+            tmp_data_path,
+            wholesale_data,
+            "wholesale",
+            geo_location,
+            assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 2},
+        )
+
+    if fast_food_data is not None:
+        _check_dependancies("fast_food", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding fast_food ...")
+        create_shared_space(
+            tmp_data_path,
+            fast_food_data,
+            "fast_food",
+            geo_location,
+            assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
+        )
+
+    if pub_data is not None:
+        _check_dependancies("pub", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding pub ...")
+        create_shared_space(
+            tmp_data_path,
+            pub_data,
+            "pub",
+            geo_location,
+            assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
+        )
+
+    if park_data is not None:
+        _check_dependancies("park", deps_list=["geo_location"], address_deps=[])
+        logger.info("Adding park ...")
+        create_shared_space(
+            tmp_data_path,
+            park_data,
+            "park",
+            geo_location,
+            assign_address_flag,
+            area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
+        )
+
     output_syn_pop_path = join(output_dir, "syspop_base.parquet")
     output_loc_path = join(output_dir, "syspop_location.parquet")
 
@@ -567,7 +647,9 @@ def _map_loc_to_diary(output_dir: str):
                     AttributeError,
                 ):  # people may in the park from the diary,
                     # but it's not the current synthetic pop can support
-                    proc_people_attr_value = None
+                    # proc_people_attr_value = None
+                    raise Exception("Not able to get proc_people_attr_value")
+
             proc_people.at[str(proc_hr)] = proc_people_attr_value
 
         return proc_people

@@ -2,6 +2,7 @@ from json import dump as json_dump
 from os import makedirs
 from os.path import exists, join
 
+from funcs import RAW_DATA_DIR
 from numpy import NaN
 from OSMPythonTools.nominatim import Nominatim
 from OSMPythonTools.overpass import Overpass, overpassQueryBuilder
@@ -11,7 +12,9 @@ overpass = Overpass()
 nominatim = Nominatim()
 
 
-def query_results(query_keys: dict, region: str, country: str, output_dir: str):
+def query_results(
+    query_keys: dict, region: str, country: str, output_dir: str = RAW_DATA_DIR
+):
     """Query data from OSM
 
     Args:
@@ -22,6 +25,10 @@ def query_results(query_keys: dict, region: str, country: str, output_dir: str):
         country (str): country name such as New Zealand
         output_dir (str): Output directory
     """
+
+    if not exists(output_dir):
+        makedirs(output_dir)
+
     if region is not NaN:
         areaId = nominatim.query(f"{region},{country}").areaId()
     else:
@@ -52,7 +59,7 @@ def query_results(query_keys: dict, region: str, country: str, output_dir: str):
                 outputs["lat"].append(node.lat())
                 outputs["lon"].append(node.lon())
 
-                print(f"{node.lat()}, {node.lon()}")
+                # print(f"{node.lat()}, {node.lon()}")
 
                 try:
                     actual_name = node.tags()["name"]
@@ -84,25 +91,24 @@ if __name__ == "__main__":
     query_keys = {
         "amenity": [
             "restaurant",
-            "pharmacy",
+            # "pharmacy",
             "fast_food",
             "cafe",
-            "events_venue",
+            # "events_venue",
             "pub",
+            "gym",
+            "childcare",
+            "kindergarten",
         ],
         "shop": [
             "supermarket",
             "wholesale",
-            "general",
+            # "general",
             "department_store",
-            "convenience",
+            # "convenience",
         ],
         "leisure": ["park"],
-        "tourism": ["museum"],
+        # "tourism": ["museum"],
     }
-    output_dir = "etc/data/raw_nz_latest"
 
-    if not exists(output_dir):
-        makedirs(output_dir)
-
-    query_results(query_keys, region, country, output_dir)
+    query_results(query_keys, region, country)

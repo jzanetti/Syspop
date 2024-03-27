@@ -180,13 +180,13 @@ if __name__ == "__main__":
     args = parser.parse_args(
         # [
         #    "--workdir",
-        #    "/tmp/syspop_llm/run_20240324T20/",
+        #    "/tmp/syspop_llm/run_20240326T2214/",
         #    "--day_type",
-        #    "weekend",
+        #    "weekday",
         #    "--scenarios",
         #    "3",
         #    "--people",
-        #    "student",
+        #    "toddler",
         # ]
     )
 
