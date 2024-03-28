@@ -88,6 +88,7 @@ def query_results(
 if __name__ == "__main__":
     region = NaN  # can be NaN, or sth like Auckland
     country = "New Zealand"
+
     query_keys = {
         "amenity": [
             "restaurant",
@@ -112,3 +113,8 @@ if __name__ == "__main__":
     }
 
     query_results(query_keys, region, country)
+
+    query_results(
+        {"amenity": ["kindergarten"]}, "Wellington", country, output_dir="/tmp/test"
+    )
+    """
