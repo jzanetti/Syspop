@@ -26,7 +26,8 @@ def create_school_names(school_data: DataFrame) -> DataFrame:
     return school_data
 
 
-def school_wrapper(
+def school_and_kindergarten_wrapper(
+    data_type: str,  # school or kindergarten
     school_data: DataFrame,
     pop_data: DataFrame,
     address_data: DataFrame,
@@ -46,7 +47,7 @@ def school_wrapper(
         DataFrame: Updated population
     """
     start_time = datetime.utcnow()
-    pop_data["school"] = NaN
+    pop_data[data_type] = NaN
 
     # pop_data = pop_data.drop(columns=["super_area", "region"])
     school_data = create_school_names(school_data)
@@ -103,7 +104,7 @@ def school_wrapper(
         proc_people_age = proc_people["age"].values[0]
         if i % 1000 == 0.0:
             logger.info(
-                f"School processing: finshed: {i}/{total_school_people}: {round(100*i/total_school_people, 3)}%"
+                f"{data_type} processing: finshed: {i}/{total_school_people}: {round(100*i/total_school_people, 3)}%"
             )
 
         tries_num = 0
@@ -135,11 +136,11 @@ def school_wrapper(
                         float(proc_school["longitude"].values[0])
                     )
 
-                proc_people["school"] = proc_school_name
+                proc_people[data_type] = proc_school_name
                 processed_people.append(proc_people)
                 break
 
-    logger.info("Combining school dataset ...")
+    logger.info(f"Combining {data_type} dataset ...")
     processed_school_population = concat(processed_people, ignore_index=True)
     processed_school_population.set_index("index", inplace=True)
     processed_school_population.index.name = None
@@ -152,11 +153,11 @@ def school_wrapper(
 
     if assign_address_flag:
         school_address_df = DataFrame.from_dict(school_address)
-        school_address_df["type"] = "school"
+        school_address_df["type"] = data_type
         address_data = concat([address_data, school_address_df])
 
     logger.info(
-        f"School processing runtime: {round(((datetime.utcnow() - start_time).total_seconds()) / 60.0, 3)}"
+        f"{data_type} processing runtime: {round(((datetime.utcnow() - start_time).total_seconds()) / 60.0, 3)}"
     )
 
     return pop_data, address_data

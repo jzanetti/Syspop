@@ -8,7 +8,7 @@ from pandas import DataFrame
 from process.base_pop import base_pop_wrapper
 from process.hospital import hospital_wrapper
 from process.household import household_wrapper
-from process.school import school_wrapper
+from process.school import school_and_kindergarten_wrapper
 from process.shared_space import shared_space_wrapper
 from process.social_economic import social_economic_wrapper
 from process.work import work_and_commute_wrapper
@@ -134,7 +134,8 @@ def create_work(
         pickle_dump({"synpop": base_pop, "synadd": base_address}, fid)
 
 
-def create_school(
+def create_school_and_kindergarten(
+    data_type: str,
     tmp_data_path: str,
     school_data: DataFrame,
     geo_hierarchy_data: DataFrame,
@@ -151,7 +152,8 @@ def create_school(
     with open(tmp_data_path, "rb") as fid:
         base_pop = pickle_load(fid)
 
-    base_pop, base_address = school_wrapper(
+    base_pop, base_address = school_and_kindergarten_wrapper(
+        data_type,
         school_data,
         base_pop["synpop"],
         base_pop["synadd"],

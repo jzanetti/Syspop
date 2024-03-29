@@ -83,6 +83,9 @@ def get_data_for_test(test_data_dir: str) -> dict:
     with open(f"{test_data_dir}/school.pickle", "rb") as fid:
         test_data["school_data"] = pickle_load(fid)
 
+    with open(f"{test_data_dir}/kindergarten.pickle", "rb") as fid:
+        test_data["kindergarten_data"] = pickle_load(fid)
+
     with open(f"{test_data_dir}/hospital.pickle", "rb") as fid:
         test_data["hospital_data"] = pickle_load(fid)
 

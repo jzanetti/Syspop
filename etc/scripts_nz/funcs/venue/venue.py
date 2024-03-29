@@ -154,7 +154,7 @@ def create_kindergarten() -> DataFrame:
     df = df[
         [
             "Statistical Area 2 Code",
-            "Service Name",
+            # "Service Name",
             "Max. Licenced Positions",
             "Latitude",
             "Longitude",
@@ -164,7 +164,6 @@ def create_kindergarten() -> DataFrame:
     df = df.rename(
         columns={
             "Statistical Area 2 Code": "area",
-            "Service Name": "name",
             "Max. Licenced Positions": "max_students",
             "Latitude": "latitude",
             "Longitude": "longitude",
@@ -173,6 +172,11 @@ def create_kindergarten() -> DataFrame:
     df = df.dropna()
     df["area"] = df["area"].astype(int)
     df["max_students"] = df["max_students"].astype(int)
+
+    df["sector"] = "kindergarten"
+    df["age_min"] = 1
+    df["age_max"] = 5
+
     return df
 
 

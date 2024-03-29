@@ -34,7 +34,7 @@ from wrapper_pop import (
     create_base_pop,
     create_hospital,
     create_household,
-    create_school,
+    create_school_and_kindergarten,
     create_shared_space,
     create_socialeconomics,
     create_work,
@@ -479,7 +479,22 @@ def create(
     if school_data is not None:
         _check_dependancies("school", deps_list=["geo_hierarchy"], address_deps=[])
         logger.info("Adding school ...")
-        create_school(tmp_data_path, school_data, geo_hierarchy, assign_address_flag)
+        create_school_and_kindergarten(
+            "school", tmp_data_path, school_data, geo_hierarchy, assign_address_flag
+        )
+
+    if kindergarten_data is not None:
+        _check_dependancies(
+            "kindergarten", deps_list=["geo_hierarchy"], address_deps=[]
+        )
+        logger.info("Adding kindergarten ...")
+        create_school_and_kindergarten(
+            "kindergarten",
+            tmp_data_path,
+            kindergarten_data,
+            geo_hierarchy,
+            assign_address_flag,
+        )
 
     if hospital_data is not None:
         _check_dependancies("hospital", deps_list=["geo_hierarchy"], address_deps=[])
