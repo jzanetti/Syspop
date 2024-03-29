@@ -228,7 +228,7 @@ LOCATIONS_CFG = {
     "mall": {
         "color": "purple",
         "weight": {"weekday": 1.0 / 7.0, "weekend": 1.0 / 7.0},
-        "convert_map": {"department_store": 0.5, "wholesale": 0.5},
+        "convert_map": {"department_store": 0.6, "wholesale": 0.4},
     },
     "department_store": {"color": "#c28686", "weight": None, "convert_map": None},
     "wholesale": {"color": "#c6cca5", "weight": None, "convert_map": None},

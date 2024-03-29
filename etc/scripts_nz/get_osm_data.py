@@ -4,16 +4,47 @@ from os.path import exists, join
 
 from funcs import RAW_DATA_DIR
 from numpy import NaN
+from numpy.random import uniform as numpy_uniform
 from OSMPythonTools.nominatim import Nominatim
 from OSMPythonTools.overpass import Overpass, overpassQueryBuilder
 from pandas import DataFrame
+from pandas import concat as pandas_concat
+
+ADD_RANDOM_PLACES_SCALER = {
+    "restaurant": 0.3,
+    "supermarket": 1.5,
+    "wholesale": 1.5,
+    "fast_food": 3.0,
+    "kindergarten": 5.0,
+    "pub": 5.0,
+    "cafe": 3.0,
+}
+
 
 overpass = Overpass()
 nominatim = Nominatim()
 
 
+def add_random_location(
+    df: DataFrame, total_lines: int, data_type: str, buffer: float = 0.3
+):
+    output = {"name": [], "lat": [], "lon": []}
+
+    for i in range(total_lines):
+        proc_row = df.sample(n=1)
+        output["name"].append(f"{data_type}_pseudo_{i}")
+        output["lat"].append(proc_row.lat.values[0] + numpy_uniform(-buffer, buffer))
+        output["lon"].append(proc_row.lon.values[0] + numpy_uniform(-buffer, buffer))
+
+    return DataFrame(output)
+
+
 def query_results(
-    query_keys: dict, region: str, country: str, output_dir: str = RAW_DATA_DIR
+    query_keys: dict,
+    region: str,
+    country: str,
+    output_dir: str = RAW_DATA_DIR,
+    if_add_random_loc: bool = False,
 ):
     """Query data from OSM
 
@@ -77,6 +108,15 @@ def query_results(
                 ] = actual_name
 
             df = DataFrame.from_dict(outputs)
+
+            if if_add_random_loc and proc_value in ADD_RANDOM_PLACES_SCALER:
+                random_df = add_random_location(
+                    df,
+                    int((ADD_RANDOM_PLACES_SCALER[proc_value] + 1.0) * len(df)),
+                    proc_value,
+                )
+                df = pandas_concat([df, random_df], axis=0)
+
             df.to_csv(join(output_dir, f"{proc_key}_{proc_value}.csv"), index=False)
 
     with open(
@@ -112,9 +152,8 @@ if __name__ == "__main__":
         # "tourism": ["museum"],
     }
 
-    query_results(query_keys, region, country)
+    query_results(query_keys, region, country, if_add_random_loc=False)
 
-    query_results(
-        {"amenity": ["kindergarten"]}, "Wellington", country, output_dir="/tmp/test"
-    )
-    """
+    # query_results(
+    #    {"amenity": ["kindergarten"]}, "Wellington", country, output_dir="/tmp/test"
+    # )
