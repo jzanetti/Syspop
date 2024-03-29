@@ -67,6 +67,7 @@ RAW_DATA = {
     "venue": {
         "hospital": f"{RAW_DATA_DIR}/nz-facilities-2022.csv",
         "school": f"{RAW_DATA_DIR}/nz-facilities-2022.csv",
+        "kindergarten": f"{RAW_DATA_DIR}/kindergarten_data.csv",
         "supermarket": f"{RAW_DATA_DIR}/shop_supermarket.csv",
         "restaurant": f"{RAW_DATA_DIR}/amenity_restaurant.csv",
         "pharmacy": f"{RAW_DATA_DIR}/amenity_pharmacy.csv",
@@ -78,7 +79,6 @@ RAW_DATA = {
         "wholesale": f"{RAW_DATA_DIR}/shop_wholesale.csv",
         "department_store": f"{RAW_DATA_DIR}/shop_department_store.csv",
         "park": f"{RAW_DATA_DIR}/leisure_park.csv",
-        "kindergarten": f"{RAW_DATA_DIR}/amenity_kindergarten.csv",
         "childcare": f"{RAW_DATA_DIR}/amenity_childcare.csv",
     },
     "others": {"vaccine": f"{RAW_DATA_DIR}/nz-vaccine.csv"},

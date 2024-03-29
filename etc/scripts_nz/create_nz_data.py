@@ -7,6 +7,7 @@ from funcs.wrapper import (
     create_geography_wrapper,
     create_hospital_wrapper,
     create_household_number,
+    create_kindergarten_wrapper,
     create_population_wrapper,
     create_school_wrapper,
     create_shared_space_wrapper,
@@ -45,9 +46,10 @@ def import_raw_data(workdir: str):
     create_work_wrapper(workdir)
 
     # -----------------------------
-    # Create school
+    # Create school and kindergarten
     # -----------------------------
     create_school_wrapper(workdir)
+    create_kindergarten_wrapper(workdir)
 
     # -----------------------------
     # Create hospital
@@ -64,12 +66,10 @@ def import_raw_data(workdir: str):
             "wholesale",
             "department_store",
             "restaurant",
-            "kindergarten",
             # "pharmacy",
             "cafe",
             "fast_food",
             # "museum",
-            "childcare",
             "pub",
             "park",
         ],

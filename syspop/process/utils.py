@@ -110,14 +110,14 @@ def get_data_for_test(test_data_dir: str) -> dict:
     with open(f"{test_data_dir}/park.pickle", "rb") as fid:
         test_data["park_data"] = pickle_load(fid)
 
-    kindergarten_data = []
-    for proc_key in ["kindergarten", "childcare"]:
-        with open(f"{test_data_dir}/{proc_key}.pickle", "rb") as fid:
-            kindergarten_data.append(pickle_load(fid)[proc_key])
-
-        test_data["kindergarten_data"] = {
-            "kindergarten": pandas_concat(kindergarten_data, axis=0)
-        }
+    # kindergarten_data = []
+    # for proc_key in ["kindergarten", "childcare"]:
+    #    with open(f"{test_data_dir}/{proc_key}.pickle", "rb") as fid:
+    #        kindergarten_data.append(pickle_load(fid)[proc_key])
+    #
+    #    test_data["kindergarten_data"] = {
+    #        "kindergarten": pandas_concat(kindergarten_data, axis=0)
+    #    }
 
     with open(f"{test_data_dir}/llm_diary.pickle", "rb") as fid:
         test_data["llm_diary_data"] = pickle_load(fid)

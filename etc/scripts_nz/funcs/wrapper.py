@@ -32,6 +32,7 @@ from funcs.postproc import postproc
 from funcs.utils import sort_column_by_names
 from funcs.venue.venue import (
     create_hospital,
+    create_kindergarten,
     create_school,
     create_shared_space,
     write_leisures,
@@ -74,6 +75,17 @@ def create_hospital_wrapper(workdir: str):
 
     with open(join(workdir, "hospital.pickle"), "wb") as fid:
         pickle_dump({"hospital": hopital_data}, fid)
+
+
+def create_kindergarten_wrapper(workdir: str):
+    """Create kindergarten wrapper (e.g., where is the kindergarten etc.)
+
+    Args:
+        workdir (str): Working directory
+    """
+    kindergarten_data = create_kindergarten()
+    with open(join(workdir, "kindergarten.pickle"), "wb") as fid:
+        pickle_dump({"kindergarten": kindergarten_data}, fid)
 
 
 def create_school_wrapper(workdir: str):

@@ -3,13 +3,12 @@ from os.path import dirname, exists, join
 from time import sleep
 
 import overpy
+from funcs import RAW_DATA, RAW_DATA_INFO, REGION_NAMES_CONVERSIONS
+from funcs.utils import get_central_point, haversine_distance
 from geopy.geocoders import Nominatim
 from numpy import argmin
 from pandas import DataFrame, merge, read_csv
 from scipy.spatial.distance import cdist
-
-from funcs import RAW_DATA, RAW_DATA_INFO, REGION_NAMES_CONVERSIONS
-from funcs.utils import get_central_point, haversine_distance
 
 
 def create_shared_space(space_name: str, geography_location: DataFrame):
@@ -34,6 +33,7 @@ def create_shared_space(space_name: str, geography_location: DataFrame):
     data = data.rename(columns={"lat": "latitude", "lon": "longitude"})
 
     return data
+
 
 def write_leisures(workdir: str):
     """Write cinema information
@@ -145,6 +145,35 @@ def write_leisures(workdir: str):
         output = DataFrame.from_dict(output)[["super_area", "lat", "lon"]]
 
         output.to_csv(join(workdir, f"leisure_{proc_leisure}.csv"), index=False)
+
+
+def create_kindergarten() -> DataFrame:
+
+    df = read_csv(RAW_DATA["venue"]["kindergarten"])
+
+    df = df[
+        [
+            "Statistical Area 2 Code",
+            "Service Name",
+            "Max. Licenced Positions",
+            "Latitude",
+            "Longitude",
+        ]
+    ]
+
+    df = df.rename(
+        columns={
+            "Statistical Area 2 Code": "area",
+            "Service Name": "name",
+            "Max. Licenced Positions": "max_students",
+            "Latitude": "latitude",
+            "Longitude": "longitude",
+        }
+    )
+    df = df.dropna()
+    df["area"] = df["area"].astype(int)
+    df["max_students"] = df["max_students"].astype(int)
+    return df
 
 
 def create_school(
