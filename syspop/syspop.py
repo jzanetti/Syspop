@@ -611,18 +611,6 @@ def create(
             area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
         )
 
-    if kindergarten_data is not None:
-        _check_dependancies("kindergarten", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding kindergarten ...")
-        create_shared_space(
-            tmp_data_path,
-            kindergarten_data,
-            "kindergarten",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 1},
-        )
-
     output_syn_pop_path = join(output_dir, "syspop_base.parquet")
     output_loc_path = join(output_dir, "syspop_location.parquet")
 
@@ -658,7 +646,7 @@ def _map_loc_to_diary(output_dir: str):
 
     time_start = datetime.utcnow()
 
-    def _process_person(proc_people: DataFrame):
+    def _process_person(proc_people: DataFrame, default_place: str = "household"):
         proc_people_id = proc_people["id"]
         proc_people_attr = synpop_data.loc[proc_people_id]
 
@@ -673,14 +661,11 @@ def _map_loc_to_diary(output_dir: str):
                 except (
                     KeyError,
                     AttributeError,
-                ):  # people may in the park from the diary,
+                ):  # For example, people may in the park from the diary,
                     # but it's not the current synthetic pop can support
-                    # proc_people_attr_value = None
-                    pass
-                    # logger.info(
-                    #    f"Not able to find {proc_people.iloc[proc_hr]} information in the people"
-                    # )
-                    # raise Exception("Not able to get proc_people_attr_value")
+                    proc_people_attr_value = numpy_choice(
+                        proc_people_attr[default_place].split(",")
+                    )
 
             proc_people.at[str(proc_hr)] = proc_people_attr_value
 
@@ -692,30 +677,5 @@ def _map_loc_to_diary(output_dir: str):
     logger.info(
         f"Completed within seconds: {(time_end - time_start).total_seconds()} ..."
     )
-    """
-    total_people = len(diary_data)
 
-    for i in range(total_people):
-
-        proc_people = diary_data.iloc[i]
-
-        if print_log:
-            logger.info(
-                f"{i} / {total_people} ({round(i/float(total_people), 3)}%) being processed ..."
-            )
-
-        proc_people_id = proc_people["id"]
-        proc_people_attr = synpop_data[synpop_data["id"] == proc_people_id]
-
-        for proc_hr in range(24):
-            if proc_people.iloc[proc_hr] == "travel":
-                proc_people_attr_value = proc_people_attr[
-                    "public_transport_trip"
-                ].values[0]
-            else:
-                proc_people_attr_value = numpy_choice(
-                    proc_people_attr[proc_people.iloc[proc_hr]].values[0].split(",")
-                )
-            diary_data.loc[i, str(proc_hr)] = proc_people_attr_value
-    """
     diary_data.to_parquet(join(output_dir, "syspop_and_diary.parquet"), index=False)

@@ -181,6 +181,7 @@ def create_diary(
     print_log: bool,
     activities_cfg: dict or None = None,
     llm_diary_data: dict or None = None,
+    use_llm_percentage_flag: bool = False,
 ) -> DataFrame:
     """Create diaries
 
@@ -197,6 +198,7 @@ def create_diary(
     all_diaries = {proc_hour: [] for proc_hour in range(24)}
     all_diaries["id"] = []
     total_people = len(syspop_data)
+
     for i in range(total_people):
 
         proc_people = syspop_data.iloc[i]
@@ -219,7 +221,11 @@ def create_diary(
             output = create_diary_single_person(activities=proc_activities_updated)
         else:
             output = create_diary_single_person_llm(
-                llm_diary_data, proc_people.age, proc_people.company, proc_people.school
+                llm_diary_data,
+                proc_people.age,
+                proc_people.company,
+                proc_people.school,
+                use_llm_percentage_flag,
             )
 
         all_diaries["id"].append(proc_people.id)
@@ -233,7 +239,11 @@ def create_diary(
 
 
 def create_diary_single_person_llm(
-    llm_diary_data: dict, people_age: int, people_company: str, people_school: str
+    llm_diary_data: dict,
+    people_age: int,
+    people_company: str,
+    people_school: str,
+    use_percentage_flag: bool,
 ) -> dict:
     """Create diary from LLM_diary
 
@@ -247,22 +257,45 @@ def create_diary_single_person_llm(
         dict: People's diary
     """
 
-    if people_age < 6:
-        proc_llm_data = llm_diary_data["toddler"]
-    elif people_age > 65:
-        proc_llm_data = llm_diary_data["retiree"]
-    elif people_company is not None:
-        proc_llm_data = llm_diary_data["worker"]
-    elif people_school is not None:
-        proc_llm_data = llm_diary_data["student"]
+    if use_percentage_flag:
+        selected_llm_diary_data = llm_diary_data["percentage"]
     else:
-        proc_llm_data = llm_diary_data["not_in_employment"]
+        selected_llm_diary_data = llm_diary_data["data"]
 
-    output = {}
-    for hour in proc_llm_data.index:
-        probabilities = proc_llm_data.loc[hour]
-        location = numpy_choice(probabilities.index, p=probabilities.values)
-        output[hour] = location
+    if people_age < 6:
+        proc_llm_data = selected_llm_diary_data["toddler"]
+    elif people_age > 65:
+        proc_llm_data = selected_llm_diary_data["retiree"]
+    elif people_company is not None:
+        proc_llm_data = selected_llm_diary_data["worker"]
+    elif people_school is not None:
+        proc_llm_data = selected_llm_diary_data["student"]
+    else:
+        proc_llm_data = selected_llm_diary_data["not_in_employment"]
+
+    if use_percentage_flag:
+        output = {}
+        for hour in proc_llm_data.index:
+            probabilities = proc_llm_data.loc[hour]
+            location = numpy_choice(probabilities.index, p=probabilities.values)
+            output[hour] = location
+    else:
+        selected_people_id = numpy_choice(list(proc_llm_data["People_id"].unique()))
+        selected_data = proc_llm_data[proc_llm_data["People_id"] == selected_people_id]
+
+        selected_data["group"] = (
+            (selected_data["Hour"].diff() != 1).astype(int).cumsum()
+        )
+
+        selected_people_group_id = numpy_choice(list(selected_data["group"].unique()))
+
+        selected_data = selected_data[
+            selected_data["group"] == selected_people_group_id
+        ]
+
+        output = dict(
+            zip(selected_data["Hour"].tolist(), selected_data["Location"].tolist())
+        )
 
     """
     all_unique_locs = []
