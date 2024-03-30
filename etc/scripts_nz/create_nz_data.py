@@ -89,9 +89,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args(
-        # [
-        #    "--workdir",
-        #    "/tmp/syspop_llm/run_20240323T21/"
-        # ]
+        # ["--workdir", "/tmp/test/"]
     )
     import_raw_data(args.workdir)

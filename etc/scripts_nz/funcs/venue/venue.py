@@ -152,9 +152,18 @@ def create_kindergarten() -> DataFrame:
     df = read_csv(RAW_DATA["venue"]["kindergarten"])
 
     df = df[
+        df["Service Type"].isin(
+            ["Free Kindergarten", "Education and Care Service", "Playcentre"]
+        )
+        & df["Definition"].isin(["Not Applicable"])
+    ]
+    df = df[df["Max. Licenced Positions"] > 20.0]
+
+    df = df[df["Total"] / df["Max. Licenced Positions"] > 0.75]
+
+    df = df[
         [
             "Statistical Area 2 Code",
-            # "Service Name",
             "Max. Licenced Positions",
             "Latitude",
             "Longitude",
@@ -170,11 +179,12 @@ def create_kindergarten() -> DataFrame:
         }
     )
     df = df.dropna()
+
     df["area"] = df["area"].astype(int)
     df["max_students"] = df["max_students"].astype(int)
 
     df["sector"] = "kindergarten"
-    df["age_min"] = 1
+    df["age_min"] = 0
     df["age_max"] = 5
 
     return df
