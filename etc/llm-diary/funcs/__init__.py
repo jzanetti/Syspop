@@ -5,10 +5,10 @@ MAX_ALLOWED_FAILURE = 30
 PEOPLE_CFG = {
     "toddler": {
         "default": {
-            "age": "2-5",
+            "age": "1-5",
             "work_status": "kindergarten or childcare",
             "income": "",
-            "others": "there is a chance this person may go to kindy",
+            "others": "there is a chance this person may go to kindy, kindergarten time starts from 9am to 3pm",
             "locations": [
                 "home",
                 "supermarket",
