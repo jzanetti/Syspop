@@ -140,6 +140,7 @@ def create_school_and_kindergarten(
     school_data: DataFrame,
     geo_hierarchy_data: DataFrame,
     assign_address_flag: bool,
+    possile_area_levels: list = ["area", "super_area", "region"],
 ):
     """Create school information, if required, school address as well
 
@@ -159,6 +160,7 @@ def create_school_and_kindergarten(
         base_pop["synadd"],
         geo_hierarchy_data,
         assign_address_flag=assign_address_flag,
+        possile_area_levels=possile_area_levels,
     )
 
     with open(tmp_data_path, "wb") as fid:

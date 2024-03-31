@@ -5,12 +5,14 @@ from random import choices as random_choices
 from random import sample as random_sample
 
 import ray
-from numpy import NaN, isnan
+from numpy import NaN
+from numpy import array as numpy_array
+from numpy import isnan
 from numpy.random import choice as numpy_choice
 from numpy.random import choice as random_choice
 from numpy.random import randint
 from numpy.random import randint as numpy_randint
-from pandas import DataFrame, concat, isna
+from pandas import DataFrame, Series, concat, isna
 from pandas import merge as pandas_merge
 from process.address import add_random_address
 
@@ -696,6 +698,69 @@ def rename_household_id(df: DataFrame, proc_area: str) -> DataFrame:
     return df.drop(["is_adult", "num_adults", "num_children"], axis=1)
 
 
+def obtain_adult_index_based_on_ethnicity(
+    unassigned_adults: DataFrame,
+    proc_household_composition: Series,
+    unique_base_pop_ethnicity: list,
+    ref_ethnicity_weight: float = 0.9,
+) -> tuple:
+    """Obtain adult index based on ethnicity
+
+    Args:
+        unassigned_adults (DataFrame): _description_
+        proc_household_composition (DataFrame): _description_
+        unique_base_pop_ethnicity (list): _description_
+        ref_ethnicity_weight (float, optional): _description_. Defaults to 0.9.
+
+    Returns:
+        list: Adult ids
+    """
+
+    ref_adult = unassigned_adults.sample(1)
+    adult_ids = ref_adult["index"].tolist()
+    ref_adult_ethnicity = ref_adult.ethnicity.values[0]
+    ref_ethnicity_weight2 = (1.0 - ref_ethnicity_weight) / (
+        len(unique_base_pop_ethnicity) - 1
+    )
+
+    if proc_household_composition["adult_num"] > 1:
+
+        probabilities = []
+        for proc_ethnicity in unique_base_pop_ethnicity:
+            if proc_ethnicity == ref_adult_ethnicity:
+                probabilities.append(ref_ethnicity_weight)
+            else:
+                probabilities.append(ref_ethnicity_weight2)
+
+        probabilities = numpy_array(probabilities)
+        probabilities = probabilities / probabilities.sum()
+
+        other_adults_ethnicities = []
+        for _ in range(proc_household_composition["adult_num"] - 1):
+            other_adults_ethnicities.append(
+                numpy_choice(
+                    unique_base_pop_ethnicity,
+                    p=probabilities,
+                    replace=False,
+                )
+            )
+
+        for proc_adult_ethnicity in other_adults_ethnicities:
+
+            try:
+                adult_ids.append(
+                    unassigned_adults[
+                        unassigned_adults["ethnicity"] == proc_adult_ethnicity
+                    ]
+                    .sample(1)["index"]
+                    .values[0]
+                )
+            except ValueError:  # not enough required ethnicity ...
+                adult_ids.append(unassigned_adults.sample(1)["index"].values[0])
+
+    return adult_ids, ref_adult_ethnicity
+
+
 def create_household_composition_v3(
     proc_houshold_dataset: DataFrame, proc_base_pop: DataFrame, proc_area: int or str
 ) -> DataFrame:
@@ -716,31 +781,28 @@ def create_household_composition_v3(
     unassigned_adults = proc_base_pop[proc_base_pop["age"] >= 18].copy()
     unassigned_children = proc_base_pop[proc_base_pop["age"] < 18].copy()
 
+    unique_base_pop_ethnicity = list(proc_base_pop["ethnicity"].unique())
+
     household_id = 0
-    for _, row in sorted_proc_houshold_dataset.iterrows():
-        for _ in range(row["household_num"]):
+    for _, proc_household_composition in sorted_proc_houshold_dataset.iterrows():
+        for _ in range(proc_household_composition["household_num"]):
             if (
-                len(unassigned_adults) < row["adult_num"]
-                or len(unassigned_children) < row["children_num"]
+                len(unassigned_adults) < proc_household_composition["adult_num"]
+                or len(unassigned_children) < proc_household_composition["children_num"]
             ):
                 print("Not enough adults or children to assign.")
                 continue
 
-            adult_ids = unassigned_adults.sample(row["adult_num"])["index"].tolist()
+            adult_ids, adult_ethnicity = obtain_adult_index_based_on_ethnicity(
+                unassigned_adults, proc_household_composition, unique_base_pop_ethnicity
+            )
 
             try:
-                adult_majority_ethnicity = (
-                    proc_base_pop.loc[proc_base_pop["index"].isin(adult_ids)][
-                        "ethnicity"
-                    ]
-                    .mode()
-                    .iloc[0]
-                )
                 children_ids = (
                     unassigned_children[
-                        unassigned_children["ethnicity"] == adult_majority_ethnicity
+                        unassigned_children["ethnicity"] == adult_ethnicity
                     ]
-                    .sample(row["children_num"])["index"]
+                    .sample(proc_household_composition["children_num"])["index"]
                     .tolist()
                 )
             except (
@@ -749,9 +811,9 @@ def create_household_composition_v3(
             ):
                 # Value Error: not enough children for a particular ethnicity to be sampled from;
                 # IndexError: len(adults_id) = 0 so mode() does not work
-                children_ids = unassigned_children.sample(row["children_num"])[
-                    "index"
-                ].tolist()
+                children_ids = unassigned_children.sample(
+                    proc_household_composition["children_num"]
+                )["index"].tolist()
 
             # Update the household_id for the selected adults and children in the proc_base_pop DataFrame
             proc_base_pop.loc[proc_base_pop["index"].isin(adult_ids), "household"] = (

@@ -480,7 +480,12 @@ def create(
         _check_dependancies("school", deps_list=["geo_hierarchy"], address_deps=[])
         logger.info("Adding school ...")
         create_school_and_kindergarten(
-            "school", tmp_data_path, school_data, geo_hierarchy, assign_address_flag
+            "school",
+            tmp_data_path,
+            school_data,
+            geo_hierarchy,
+            assign_address_flag,
+            possile_area_levels=["area", "super_area", "region"],
         )
 
     if kindergarten_data is not None:
@@ -494,6 +499,7 @@ def create(
             kindergarten_data,
             geo_hierarchy,
             assign_address_flag,
+            possile_area_levels=["area", "super_area"],
         )
 
     if hospital_data is not None:

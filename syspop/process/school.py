@@ -26,6 +26,42 @@ def create_school_names(school_data: DataFrame) -> DataFrame:
     return school_data
 
 
+def obtain_available_schools(
+    school_data: DataFrame,
+    proc_people_location: dict,
+    proc_people_age: int,
+    possile_area_levels: list,
+    processed_school: list,
+) -> list or None:
+    """Obtain available schools from area -> super_area -> region
+
+    Args:
+        school_data (DataFrame): _description_
+        proc_people_location (dict): _description_
+        proc_people_age (int): _description_
+        possile_area_levels (list): _description_
+        processed_school (list): _description_
+
+    Returns:
+        list or None: _description_
+    """
+    for area_key in possile_area_levels:
+        proc_schools = school_data[
+            (
+                (school_data[area_key] == proc_people_location[area_key])
+                & (school_data["age_min"] <= proc_people_age)
+                & (school_data["age_max"] >= proc_people_age)
+            )
+        ]
+
+        proc_schools = proc_schools[~proc_schools["school_name"].isin(processed_school)]
+
+        if len(proc_schools) > 0:
+            return proc_schools
+
+    return None
+
+
 def school_and_kindergarten_wrapper(
     data_type: str,  # school or kindergarten
     school_data: DataFrame,
@@ -33,6 +69,7 @@ def school_and_kindergarten_wrapper(
     address_data: DataFrame,
     geography_hierarchy_data: DataFrame,
     assign_address_flag: bool = False,
+    possile_area_levels: list = ["area", "super_area", "region"],
 ) -> DataFrame:
     """Wrapper to assign school to individuals (Note this is a very slow process)
     We are not able to use multiprocessing since the school data
@@ -89,12 +126,13 @@ def school_and_kindergarten_wrapper(
         school_assigned_people[proc_school_name] = 0
 
     processed_people = []
+    full_school = []
 
     if assign_address_flag:
         school_address = {"name": [], "latitude": [], "longitude": []}
 
     for i in range(total_school_people):
-        proc_people = school_population.iloc[[i]]
+        proc_people = school_population.sample(n=1)
 
         proc_people_location = {
             "area": proc_people["area"].values[0],
@@ -107,26 +145,27 @@ def school_and_kindergarten_wrapper(
                 f"{data_type} processing: finshed: {i}/{total_school_people}: {round(100*i/total_school_people, 3)}%"
             )
 
-        tries_num = 0
+        while True:
+            proc_schools = obtain_available_schools(
+                school_data,
+                proc_people_location,
+                proc_people_age,
+                possile_area_levels,
+                full_school,
+            )
 
-        while tries_num < 5:
-            for area_key in ["area", "super_area", "region"]:
-                proc_schools = school_data[
-                    (
-                        (school_data[area_key] == proc_people_location[area_key])
-                        & (school_data["age_min"] <= proc_people_age)
-                        & (school_data["age_max"] >= proc_people_age)
-                    )
+            if proc_schools is None:
+                school_population = school_population[
+                    school_population["index"] != proc_people["index"].values[0]
                 ]
-                if len(proc_schools) > 0:
-                    break
+                logger.info(f"Not able to find any {data_type} data ...")
+                break
 
             proc_school = proc_schools.sample(n=1)
             proc_school_name = proc_school["school_name"].values[0]
             students_in_this_school = school_assigned_people[proc_school_name]
 
-            if students_in_this_school <= proc_school["max_students"].values[0]:
-                # store the address of a school
+            if students_in_this_school < proc_school["max_students"].values[0]:
                 if assign_address_flag and (proc_school_name not in school_address):
                     school_address["name"].append(proc_school_name)
                     school_address["latitude"].append(
@@ -137,8 +176,17 @@ def school_and_kindergarten_wrapper(
                     )
 
                 proc_people[data_type] = proc_school_name
-                school_assigned_people[proc_school_name] += 1
                 processed_people.append(proc_people)
+                school_population = school_population[
+                    school_population["index"] != proc_people["index"].values[0]
+                ]
+
+                school_assigned_people[proc_school_name] += 1
+                if (
+                    school_assigned_people[proc_school_name]
+                    == proc_school["max_students"].values[0]
+                ):
+                    full_school.append(proc_school_name)
                 break
 
     logger.info(f"Combining {data_type} dataset ...")
