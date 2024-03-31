@@ -137,6 +137,7 @@ def school_and_kindergarten_wrapper(
                     )
 
                 proc_people[data_type] = proc_school_name
+                school_assigned_people[proc_school_name] += 1
                 processed_people.append(proc_people)
                 break
 
