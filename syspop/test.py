@@ -12,13 +12,13 @@ from syspop import vis as syspop_vis
 
 test_data = get_data_for_test("etc/data/test_data_latest")
 
-output_dir = "/tmp/syspop_test/test"
+output_dir = "/tmp/syspop_test/Wellington4"
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
         test_data["geog_data"]["hierarchy"]["region"] == "Wellington"
     ]["area"]
 )
-syn_areas = [135400, 111400, 110400]
+# syn_areas = [135400, 111400, 110400]
 
 
 if_run_syspop_create = True

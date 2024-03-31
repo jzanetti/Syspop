@@ -62,6 +62,19 @@ def obtain_available_schools(
     return None
 
 
+"""
+def get_a_school(schools_to_choose: DataFrame, school_assigned_people: dict):
+    occup_rate = {}
+    for i in range(len(schools_to_choose)):
+        proc_school = schools_to_choose.iloc[i]
+
+        occup_rate[proc_school["school_name"]] = (
+            school_assigned_people[proc_school["school_name"]]
+            / proc_school["max_students"]
+        )
+"""
+
+
 def school_and_kindergarten_wrapper(
     data_type: str,  # school or kindergarten
     school_data: DataFrame,
@@ -111,6 +124,8 @@ def school_and_kindergarten_wrapper(
         on="area",
         how="left",
     )
+
+    school_data = school_data[school_data["max_students"] > 0]
 
     pop_data = merge(
         pop_data,
