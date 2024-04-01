@@ -7,13 +7,17 @@ import ray
 from numpy import NaN as numpy_nan
 from numpy import unique as numpy_unique
 from numpy import zeros as numpy_zeros
-from numpy.random import choice as numpy_choice
 from pandas import DataFrame
 from pandas import concat as pandas_concat
 from pandas import cut as pandas_cut
 from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
-from process.diary import create_diary, create_diary_remote
+from process.diary import (
+    create_diary,
+    create_diary_remote,
+    map_loc_to_diary,
+    quality_check_diary,
+)
 from process.utils import setup_logging
 from process.validate import (
     validate_base_pop_and_age,
@@ -343,6 +347,10 @@ def diary(
 
     outputs = pandas_concat(outputs, axis=0, ignore_index=True)
 
+    logger.info(f"Diary: quality check ...")
+
+    outputs = quality_check_diary(syspop_data, outputs)
+
     end_t = datetime.now()
 
     processing_mins = round((end_t - start_t).total_seconds() / 60.0, 2)
@@ -353,7 +361,7 @@ def diary(
 
     if map_loc_flag:
         logger.info(f"Diary: start mapping location to diary ...")
-        _map_loc_to_diary(output_dir)
+        map_loc_to_diary(output_dir)
 
 
 def create(
@@ -628,60 +636,3 @@ def create(
 
     synpop_data["synpop"].to_parquet(output_syn_pop_path, index=False)
     synpop_data["synadd"].to_parquet(output_loc_path, index=False)
-
-
-def _map_loc_to_diary(output_dir: str):
-    """Create a completed dataset, where replace the place type like supermarket to
-        a actual supermarket name for all agents
-
-    Args:
-        output_dir (str): _description_
-        print_log (bool, optional): _description_. Defaults to False.
-
-    Raises:
-        Exception: _description_
-    """
-
-    syn_pop_path = join(output_dir, "syspop_base.parquet")
-    synpop_data = pandas_read_parquet(syn_pop_path)
-
-    sys_diary_path = join(output_dir, "diaries.parquet")
-    if not exists(sys_diary_path):
-        raise Exception("Diary data not exists ...")
-    diary_data = pandas_read_parquet(sys_diary_path)
-
-    time_start = datetime.utcnow()
-
-    def _process_person(proc_people: DataFrame, default_place: str = "household"):
-        proc_people_id = proc_people["id"]
-        proc_people_attr = synpop_data.loc[proc_people_id]
-
-        for proc_hr in range(24):
-            if proc_people.iloc[proc_hr] == "travel":
-                proc_people_attr_value = proc_people_attr["public_transport_trip"]
-            else:
-                try:
-                    proc_people_attr_value = numpy_choice(
-                        proc_people_attr[proc_people.iloc[proc_hr]].split(",")
-                    )
-                except (
-                    KeyError,
-                    AttributeError,
-                ):  # For example, people may in the park from the diary,
-                    # but it's not the current synthetic pop can support
-                    proc_people_attr_value = numpy_choice(
-                        proc_people_attr[default_place].split(",")
-                    )
-
-            proc_people.at[str(proc_hr)] = proc_people_attr_value
-
-        return proc_people
-
-    diary_data = diary_data.apply(_process_person, axis=1)
-    time_end = datetime.utcnow()
-
-    logger.info(
-        f"Completed within seconds: {(time_end - time_start).total_seconds()} ..."
-    )
-
-    diary_data.to_parquet(join(output_dir, "syspop_and_diary.parquet"), index=False)

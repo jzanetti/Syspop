@@ -62,17 +62,32 @@ def obtain_available_schools(
     return None
 
 
-"""
-def get_a_school(schools_to_choose: DataFrame, school_assigned_people: dict):
-    occup_rate = {}
-    for i in range(len(schools_to_choose)):
-        proc_school = schools_to_choose.iloc[i]
+def get_a_school(
+    schools_to_choose: DataFrame, school_assigned_people: dict, use_random: bool = False
+) -> DataFrame:
+    """Select a school depending on the occupancy ~
+        the school with the smallest occupancy will be selected
 
-        occup_rate[proc_school["school_name"]] = (
-            school_assigned_people[proc_school["school_name"]]
-            / proc_school["max_students"]
+    Args:
+        schools_to_choose (DataFrame): School to choose from
+        school_assigned_people (dict): The number of people in each school
+        use_random (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        DataFrame: _description_
+    """
+
+    if use_random:
+        return schools_to_choose.sample(n=1)
+
+    proc_school_ratio = {}
+    for _, proc_school in schools_to_choose.iterrows():
+        proc_school_name = proc_school["school_name"]
+        proc_school_ratio[proc_school_name] = (
+            school_assigned_people[proc_school_name] / proc_school["max_students"]
         )
-"""
+    selected_school_name = min(proc_school_ratio, key=proc_school_ratio.get)
+    return schools_to_choose[schools_to_choose["school_name"] == selected_school_name]
 
 
 def school_and_kindergarten_wrapper(
@@ -176,7 +191,8 @@ def school_and_kindergarten_wrapper(
                 logger.info(f"Not able to find any {data_type} data ...")
                 break
 
-            proc_school = proc_schools.sample(n=1)
+            proc_school = get_a_school(proc_schools, school_assigned_people)
+
             proc_school_name = proc_school["school_name"].values[0]
             students_in_this_school = school_assigned_people[proc_school_name]
 

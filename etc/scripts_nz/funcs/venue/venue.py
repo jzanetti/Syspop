@@ -151,15 +151,15 @@ def create_kindergarten() -> DataFrame:
 
     df = read_csv(RAW_DATA["venue"]["kindergarten"])
 
-    df = df[
-        df["Service Type"].isin(
-            ["Free Kindergarten", "Education and Care Service", "Playcentre"]
-        )
-        & df["Definition"].isin(["Not Applicable"])
-    ]
-    df = df[df["Max. Licenced Positions"] > 20.0]
+    # df = df[
+    #    df["Service Type"].isin(
+    #        ["Free Kindergarten", "Education and Care Service", "Playcentre"]
+    #    )
+    #    & df["Definition"].isin(["Not Applicable"])
+    # ]
+    df = df[df["Max. Licenced Positions"] > 15.0]
 
-    df = df[df["Total"] / df["Max. Licenced Positions"] > 0.75]
+    # df = df[df["Total"] / df["Max. Licenced Positions"] > 0.75]
 
     df = df[
         [

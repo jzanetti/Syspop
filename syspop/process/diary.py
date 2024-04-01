@@ -2,12 +2,14 @@ from collections import Counter as collections_counter
 from copy import deepcopy
 from datetime import datetime, timedelta
 from logging import getLogger
+from os.path import exists, join
 
 import ray
 from numpy import array as numpy_array
 from numpy.random import choice as numpy_choice
 from numpy.random import normal as numpy_normal
 from pandas import DataFrame
+from pandas import read_parquet as pandas_read_parquet
 from process import DIARY_CFG, MAPING_DIARY_CFG_LLM_DIARY
 from process.utils import round_a_datetime
 
@@ -320,3 +322,100 @@ def create_diary_single_person_llm(
             updated_output[key] = value
 
     return updated_output
+
+
+def quality_check_diary(
+    synpop_data: DataFrame,
+    diary_data: DataFrame,
+    diary_to_check: list = ["school", "kindergarten"],
+) -> DataFrame:
+    """For example, in diary may go to school at T03,
+    while for this person the school property may be just NA (e.g., no school can be
+    found nearby in earlier steps). In this case, we put the diary location back to default
+
+    Args:
+        output_dir (str): Output directory
+    """
+
+    def _check_diary(proc_people_diary: DataFrame, default_place: str = "household"):
+
+        proc_people_id = proc_people_diary["id"]
+        proc_people_attr = synpop_data.loc[proc_people_id]
+
+        for proc_hr in range(24):
+
+            if (
+                proc_people_diary.iloc[proc_hr] in diary_to_check
+                and proc_people_attr[proc_people_diary.iloc[proc_hr]] is None
+            ):
+                proc_people_diary.at[proc_hr] = default_place
+
+        return proc_people_diary
+
+    return diary_data.apply(_check_diary, axis=1)
+
+
+def map_loc_to_diary(output_dir: str):
+    """Create a completed dataset, where replace the place type like supermarket to
+        a actual supermarket name for all agents
+
+    Args:
+        output_dir (str): _description_
+        print_log (bool, optional): _description_. Defaults to False.
+
+    Raises:
+        Exception: _description_
+    """
+
+    syn_pop_path = join(output_dir, "syspop_base.parquet")
+    synpop_data = pandas_read_parquet(syn_pop_path)
+
+    sys_diary_path = join(output_dir, "diaries.parquet")
+    if not exists(sys_diary_path):
+        raise Exception("Diary data not exists ...")
+    diary_data = pandas_read_parquet(sys_diary_path)
+
+    time_start = datetime.utcnow()
+
+    def _match_person_diary(
+        proc_people: DataFrame, known_missing_locs: list = ["gym", "others", "outdoor"]
+    ):
+        proc_people_id = proc_people["id"]
+        proc_people_attr = synpop_data.loc[proc_people_id]
+
+        for proc_hr in range(24):
+            proc_diray = proc_people.iloc[proc_hr]
+            if proc_diray == "travel":
+                proc_people_attr_value = proc_people_attr["public_transport_trip"]
+            else:
+                try:
+                    proc_people_attr_value = numpy_choice(
+                        proc_people_attr[proc_diray].split(",")
+                    )
+                except (
+                    KeyError,
+                    AttributeError,
+                ):  # For example, people may in the park from the diary,
+                    # but it's not the current synthetic pop can support
+                    if proc_diray in known_missing_locs:
+                        proc_people_attr_value == proc_diray
+                    else:
+                        raise Exception(
+                            f"Not able to find {proc_diray} in the person attribute ..."
+                        )
+                    # proc_people_attr_value = numpy_choice(
+                    #    proc_people_attr[default_place].split(",")
+                    # )
+
+            proc_people.at[str(proc_hr)] = proc_people_attr_value
+
+        return proc_people
+
+    diary_data = diary_data.apply(_match_person_diary, axis=1)
+    time_end = datetime.utcnow()
+
+    logger.info(
+        f"Completed within seconds: {(time_end - time_start).total_seconds()} ..."
+    )
+
+    diary_data.to_parquet(join(output_dir, "syspop_and_diary.parquet"), index=False)
