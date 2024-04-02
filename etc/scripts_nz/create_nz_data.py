@@ -66,6 +66,7 @@ def import_raw_data(workdir: str):
             "wholesale",
             "department_store",
             "restaurant",
+            "bakery",
             # "pharmacy",
             "cafe",
             "fast_food",

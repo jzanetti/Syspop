@@ -1,24 +1,21 @@
 # export PYTHONPATH=/home/zhangs/Github/Syspop/syspop
 
-from pickle import load as pickle_load
-
-from pandas import concat as pandas_concat
-from process.utils import get_data_for_test
+from process.utils import _get_data_for_test
 
 from syspop import create as syspop_create
 from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
-test_data = get_data_for_test("etc/data/test_data_latest")
+test_data = _get_data_for_test("etc/data/test_data_latest")
 
-output_dir = "/tmp/syspop_test/Waikato3"
+output_dir = "/tmp/syspop_test/test"
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
         test_data["geog_data"]["hierarchy"]["region"] == "Waikato"
     ]["area"]
 )
-# syn_areas = [135400, 111400, 110400]
+syn_areas = [135400, 111400, 110400]
 
 
 if_run_syspop_create = True
@@ -62,7 +59,6 @@ if if_run_diary:
         output_dir=output_dir,
         llm_diary_data=test_data["llm_diary_data"],
         activities_cfg=None,
-        map_loc_flag=True,
     )
 
 if if_run_validation:

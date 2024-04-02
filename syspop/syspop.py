@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import reduce as functools_reduce
 from os import makedirs
 from os.path import exists, join
 from pickle import load as pickle_load
@@ -18,7 +19,7 @@ from process.diary import (
     map_loc_to_diary,
     quality_check_diary,
 )
-from process.utils import setup_logging
+from process.utils import merge_syspop_data, setup_logging
 from process.validate import (
     validate_base_pop_and_age,
     validate_commute_area,
@@ -53,7 +54,6 @@ def vis(
     plot_travel: bool = True,
     plot_location: bool = True,
     plot_diary: bool = True,
-    plot_all_data: bool = True,
 ):
     """Syntheric population visualization
 
@@ -68,8 +68,7 @@ def vis(
     if not exists(vis_dir):
         makedirs(vis_dir)
 
-    syn_pop_path = join(output_dir, "syspop_base.parquet")
-    synpop_data = pandas_read_parquet(syn_pop_path)
+    synpop_data = merge_syspop_data(output_dir, ["base", "household", "travel"])
 
     # ---------------------------
     # 1. plot distributions
@@ -107,6 +106,9 @@ def vis(
     # 2.1 plot travel: work - home
     # -----------------
     if plot_travel:
+        synpop_data = merge_syspop_data(
+            output_dir, ["base", "household", "travel", "work_and_school"]
+        )
         most_common_area = synpop_data["area"].value_counts().idxmax()
         household_company_data = synpop_data[synpop_data["area"] == most_common_area][
             ["household", "company"]
@@ -164,7 +166,7 @@ def vis(
         # ---------------------------
         # 3.1 plot diary distribution in general
         # ---------------------------
-        sys_diary_path = join(output_dir, "diaries.parquet")
+        sys_diary_path = join(output_dir, "tmp", "syspop_diaries_type.parquet")
         if not exists(sys_diary_path):
             return
         diary_data = pandas_read_parquet(sys_diary_path)
@@ -190,12 +192,12 @@ def vis(
         # ---------------------------
         # 3.2. plot diary/place distribution
         # ---------------------------
-        sys_all_data_path = join(output_dir, "syspop_and_diary.parquet")
+        sys_all_data_path = join(output_dir, "syspop_diaries.parquet")
         if not exists(sys_diary_path):
             return
         syspop_and_diary = pandas_read_parquet(sys_all_data_path)
 
-        vis_dir_syspop_and_diary = join(vis_dir, "syspop_and_diary_dist")
+        vis_dir_syspop_and_diary = join(vis_dir, "syspop_diaries")
         if not exists(vis_dir_syspop_and_diary):
             makedirs(vis_dir_syspop_and_diary)
 
@@ -264,26 +266,40 @@ def validate(
         makedirs(val_dir)
 
     logger.info("Valdating commute (area) ...")
-    validate_commute_area(val_dir, synpop_data, home_to_work)
+    validate_commute_area(
+        val_dir,
+        merge_syspop_data(output_dir, ["base", "travel", "work_and_school"]),
+        home_to_work,
+    )
 
     logger.info("Valdating commute (travel_mode) ...")
-    validate_commute_mode(val_dir, synpop_data, home_to_work)
+    validate_commute_mode(
+        val_dir, merge_syspop_data(output_dir, ["base", "travel"]), home_to_work
+    )
 
     logger.info("Valdating work ...")
-    validate_work(val_dir, synpop_data, work_data)
+    validate_work(
+        val_dir, merge_syspop_data(output_dir, ["base", "work_and_school"]), work_data
+    )
 
     logger.info("Validating household ...")
-    validate_household(val_dir, synpop_data, household)
+    validate_household(
+        val_dir, merge_syspop_data(output_dir, ["base", "household"]), household
+    )
 
     logger.info("Validating base population (gender) ...")
     validate_base_pop_and_age(
-        val_dir, synpop_data, pop_gender, "gender", ["male", "female"]
+        val_dir,
+        merge_syspop_data(output_dir, ["base"]),
+        pop_gender,
+        "gender",
+        ["male", "female"],
     )
 
     logger.info("Validating base population (ethnicity) ...")
     validate_base_pop_and_age(
         val_dir,
-        synpop_data,
+        merge_syspop_data(output_dir, ["base"]),
         pop_ethnicity,
         "ethnicity",
         ["European", "Maori", "Pacific", "Asian", "MELAA"],
@@ -295,7 +311,6 @@ def diary(
     n_cpu: int = 1,
     llm_diary_data: dict or None = None,
     activities_cfg: dict or None = None,
-    map_loc_flag: bool = False,
 ):
     """Create diary data from synthetic population
 
@@ -307,7 +322,7 @@ def diary(
     start_t = datetime.now()
 
     logger.info(f"Diary: reading synthetic population")
-    syspop_data = pandas_read_parquet(join(output_dir, "syspop_base.parquet"))
+    syspop_data = merge_syspop_data(output_dir, ["base", "work_and_school"])
 
     syspop_data_partitions = [
         df for _, df in syspop_data.groupby(pandas_cut(syspop_data.index, n_cpu))
@@ -355,13 +370,12 @@ def diary(
 
     processing_mins = round((end_t - start_t).total_seconds() / 60.0, 2)
 
-    outputs.to_parquet(join(output_dir, "diaries.parquet"))
+    outputs.to_parquet(join(output_dir, "tmp", "syspop_diaries_type.parquet"))
+
+    logger.info(f"Diary: start mapping location to diary ...")
+    map_loc_to_diary(output_dir)
 
     logger.info(f"Diary: created within {processing_mins} minutes ...")
-
-    if map_loc_flag:
-        logger.info(f"Diary: start mapping location to diary ...")
-        map_loc_to_diary(output_dir)
 
 
 def create(
@@ -625,14 +639,35 @@ def create(
             area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
         )
 
-    output_syn_pop_path = join(output_dir, "syspop_base.parquet")
-    output_loc_path = join(output_dir, "syspop_location.parquet")
-
+    # ---------------------------
+    # Export output
+    # ---------------------------
     with open(tmp_data_path, "rb") as fid:
         synpop_data = pickle_load(fid)
 
-    synpop_data["synpop"]["id"] = synpop_data["synpop"].index
-    synpop_data["synpop"].insert(0, "id", synpop_data["synpop"].pop("id"))
+    output_files = {
+        "syspop_base": ["area", "age", "gender", "ethnicity"],
+        "syspop_household": ["household", "social_economics"],
+        "syspop_travel": ["travel_mode_work", "public_transport_trip"],
+        "syspop_work_and_school": ["area_work", "company", "school", "kindergarten"],
+        "syspop_healthcare": ["primary_hospital", "secondary_hospital"],
+        "syspop_lifechoice": [
+            "supermarket",
+            "restaurant",
+            "cafe",
+            "department_store",
+            "wholesale",
+            "fast_food",
+            "pub",
+            "park",
+        ],
+    }
 
-    synpop_data["synpop"].to_parquet(output_syn_pop_path, index=False)
-    synpop_data["synadd"].to_parquet(output_loc_path, index=False)
+    synpop_data["synpop"]["id"] = synpop_data["synpop"].index
+    for name, cols in output_files.items():
+        output_path = join(output_dir, f"{name}.parquet")
+        synpop_data["synpop"][["id"] + cols].to_parquet(output_path, index=False)
+
+    synpop_data["synadd"].to_parquet(
+        join(output_dir, "syspop_location.parquet"), index=False
+    )

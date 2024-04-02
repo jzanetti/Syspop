@@ -144,6 +144,7 @@ if __name__ == "__main__":
         "shop": [
             "supermarket",
             "wholesale",
+            "bakery",
             # "general",
             "department_store",
             # "convenience",

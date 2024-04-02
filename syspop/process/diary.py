@@ -11,7 +11,7 @@ from numpy.random import normal as numpy_normal
 from pandas import DataFrame
 from pandas import read_parquet as pandas_read_parquet
 from process import DIARY_CFG, MAPING_DIARY_CFG_LLM_DIARY
-from process.utils import round_a_datetime
+from process.utils import merge_syspop_data, round_a_datetime
 
 logger = getLogger()
 
@@ -367,13 +367,15 @@ def map_loc_to_diary(output_dir: str):
         Exception: _description_
     """
 
-    syn_pop_path = join(output_dir, "syspop_base.parquet")
-    synpop_data = pandas_read_parquet(syn_pop_path)
+    # syn_pop_path = join(output_dir, "syspop_base.parquet")
+    # synpop_data = pandas_read_parquet(syn_pop_path)
 
-    sys_diary_path = join(output_dir, "diaries.parquet")
-    if not exists(sys_diary_path):
-        raise Exception("Diary data not exists ...")
-    diary_data = pandas_read_parquet(sys_diary_path)
+    synpop_data = merge_syspop_data(
+        output_dir, ["base", "travel", "lifechoice", "household", "work_and_school"]
+    )
+    diary_data = pandas_read_parquet(
+        join(output_dir, "tmp", "syspop_diaries_type.parquet")
+    )
 
     time_start = datetime.utcnow()
 
@@ -418,4 +420,4 @@ def map_loc_to_diary(output_dir: str):
         f"Completed within seconds: {(time_end - time_start).total_seconds()} ..."
     )
 
-    diary_data.to_parquet(join(output_dir, "syspop_and_diary.parquet"), index=False)
+    diary_data.to_parquet(join(output_dir, "syspop_diaries.parquet"), index=False)
