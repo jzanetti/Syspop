@@ -9,6 +9,7 @@ from numpy import array as numpy_array
 from numpy.random import choice as numpy_choice
 from numpy.random import normal as numpy_normal
 from pandas import DataFrame
+from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
 from process import DIARY_CFG, MAPING_DIARY_CFG_LLM_DIARY
 from process.utils import merge_syspop_data, round_a_datetime
@@ -373,7 +374,7 @@ def map_loc_to_diary(output_dir: str):
     synpop_data = merge_syspop_data(
         output_dir, ["base", "travel", "lifechoice", "household", "work_and_school"]
     )
-    diary_data = pandas_read_parquet(
+    diary_type_data = pandas_read_parquet(
         join(output_dir, "tmp", "syspop_diaries_type.parquet")
     )
 
@@ -400,7 +401,7 @@ def map_loc_to_diary(output_dir: str):
                 ):  # For example, people may in the park from the diary,
                     # but it's not the current synthetic pop can support
                     if proc_diray in known_missing_locs:
-                        proc_people_attr_value == proc_diray
+                        proc_people_attr_value == None
                     else:
                         raise Exception(
                             f"Not able to find {proc_diray} in the person attribute ..."
@@ -413,11 +414,22 @@ def map_loc_to_diary(output_dir: str):
 
         return proc_people
 
-    diary_data = diary_data.apply(_match_person_diary, axis=1)
+    diary_data = diary_type_data.apply(_match_person_diary, axis=1)
     time_end = datetime.utcnow()
 
     logger.info(
         f"Completed within seconds: {(time_end - time_start).total_seconds()} ..."
     )
+
+    diary_data = diary_data.melt(id_vars="id", var_name="hour", value_name="spec")
+    diary_type_data = diary_type_data.melt(
+        id_vars="id", var_name="hour", value_name="spec"
+    )
+    diary_data = pandas_merge(
+        diary_data, diary_type_data, on=["id", "hour"], how="left"
+    )
+
+    diary_data = diary_data.rename(columns={"spec_x": "location", "spec_y": "type"})
+    diary_data = diary_data[["id", "hour", "type", "location"]]
 
     diary_data.to_parquet(join(output_dir, "syspop_diaries.parquet"), index=False)

@@ -74,6 +74,7 @@ def vis(
     # 1. plot distributions
     # ---------------------------
     if plot_distribution:
+        logger.info("Creating plots: plot_distribution")
         synpop_data["adults_number_in_household"] = (
             synpop_data["household"].str.split("_").str[1]
         )
@@ -106,6 +107,7 @@ def vis(
     # 2.1 plot travel: work - home
     # -----------------
     if plot_travel:
+        logger.info("Creating plots: plot_travel")
         synpop_data = merge_syspop_data(
             output_dir, ["base", "household", "travel", "work_and_school"]
         )
@@ -142,6 +144,7 @@ def vis(
     # 2.2 plot location heat map
     # -----------------
     if plot_location:
+        logger.info("Creating plots: plot_location")
         for data_name in list(address_data["type"].unique()):
             if data_name == "school":
                 proc_data = address_data[address_data["type"] == data_name]
@@ -163,40 +166,43 @@ def vis(
     # 3. plot diary
     # ---------------------------
     if plot_diary:
+        logger.info("Creating plots: plot_diary (general)")
         # ---------------------------
         # 3.1 plot diary distribution in general
         # ---------------------------
-        sys_diary_path = join(output_dir, "tmp", "syspop_diaries_type.parquet")
+        sys_diary_path = join(output_dir, "syspop_diaries.parquet")
         if not exists(sys_diary_path):
             return
         diary_data = pandas_read_parquet(sys_diary_path)
-        diary_data = diary_data.drop(columns=["id"])
+        # diary_data = diary_data.drop(columns=["id"])
         # Create a dictionary to store the counts
 
         location_counts = {}
-        for proc_place in numpy_unique(diary_data.values):
+        for proc_place in numpy_unique(diary_data["type"]):
             location_counts[proc_place] = {}
             for proc_hr in range(24):
                 location_counts[proc_place][proc_hr] = 0
 
         # Iterate through each location
         for proc_hr in range(24):
-            value_counts = diary_data[[str(proc_hr)]].value_counts().to_dict()
+            value_counts = (
+                diary_data[diary_data["hour"] == str(proc_hr)]["type"]
+                .value_counts()
+                .to_dict()
+            )
             for proc_place in value_counts:
-                proc_place2 = proc_place[0]
-                if proc_place2 in location_counts:
-                    location_counts[proc_place2][proc_hr] += value_counts[proc_place]
+                location_counts[proc_place][proc_hr] += value_counts[proc_place]
 
         plot_location_timeseries_charts(vis_dir, location_counts)
 
         # ---------------------------
         # 3.2. plot diary/place distribution
         # ---------------------------
-        sys_all_data_path = join(output_dir, "syspop_diaries.parquet")
-        if not exists(sys_diary_path):
-            return
-        syspop_and_diary = pandas_read_parquet(sys_all_data_path)
-
+        # sys_all_data_path = join(output_dir, "syspop_diaries.parquet")
+        # if not exists(sys_diary_path):
+        #    return
+        # syspop_and_diary = pandas_read_parquet(sys_all_data_path)
+        logger.info("Creating plots: plot_diary (diary/place distribution)")
         vis_dir_syspop_and_diary = join(vis_dir, "syspop_diaries")
         if not exists(vis_dir_syspop_and_diary):
             makedirs(vis_dir_syspop_and_diary)
@@ -207,22 +213,24 @@ def vis(
 
         for proc_hr in range(24):
 
-            all_loc_types = list(numpy_unique(diary_data[[str(proc_hr)]].values))
-            proc_syspop_and_diary_hr = syspop_and_diary[[str(proc_hr)]]
+            all_types = list(
+                numpy_unique(
+                    diary_data[diary_data["hour"] == str(proc_hr)]["type"].values
+                )
+            )
+            all_locs = diary_data[diary_data["hour"] == str(proc_hr)]["location"]
 
-            for proc_type in all_loc_types:
-                proc_mask_type = diary_data[[str(proc_hr)]] == proc_type
-                proc_syspop_and_diary = proc_syspop_and_diary_hr[proc_mask_type]
+            for proc_type in all_types:
+                logger.info(
+                    f"Creating plots: plot_diary (diary/place distribution): Hour: {proc_hr} - {proc_type}"
+                )
+                proc_mask_type = (
+                    diary_data[diary_data["hour"] == str(proc_hr)]["type"] == proc_type
+                )
+                proc_loc = all_locs[proc_mask_type]
 
-                value_counts = proc_syspop_and_diary.value_counts().to_dict()
-                keys_counts = proc_syspop_and_diary[str(proc_hr)].values
-
-                # remove nan
-                keys_counts = [
-                    value
-                    for value in list(set(list(keys_counts)))
-                    if isinstance(value, str)
-                ]
+                value_counts = proc_loc.value_counts().to_dict()
+                keys_counts = list(value_counts.keys())
 
                 plot_location_occurence_charts_by_hour(
                     vis_dir_syspop_and_diary, value_counts, proc_hr, proc_type
@@ -237,6 +245,9 @@ def vis(
                     average_counts[proc_type][proc_hr] = numpy_nan
 
         for proc_data_type in average_counts:
+            logger.info(
+                f"Creating plots: plot average occurence (diary/place distribution): Hour: {proc_data_type}"
+            )
             plot_average_occurence_charts(
                 vis_dir_syspop_and_diary,
                 average_counts[proc_data_type],
