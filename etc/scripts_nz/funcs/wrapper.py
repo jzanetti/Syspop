@@ -18,6 +18,7 @@ from funcs.geography.geography import (
     create_geography_name_super_area,
 )
 from funcs.household.household import create_household_number
+from funcs.others.health import add_mmr
 from funcs.population.population import (
     create_age,
     create_ethnicity_and_age,
@@ -60,6 +61,17 @@ def create_shared_space_wrapper(
         proc_data = create_shared_space(space_name, geography_data["location"])
         with open(join(workdir, f"{space_name}.pickle"), "wb") as fid:
             pickle_dump({space_name: proc_data}, fid)
+
+
+def create_others_wrapper(workdir: str):
+    """Createing others
+
+    Args:
+        workdir (str): Working directory
+    """
+    mmr_data = add_mmr()
+    with open(join(workdir, "others.pickle"), "wb") as fid:
+        pickle_dump({"mmr": mmr_data}, fid)
 
 
 def create_hospital_wrapper(workdir: str):

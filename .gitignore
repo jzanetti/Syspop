@@ -2,6 +2,7 @@
 __pycache__
 cache
 .log.swp
+etc/data/archive
 etc/data/raw_nz*
 etc/data/test_data*
 !etc/data/test_data_latest

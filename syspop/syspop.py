@@ -42,6 +42,7 @@ from wrapper_pop import (
     create_school_and_kindergarten,
     create_shared_space,
     create_socialeconomics,
+    create_vaccine,
     create_work,
 )
 
@@ -413,6 +414,7 @@ def create(
     park_data: DataFrame = None,
     cafe_data: DataFrame = None,
     kindergarten_data: DataFrame = None,
+    mmr_data: DataFrame = None,
     assign_address_flag: bool = False,
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
@@ -650,6 +652,10 @@ def create(
             area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
         )
 
+    if mmr_data is not None:
+        logger.info("Adding MMR data ...")
+        create_vaccine(tmp_data_path, mmr_data)
+
     # ---------------------------
     # Export output
     # ---------------------------
@@ -661,7 +667,7 @@ def create(
         "syspop_household": ["household", "social_economics"],
         "syspop_travel": ["travel_mode_work", "public_transport_trip"],
         "syspop_work_and_school": ["area_work", "company", "school", "kindergarten"],
-        "syspop_healthcare": ["primary_hospital", "secondary_hospital"],
+        "syspop_healthcare": ["primary_hospital", "secondary_hospital", "mmr"],
         "syspop_lifechoice": [
             "supermarket",
             "restaurant",

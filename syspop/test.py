@@ -18,9 +18,9 @@ syn_areas = list(
 # syn_areas = [135400, 111400, 110400]
 
 
-if_run_syspop_create = False
-if_run_diary = False
-if_run_validation = False
+if_run_syspop_create = True
+if_run_diary = True
+if_run_validation = True
 if_run_vis = True
 
 
@@ -48,6 +48,7 @@ if if_run_syspop_create:
         pub_data=test_data["pub_data"]["pub"],
         park_data=test_data["park_data"]["park"],
         cafe_data=test_data["cafe_data"]["cafe"],
+        mmr_data=test_data["others"]["mmr"],
         assign_address_flag=True,
         rewrite_base_pop=True,
         use_parallel=True,

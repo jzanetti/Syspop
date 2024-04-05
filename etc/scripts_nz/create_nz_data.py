@@ -8,6 +8,7 @@ from funcs.wrapper import (
     create_hospital_wrapper,
     create_household_number,
     create_kindergarten_wrapper,
+    create_others_wrapper,
     create_population_wrapper,
     create_school_wrapper,
     create_shared_space_wrapper,
@@ -75,6 +76,12 @@ def import_raw_data(workdir: str):
             "park",
         ],
     )
+
+    # -----------------------------
+    # Create attributes
+    # -----------------------------
+    create_others_wrapper(workdir)
+
     print("Job done ...")
 
 

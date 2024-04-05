@@ -4,7 +4,9 @@ from os.path import exists, join
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 
+from numpy.random import choice as numpy_choice
 from pandas import DataFrame
+from pandas import concat as pandas_concat
 from process.base_pop import base_pop_wrapper
 from process.hospital import hospital_wrapper
 from process.household import household_wrapper
@@ -233,3 +235,102 @@ def create_shared_space(
 
     with open(tmp_data_path, "wb") as fid:
         pickle_dump({"synpop": base_pop_data, "synadd": address_data}, fid)
+
+
+def create_vaccine(
+    tmp_data_path: str, vaccine_data: DataFrame, full_imms_age: int or None = 60
+) -> DataFrame:
+    """Create vaccination data
+
+    Args:
+        tmp_data_path (str): temp directory
+        vaccine_data (DataFrame): Vaccination data such as MMR
+        full_imms_age (int, optional): Full immunisation age. Defaults to 60.
+
+    Returns:
+        DataFrame: _description_
+    """
+    with open(tmp_data_path, "rb") as fid:
+        base_pop = pickle_load(fid)
+
+    base_pop_data = base_pop["synpop"]
+    base_pop_data.reset_index(inplace=True)
+    base_pop_data = base_pop_data.rename(columns={"index": "id"})
+
+    base_pop_data["mmr"] = None
+    base_pop_data["age"] = base_pop_data["age"].apply(
+        lambda x: 17 if 17 <= x <= full_imms_age else x
+    )
+    base_pop_data["ethnicity"] = base_pop_data["ethnicity"].replace(
+        "European", "Others"
+    )
+    base_pop_data["ethnicity"] = base_pop_data["ethnicity"].replace("MELAA", "Others")
+    vaccine_data = vaccine_data[vaccine_data["sa2"].isin(base_pop_data["area"])]
+    vaccine_data[["age_min", "age_max"]] = vaccine_data["age"].str.split(
+        "-", expand=True
+    )
+
+    # -----------------------------
+    # Assign imms to people for different ethnicity/age groups
+    # -----------------------------
+    data_list = []
+    for i in range(len(vaccine_data)):
+        row = vaccine_data.iloc[[i]]
+        filtered_base_pop = base_pop_data[
+            (base_pop_data["area"] == row.sa2.values[0])
+            & (base_pop_data["ethnicity"] == row.ethnicity.values[0])
+            & (base_pop_data["age"] >= int(row.age_min.values[0]))
+            & (base_pop_data["age"] <= int(row.age_max.values[0]))
+        ]
+
+        fully_imms_base_pop = filtered_base_pop.sample(frac=row.fully_imms.values[0])
+        filtered_base_pop.loc[fully_imms_base_pop.index, "mmr"] = "fully_imms"
+
+        partial_imms_base_pop = filtered_base_pop.drop(
+            fully_imms_base_pop.index
+        ).sample(frac=row.partial_imms.values[0])
+        filtered_base_pop.loc[partial_imms_base_pop.index, "mmr"] = "partial_imms"
+
+        no_imms_base_pop = filtered_base_pop[filtered_base_pop["mmr"].isna()]
+        filtered_base_pop.loc[no_imms_base_pop.index, "mmr"] = "no_imms"
+
+        data_list.append(filtered_base_pop)
+
+    # -----------------------------
+    # Set imms status for age of people > 60 and people == 0
+    # -----------------------------
+    base_pop_data.update(pandas_concat(data_list, axis=0))
+    base_pop_data.loc[base_pop_data.age > full_imms_age, "mmr"] = "nature_imms"
+    base_pop_data.loc[base_pop_data.age == 0, "mmr"] = "no_imms"
+
+    # -----------------------------
+    # Set imms status for rest people
+    # -----------------------------
+    remained_base_pop = base_pop_data[base_pop_data["mmr"].isna()]
+
+    data_list = []
+    for i in range(len(remained_base_pop)):
+        proc_pop = remained_base_pop.iloc[[i]]
+        proc_pop_ethnicity = proc_pop.ethnicity.values[0]
+        ave_fully_imms = vaccine_data[vaccine_data["ethnicity"] == proc_pop_ethnicity][
+            "fully_imms"
+        ].mean()
+        ave_partial_imms = vaccine_data[
+            vaccine_data["ethnicity"] == proc_pop_ethnicity
+        ]["partial_imms"].mean()
+
+        proc_pop["mmr"] = numpy_choice(
+            ["fully_imms", "partial_imms", "no_imms"],
+            p=[
+                ave_fully_imms,
+                ave_partial_imms,
+                1.0 - (ave_fully_imms + ave_partial_imms),
+            ],
+        )
+
+        data_list.append(proc_pop)
+
+    base_pop_data.update(pandas_concat(data_list, axis=1))
+
+    with open(tmp_data_path, "wb") as fid:
+        pickle_dump({"synpop": base_pop_data, "synadd": base_pop["synadd"]}, fid)

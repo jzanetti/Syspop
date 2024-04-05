@@ -26,6 +26,7 @@ def setup_logging(
     formatter = Formatter(
         "%(asctime)s - %(name)s.%(lineno)d - %(levelname)s - %(message)s"
     )
+
     ch = StreamHandler()
     ch.setLevel(INFO)
     ch.setFormatter(formatter)
@@ -145,5 +146,8 @@ def _get_data_for_test(test_data_dir: str) -> dict:
 
     with open(f"{test_data_dir}/llm_diary.pickle", "rb") as fid:
         test_data["llm_diary_data"] = pickle_load(fid)
+
+    with open(f"{test_data_dir}/others.pickle", "rb") as fid:
+        test_data["others"] = pickle_load(fid)
 
     return test_data
