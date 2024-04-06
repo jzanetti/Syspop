@@ -401,7 +401,7 @@ def map_loc_to_diary(output_dir: str):
                 ):  # For example, people may in the park from the diary,
                     # but it's not the current synthetic pop can support
                     if proc_diray in known_missing_locs:
-                        proc_people_attr_value == None
+                        proc_people_attr_value = None
                     else:
                         raise Exception(
                             f"Not able to find {proc_diray} in the person attribute ..."
