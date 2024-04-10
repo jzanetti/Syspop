@@ -20,6 +20,84 @@ def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
     return list(area1.intersection(area2))
 
 
+def validate_mmr(val_dir: str, synpop_data: DataFrame, mmr_census_data: DataFrame):
+
+    mmr_census_data = mmr_census_data[mmr_census_data["sa2"].isin(synpop_data.area)]
+
+    mmr_ages = mmr_census_data["age"].unique()
+    mmr_ethnicity = mmr_census_data["ethnicity"].unique()
+
+    err = {"model": {}, "truth": {}}
+    err_ratio = {}
+    for proc_mmr_age in mmr_ages:
+
+        for imms_ethnicity in mmr_ethnicity:
+
+            proc_mmr_age_min = int(proc_mmr_age.split("-")[0])
+            proc_mmr_age_max = int(proc_mmr_age.split("-")[1])
+            proc_synpop_data = synpop_data[
+                (synpop_data["age"] >= proc_mmr_age_min)
+                & (synpop_data["age"] <= proc_mmr_age_max)
+            ]
+
+            if imms_ethnicity == "Others":
+                proc_synpop_data = proc_synpop_data[
+                    proc_synpop_data["ethnicity"].isin(["MELAA", "European"])
+                ]
+            else:
+                proc_synpop_data = proc_synpop_data[
+                    proc_synpop_data["ethnicity"] == imms_ethnicity
+                ]
+
+            proc_mmr_census_data = mmr_census_data[
+                (mmr_census_data["age"] == proc_mmr_age)
+                & (mmr_census_data["ethnicity"] == imms_ethnicity)
+            ]
+
+            for imms_type in ["fully_imms", "partial_imms"]:
+
+                try:
+                    proc_model = len(
+                        proc_synpop_data[proc_synpop_data["mmr"] == imms_type]
+                    ) / len(proc_synpop_data)
+                except ZeroDivisionError:
+                    continue
+
+                proc_truth = proc_mmr_census_data[imms_type].mean()
+
+                err["truth"][
+                    f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"
+                ] = proc_truth
+                err["model"][
+                    f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"
+                ] = proc_model
+
+                try:
+                    err_ratio[f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"] = (
+                        100.0 * (proc_model - proc_truth) / proc_truth
+                    )
+                except ZeroDivisionError:
+                    err_ratio[f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"] = None
+
+    validate_vis_barh(
+        val_dir,
+        err,
+        f"Validation: immunisation",
+        f"validation_imms_err",
+        f"Error: Model and Truth \n Model: {round(sum(err['model'].values()), 2)}; Truth: {round(sum(err['truth'].values()), 2)}",
+        "Age and imms status",
+        plot_ratio=False,
+    )
+    validate_vis_barh(
+        val_dir,
+        err_ratio,
+        f"Validation: immunisation",
+        f"validation_imms",
+        "Error (%): (model - truth) / truth",
+        "Age and imms status",
+    )
+
+
 def validate_commute_area(
     val_dir: str,
     synpop_data: DataFrame,

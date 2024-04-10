@@ -261,10 +261,9 @@ def create_vaccine(
     base_pop_data["mmr_age"] = base_pop_data["age"].apply(
         lambda x: 17 if 17 <= x <= full_imms_age else x
     )
-    base_pop_data["ethnicity"] = base_pop_data["ethnicity"].replace(
-        "European", "Others"
+    base_pop_data["mmr_ethnicity"] = base_pop_data["ethnicity"].replace(
+        ["European", "MELAA"], "Others"
     )
-    base_pop_data["ethnicity"] = base_pop_data["ethnicity"].replace("MELAA", "Others")
     vaccine_data = vaccine_data[vaccine_data["sa2"].isin(base_pop_data["area"])]
     vaccine_data[["age_min", "age_max"]] = vaccine_data["age"].str.split(
         "-", expand=True
@@ -278,7 +277,7 @@ def create_vaccine(
         row = vaccine_data.iloc[[i]]
         filtered_base_pop = base_pop_data[
             (base_pop_data["area"] == row.sa2.values[0])
-            & (base_pop_data["ethnicity"] == row.ethnicity.values[0])
+            & (base_pop_data["mmr_ethnicity"] == row.ethnicity.values[0])
             & (base_pop_data["mmr_age"] >= int(row.age_min.values[0]))
             & (base_pop_data["mmr_age"] <= int(row.age_max.values[0]))
         ]
@@ -311,7 +310,7 @@ def create_vaccine(
     data_list = []
     for i in range(len(remained_base_pop)):
         proc_pop = remained_base_pop.iloc[[i]]
-        proc_pop_ethnicity = proc_pop.ethnicity.values[0]
+        proc_pop_ethnicity = proc_pop.mmr_ethnicity.values[0]
         ave_fully_imms = vaccine_data[vaccine_data["ethnicity"] == proc_pop_ethnicity][
             "fully_imms"
         ].mean()
