@@ -258,7 +258,7 @@ def create_vaccine(
     base_pop_data = base_pop_data.rename(columns={"index": "id"})
 
     base_pop_data["mmr"] = None
-    base_pop_data["age"] = base_pop_data["age"].apply(
+    base_pop_data["mmr_age"] = base_pop_data["age"].apply(
         lambda x: 17 if 17 <= x <= full_imms_age else x
     )
     base_pop_data["ethnicity"] = base_pop_data["ethnicity"].replace(
@@ -279,8 +279,8 @@ def create_vaccine(
         filtered_base_pop = base_pop_data[
             (base_pop_data["area"] == row.sa2.values[0])
             & (base_pop_data["ethnicity"] == row.ethnicity.values[0])
-            & (base_pop_data["age"] >= int(row.age_min.values[0]))
-            & (base_pop_data["age"] <= int(row.age_max.values[0]))
+            & (base_pop_data["mmr_age"] >= int(row.age_min.values[0]))
+            & (base_pop_data["mmr_age"] <= int(row.age_max.values[0]))
         ]
 
         fully_imms_base_pop = filtered_base_pop.sample(frac=row.fully_imms.values[0])
