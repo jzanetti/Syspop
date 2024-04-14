@@ -303,7 +303,7 @@ def validate(
 
     logger.info("Validating household ...")
     validate_household(
-        val_dir, merge_syspop_data(output_dir, ["base", "household", "src"]), household
+        val_dir, merge_syspop_data(output_dir, ["base", "household", "others"]), household
     )
 
     logger.info("Validating base population (gender) ...")
@@ -689,7 +689,7 @@ def create(
             "pub",
             "park",
         ],
-        "syspop_src": ["hhd_src"],
+        "syspop_others": ["hhd_src"],
     }
 
     synpop_data["synpop"]["id"] = synpop_data["synpop"].index
