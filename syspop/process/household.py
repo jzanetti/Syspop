@@ -14,6 +14,7 @@ from numpy.random import randint
 from numpy.random import randint as numpy_randint
 from pandas import DataFrame, Series, concat, isna
 from pandas import merge as pandas_merge
+from pandas import to_numeric as pandas_to_numeric
 from process.address import add_random_address
 
 logger = getLogger()
@@ -677,9 +678,6 @@ def rename_household_id(df: DataFrame, proc_area: str) -> DataFrame:
         DataFrame: updated population data
     """
     # Compute the number of adults and children in each household
-
-    from pandas import to_numeric as pandas_to_numeric
-
     df["is_adult"] = df["age"] >= 18
     df["household"] = df["household"].astype(int)
 
@@ -813,6 +811,24 @@ def assign_household_and_dwelling_id(
     return proc_base_pop
 
 
+def sort_household(
+    proc_houshold_dataset: DataFrame, use_level_flag: bool = True
+) -> DataFrame:
+    if use_level_flag:
+        df_level_1 = proc_houshold_dataset[
+            proc_houshold_dataset["household_level"] == "level_1"
+        ].sort_values(by="household_num", ascending=False, inplace=False)
+        df_level_2 = proc_houshold_dataset[
+            proc_houshold_dataset["household_level"] == "level_2"
+        ].sort_values(by="household_num", ascending=False, inplace=False)
+
+        return concat([df_level_1, df_level_2])
+    else:
+        return proc_houshold_dataset.sort_values(
+            by="household_num", ascending=False, inplace=False
+        )
+
+
 def create_household_composition_v3(
     proc_houshold_dataset: DataFrame, proc_base_pop: DataFrame, proc_area: int or str
 ) -> DataFrame:
@@ -826,9 +842,8 @@ def create_household_composition_v3(
     Returns:
         DataFrame: Updated population dataset
     """
-    sorted_proc_houshold_dataset = proc_houshold_dataset.sort_values(
-        by="household_num", ascending=False, inplace=False
-    )
+
+    sorted_proc_houshold_dataset = sort_household(proc_houshold_dataset)
 
     unassigned_adults = proc_base_pop[proc_base_pop["age"] >= 18].copy()
     unassigned_children = proc_base_pop[proc_base_pop["age"] < 18].copy()
@@ -836,9 +851,17 @@ def create_household_composition_v3(
     unique_base_pop_ethnicity = list(proc_base_pop["ethnicity"].unique())
 
     household_id = 0
+    break_outer_loop = False
     for _, proc_household_composition in sorted_proc_houshold_dataset.iterrows():
+        if break_outer_loop:
+            break
 
         for _ in range(proc_household_composition["household_num"]):
+
+            if len(unassigned_adults) == 0 or len(unassigned_children) == 0:
+                break_outer_loop = True
+                break
+
             if (
                 len(unassigned_adults) < proc_household_composition["adults_num"]
                 or len(unassigned_children) < proc_household_composition["children_num"]
@@ -927,6 +950,10 @@ def household_wrapper(
 
     base_pop["household"] = NaN
     base_pop["dwelling_type"] = NaN
+
+    houshold_dataset["household_level"] = houshold_dataset["adults_num"].apply(
+        lambda x: "level_2" if x == "unknown" else "level_1"
+    )
 
     num_children = list(houshold_dataset.columns)
     num_children.remove("area")
@@ -1070,7 +1097,9 @@ def household_prep(
     proc_household_data = household_input[household_input["area"] == proc_area]
     proc_base_synpop = synpop_input[synpop_input["area"] == proc_area]
 
-    proc_household_data = obtain_household_children_num(proc_household_data)
+    proc_household_data = obtain_household_children_num(
+        proc_household_data, replace_unknown_num_method=2
+    )
 
     if scaling:
         scaling_factor = get_household_scaling_factor(
