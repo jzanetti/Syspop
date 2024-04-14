@@ -312,6 +312,7 @@ def validate_household(
     overlapping_areas = get_overlapped_areas(
         synpop_data["area"], household_census_data["area"]
     )
+    synpop_data = synpop_data[synpop_data["hhd_src"] == "hhd"]
 
     # get model:
     data_model = synpop_data[["area", "household"]]
@@ -323,10 +324,13 @@ def validate_household(
     data_truth = household_census_data[
         household_census_data["area"].isin(overlapping_areas)
     ]
-    data_truth["adult_num"] = data_truth["people_num"] - data_truth["children_num"]
-    data_truth["adult_num"] = data_truth["adult_num"].clip(lower=0)
+
+    data_truth = data_truth[data_truth["adults_num"] != "unknown"]
+
+    data_truth["children_num"] = data_truth["people_num"] - data_truth["adults_num"]
+    data_truth["adults_num"] = data_truth["adults_num"].clip(lower=0)
     data_truth["household_composition"] = (
-        data_truth["adult_num"].astype(str)
+        data_truth["adults_num"].astype(str)
         + "_"
         + data_truth["children_num"].astype(str)
     )

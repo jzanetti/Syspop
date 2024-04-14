@@ -303,7 +303,7 @@ def validate(
 
     logger.info("Validating household ...")
     validate_household(
-        val_dir, merge_syspop_data(output_dir, ["base", "household"]), household
+        val_dir, merge_syspop_data(output_dir, ["base", "household", "src"]), household
     )
 
     logger.info("Validating base population (gender) ...")
@@ -671,7 +671,11 @@ def create(
 
     output_files = {
         "syspop_base": ["area", "age", "gender", "ethnicity"],
-        "syspop_household": ["household", "dwelling_type", "social_economics"],
+        "syspop_household": [
+            "household",
+            "dwelling_type",
+            "social_economics",
+        ],
         "syspop_travel": ["travel_mode_work", "public_transport_trip"],
         "syspop_work_and_school": ["area_work", "company", "school", "kindergarten"],
         "syspop_healthcare": ["primary_hospital", "secondary_hospital", "mmr"],
@@ -685,6 +689,7 @@ def create(
             "pub",
             "park",
         ],
+        "syspop_src": ["hhd_src"],
     }
 
     synpop_data["synpop"]["id"] = synpop_data["synpop"].index

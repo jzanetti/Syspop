@@ -9,19 +9,19 @@ from syspop import vis as syspop_vis
 
 test_data = _get_data_for_test("etc/data/test_data_latest")
 
-output_dir = "/tmp/syspop_test6/Northland"
+output_dir = "/tmp/syspop_test6/test"
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
-        test_data["geog_data"]["hierarchy"]["region"] == "Northland"
+        test_data["geog_data"]["hierarchy"]["region"] == "Auckland"
     ]["area"]
 )
-# syn_areas = [135400, 111400, 110400]
+syn_areas = [135400, 111400, 110400]
 
 
 if_run_syspop_create = True
-if_run_diary = True
+if_run_diary = False
 if_run_validation = True
-if_run_vis = True
+if_run_vis = False
 
 
 if if_run_syspop_create:

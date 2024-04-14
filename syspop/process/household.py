@@ -635,6 +635,13 @@ def assign_any_remained_people(
 
     while len(adults) > 0 and assign_adults:
         household_id = numpy_choice(existing_households)
+        dwelling_type_id = proc_base_pop[proc_base_pop["household"] == household_id][
+            "dwelling_type"
+        ].values[0]
+        hhd_src_id = proc_base_pop[proc_base_pop["household"] == household_id][
+            "hhd_src"
+        ].values[0]
+
         num_adults_to_add = numpy_randint(0, 3)
 
         if num_adults_to_add > len(adults):
@@ -644,12 +651,19 @@ def assign_any_remained_people(
         proc_base_pop.loc[proc_base_pop.index.isin(adult_ids), "household"] = (
             household_id
         )
+        proc_base_pop.loc[proc_base_pop.index.isin(adult_ids), "dwelling_type"] = (
+            dwelling_type_id
+        )
+        proc_base_pop.loc[proc_base_pop.index.isin(adult_ids), "hhd_src"] = hhd_src_id
         adults = adults.loc[~adults.index.isin(adult_ids)]
 
     while len(children) > 0 and assign_children:
         household_id = numpy_choice(existing_households)
         dwelling_type_id = proc_base_pop[proc_base_pop["household"] == household_id][
             "dwelling_type"
+        ].values[0]
+        hhd_src_id = proc_base_pop[proc_base_pop["household"] == household_id][
+            "hhd_src"
         ].values[0]
         num_children_to_add = numpy_randint(0, 3)
 
@@ -662,6 +676,9 @@ def assign_any_remained_people(
         )
         proc_base_pop.loc[proc_base_pop.index.isin(children_ids), "dwelling_type"] = (
             dwelling_type_id
+        )
+        proc_base_pop.loc[proc_base_pop.index.isin(children_ids), "hhd_src"] = (
+            hhd_src_id
         )
         children = children.loc[~children.index.isin(children_ids)]
 
@@ -808,6 +825,14 @@ def assign_household_and_dwelling_id(
         proc_household_composition.dwelling_type
     )
 
+    proc_base_pop.loc[proc_base_pop["index"].isin(adult_ids), "hhd_src"] = (
+        proc_household_composition.hhd_src
+    )
+
+    proc_base_pop.loc[proc_base_pop["index"].isin(children_ids), "hhd_src"] = (
+        proc_household_composition.hhd_src
+    )
+
     return proc_base_pop
 
 
@@ -816,10 +841,10 @@ def sort_household(
 ) -> DataFrame:
     if use_level_flag:
         df_level_1 = proc_houshold_dataset[
-            proc_houshold_dataset["household_level"] == "level_1"
+            proc_houshold_dataset["hhd_src"] == "hhd"
         ].sort_values(by="household_num", ascending=False, inplace=False)
         df_level_2 = proc_houshold_dataset[
-            proc_houshold_dataset["household_level"] == "level_2"
+            proc_houshold_dataset["hhd_src"] == "dwelling"
         ].sort_values(by="household_num", ascending=False, inplace=False)
 
         return concat([df_level_1, df_level_2])
@@ -851,16 +876,16 @@ def create_household_composition_v3(
     unique_base_pop_ethnicity = list(proc_base_pop["ethnicity"].unique())
 
     household_id = 0
-    break_outer_loop = False
+    # break_outer_loop = False
     for _, proc_household_composition in sorted_proc_houshold_dataset.iterrows():
-        if break_outer_loop:
-            break
+        # if break_outer_loop:
+        #    break
 
         for _ in range(proc_household_composition["household_num"]):
 
-            if len(unassigned_adults) == 0 or len(unassigned_children) == 0:
-                break_outer_loop = True
-                break
+            # if len(unassigned_adults) == 0 or len(unassigned_children) == 0:
+            #    break_outer_loop = True
+            #    break
 
             if (
                 len(unassigned_adults) < proc_household_composition["adults_num"]
@@ -950,9 +975,10 @@ def household_wrapper(
 
     base_pop["household"] = NaN
     base_pop["dwelling_type"] = NaN
+    base_pop["hhd_src"] = NaN
 
-    houshold_dataset["household_level"] = houshold_dataset["adults_num"].apply(
-        lambda x: "level_2" if x == "unknown" else "level_1"
+    houshold_dataset["hhd_src"] = houshold_dataset["adults_num"].apply(
+        lambda x: "dwelling" if x == "unknown" else "hhd"
     )
 
     num_children = list(houshold_dataset.columns)
