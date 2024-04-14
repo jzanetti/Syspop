@@ -68,7 +68,7 @@ python etc/scripts_nz/get_osm_data.py
 # Step 3: Copy confidential data
 # --------------------------------
 echo "Copying confidential data ..."
-cp -rf ${conf_data_dir}/*.csv ${raw_data_dir}
+cp -rf ${conf_data_dir}/processed/*.csv ${raw_data_dir}
 
 # --------------------------------
 # Step 4: Create NZ data (write NZ data from the raw data directory)

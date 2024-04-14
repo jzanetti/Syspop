@@ -7,6 +7,27 @@ from pandas import isnull as pandas_isnull
 from pandas import read_csv
 
 
+def create_household_and_dwelling_number(workdir):
+    """Create household number
+
+    Args:
+        workdir (str): _description_
+    """
+    data = read_csv(RAW_DATA["household"]["household_number"])
+
+    data = data.rename(
+        columns={
+            "SA2 Code": "area",
+            "Number of people": "people_num",
+            "Number of adults": "adults_num",
+            "Dwelling type": "dwelling_type",
+            "Count": "household_num",
+        }
+    )
+
+    return data
+
+
 def create_household_number(workdir):
     """Create household number
 
@@ -50,5 +71,4 @@ def create_household_number(workdir):
         "household_num"
     ].sum()
 
-    with open(join(workdir, "household.pickle"), "wb") as fid:
-        pickle_dump({"household": data}, fid)
+    return data

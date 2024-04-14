@@ -17,7 +17,10 @@ from funcs.geography.geography import (
     create_geography_location_super_area,
     create_geography_name_super_area,
 )
-from funcs.household.household import create_household_number
+from funcs.household.household import (
+    create_household_and_dwelling_number,
+    create_household_number,
+)
 from funcs.others.health import add_mmr
 from funcs.population.population import (
     create_age,
@@ -40,6 +43,13 @@ from funcs.venue.venue import (
 )
 
 logger = getLogger()
+
+
+def create_household_wrapper(workdir: str):
+    data = create_household_and_dwelling_number(workdir)
+
+    with open(join(workdir, "household.pickle"), "wb") as fid:
+        pickle_dump({"household": data}, fid)
 
 
 def create_shared_space_wrapper(

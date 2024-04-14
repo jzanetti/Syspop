@@ -62,7 +62,8 @@ RAW_DATA = {
         },
     },
     "household": {
-        "household_number": f"{RAW_DATA_DIR}/household_composition.csv"
+        # "household_number": f"{RAW_DATA_DIR}/household_composition.csv"
+        "household_number": f"{RAW_DATA_DIR}/household_dwelling_composition.csv"
     },  # "etc/data/raw_nz/household_by_children_number-2018.csv"},
     "venue": {
         "hospital": f"{RAW_DATA_DIR}/nz-facilities-2022.csv",

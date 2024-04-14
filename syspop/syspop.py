@@ -25,6 +25,7 @@ from process.validate import (
     validate_commute_area,
     validate_commute_mode,
     validate_household,
+    validate_mmr,
     validate_work,
 )
 from process.vis import (
@@ -263,6 +264,7 @@ def validate(
     household: DataFrame or None = None,  # census
     work_data: DataFrame or None = None,  # census
     home_to_work: DataFrame or None = None,  # census
+    mmr_data: DataFrame or None = None,  # imms data
 ):
     """Doding the validation of synthetic population
 
@@ -270,12 +272,17 @@ def validate(
         output_dir (str, optional): Output drirectory. Defaults to "".
         pop_gender (DataFrame, optional): synthetic population. Defaults to None.
     """
-    syn_pop_path = join(output_dir, "syspop_base.parquet")
-    synpop_data = pandas_read_parquet(syn_pop_path)
+    # syn_pop_path = join(output_dir, "syspop_base.parquet")
+    # synpop_data = pandas_read_parquet(syn_pop_path)
 
     val_dir = join(output_dir, "val")
     if not exists(val_dir):
         makedirs(val_dir)
+
+    logger.info("Validating MMR ...")
+    validate_mmr(
+        val_dir, merge_syspop_data(output_dir, ["base", "healthcare"]), mmr_data
+    )
 
     logger.info("Valdating commute (area) ...")
     validate_commute_area(
@@ -664,7 +671,7 @@ def create(
 
     output_files = {
         "syspop_base": ["area", "age", "gender", "ethnicity"],
-        "syspop_household": ["household", "social_economics"],
+        "syspop_household": ["household", "dwelling_type", "social_economics"],
         "syspop_travel": ["travel_mode_work", "public_transport_trip"],
         "syspop_work_and_school": ["area_work", "company", "school", "kindergarten"],
         "syspop_healthcare": ["primary_hospital", "secondary_hospital", "mmr"],
