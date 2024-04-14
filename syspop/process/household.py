@@ -870,22 +870,20 @@ def create_household_composition_v3(
 
     sorted_proc_houshold_dataset = sort_household(proc_houshold_dataset)
 
+    # Remove empty household
+    sorted_proc_houshold_dataset = sorted_proc_houshold_dataset[
+        (sorted_proc_houshold_dataset["people_num"] != 0)
+    ]
+
     unassigned_adults = proc_base_pop[proc_base_pop["age"] >= 18].copy()
     unassigned_children = proc_base_pop[proc_base_pop["age"] < 18].copy()
 
     unique_base_pop_ethnicity = list(proc_base_pop["ethnicity"].unique())
 
     household_id = 0
-    # break_outer_loop = False
     for _, proc_household_composition in sorted_proc_houshold_dataset.iterrows():
-        # if break_outer_loop:
-        #    break
 
         for _ in range(proc_household_composition["household_num"]):
-
-            # if len(unassigned_adults) == 0 or len(unassigned_children) == 0:
-            #    break_outer_loop = True
-            #    break
 
             if (
                 len(unassigned_adults) < proc_household_composition["adults_num"]
@@ -894,14 +892,20 @@ def create_household_composition_v3(
                 print("Not enough adults or children to assign.")
                 continue
 
-            adult_ids, adult_ethnicity = obtain_adult_index_based_on_ethnicity(
-                unassigned_adults, proc_household_composition, unique_base_pop_ethnicity
-            )
+            if len(unassigned_adults) > 0:
+                adult_ids, ref_ethnicity = obtain_adult_index_based_on_ethnicity(
+                    unassigned_adults,
+                    proc_household_composition,
+                    unique_base_pop_ethnicity,
+                )
+            else:
+                adult_ids = []
+                ref_ethnicity = unassigned_children.sample(1).ethnicity.values[0]
 
             try:
                 children_ids = (
                     unassigned_children[
-                        unassigned_children["ethnicity"] == adult_ethnicity
+                        unassigned_children["ethnicity"] == ref_ethnicity
                     ]
                     .sample(proc_household_composition["children_num"])["index"]
                     .tolist()
