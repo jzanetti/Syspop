@@ -238,7 +238,10 @@ def create_shared_space(
 
 
 def create_vaccine(
-    tmp_data_path: str, vaccine_data: DataFrame, full_imms_age: int or None = 60
+    tmp_data_path: str,
+    vaccine_data: DataFrame,
+    fill_missing_adults_data_flag: bool = False,
+    full_imms_age: int or None = 60,
 ) -> DataFrame:
     """Create vaccination data
 
@@ -258,9 +261,14 @@ def create_vaccine(
     base_pop_data = base_pop_data.rename(columns={"index": "id"})
 
     base_pop_data["mmr"] = None
-    base_pop_data["mmr_age"] = base_pop_data["age"].apply(
-        lambda x: 17 if 17 <= x <= full_imms_age else x
-    )
+
+    if fill_missing_adults_data_flag:
+        base_pop_data["mmr_age"] = base_pop_data["age"].apply(
+            lambda x: 17 if 17 <= x <= full_imms_age else x
+        )
+    else:
+        base_pop_data["mmr_age"] = base_pop_data["age"]
+
     base_pop_data["mmr_ethnicity"] = base_pop_data["ethnicity"].replace(
         ["European", "MELAA"], "Others"
     )
@@ -279,7 +287,7 @@ def create_vaccine(
             (base_pop_data["area"] == row.sa2.values[0])
             & (base_pop_data["mmr_ethnicity"] == row.ethnicity.values[0])
             & (base_pop_data["mmr_age"] >= int(row.age_min.values[0]))
-            & (base_pop_data["mmr_age"] <= int(row.age_max.values[0]))
+            & (base_pop_data["mmr_age"] < int(row.age_max.values[0]))
         ]
 
         fully_imms_base_pop = filtered_base_pop.sample(frac=row.fully_imms.values[0])
@@ -296,10 +304,12 @@ def create_vaccine(
         data_list.append(filtered_base_pop)
 
     # -----------------------------
-    # Set imms status for age of people > 60 and people == 0
+    # Set imms status for age of people > 60 (if needed) and people == 0
     # -----------------------------
     base_pop_data.update(pandas_concat(data_list, axis=0))
-    base_pop_data.loc[base_pop_data.age > full_imms_age, "mmr"] = "nature_imms"
+
+    if fill_missing_adults_data_flag:
+        base_pop_data.loc[base_pop_data.age > full_imms_age, "mmr"] = "nature_imms"
     base_pop_data.loc[base_pop_data.age == 0, "mmr"] = "no_imms"
 
     # -----------------------------
