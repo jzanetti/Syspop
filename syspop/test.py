@@ -9,10 +9,10 @@ from syspop import vis as syspop_vis
 
 test_data = _get_data_for_test("etc/data/test_data_latest")
 
-output_dir = "/tmp/syspop_test8/Wellington"
+output_dir = "/tmp/syspop_test8/Otago_and_Southland"
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
-        test_data["geog_data"]["hierarchy"]["region"] == "Wellington"
+        test_data["geog_data"]["hierarchy"]["region"].isin(["Otago", "Southland"])
     ]["area"]
 )
 # syn_areas = [135400, 111400, 110400]
