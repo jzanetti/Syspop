@@ -17,10 +17,10 @@ syn_areas = list(
 )
 # syn_areas = [135400, 111400, 110400]
 
-if_run_syspop_create = True
-if_run_diary = True
+if_run_syspop_create = False
+if_run_diary = False
 if_run_validation = True
-if_run_vis = True
+if_run_vis = False
 
 if if_run_syspop_create:
     syspop_create(
