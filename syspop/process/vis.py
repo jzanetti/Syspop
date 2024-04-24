@@ -7,20 +7,89 @@ from folium.plugins import HeatMap
 from matplotlib.pyplot import (
     axvline,
     bar,
+    clim,
     close,
+    colorbar,
     legend,
     plot,
     savefig,
+    scatter,
     subplots,
     title,
     xlabel,
+    xlim,
     xticks,
     ylabel,
+    ylim,
 )
 from numpy import arange as numpy_arange
 from numpy import polyfit as numpy_polyfit
-from pandas import DataFrame
+from pandas import DataFrame, merge
 from seaborn import histplot as sns_hisplot
+
+
+def validate_vis_movement(
+    val_dir: str,
+    model_data: DataFrame,
+    truth_data: DataFrame,
+    merge_method: str = "inner",  # left, inner
+    apply_factor: bool = False,
+):
+
+    x = model_data[model_data["total"] > 50]
+    y = truth_data[truth_data["total"] > 50]
+    x = x[x["area_home"] != x["area_work"]]
+    y = y[y["area_home"] != y["area_work"]]
+
+    merged_df = merge(
+        x, y, on=["area_home", "area_work"], suffixes=("_x", "_y"), how=merge_method
+    )
+
+    if apply_factor:
+        factor = merged_df["total_x"].sum() / merged_df["total_y"].sum()
+        merged_df["total_y"] = merged_df["total_y"] * factor
+
+    min_value = min(merged_df[["area_home", "area_work"]].min())
+    max_value = min(merged_df[["area_home", "area_work"]].max())
+
+    plot([min_value, max_value], [min_value, max_value], "k")
+
+    scatter(
+        merged_df["area_home"],
+        merged_df["area_work"],
+        c=merged_df["total_x"],
+        s=merged_df["total_x"],
+        cmap="jet",
+        alpha=0.5,
+    )
+    title("Synthetic population")
+    colorbar()
+    xlim(min_value - 1000, max_value + 1000)
+    ylim(min_value - 1000, max_value + 1000)
+    clim([50, 450])
+    xlabel("SA2")
+    ylabel("SA2")
+    savefig(join(val_dir, "validation_work_commute_pop.png"), bbox_inches="tight")
+    close()
+
+    plot([min_value, max_value], [min_value, max_value], "k")
+    scatter(
+        merged_df["area_home"],
+        merged_df["area_work"],
+        c=merged_df["total_y"],
+        s=merged_df["total_y"],
+        cmap="jet",
+        alpha=0.5,
+    )
+    title("Census 2018")
+    colorbar()
+    xlim(min_value - 1000, max_value + 1000)
+    ylim(min_value - 1000, max_value + 1000)
+    clim([50, 450])
+    xlabel("SA2")
+    ylabel("SA2")
+    savefig(join(val_dir, "validation_work_commute_census.png"), bbox_inches="tight")
+    close()
 
 
 def validate_vis_plot(

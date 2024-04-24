@@ -298,12 +298,17 @@ def validate(
 
     logger.info("Valdating work ...")
     validate_work(
-        val_dir, merge_syspop_data(output_dir, ["base", "work_and_school"]), work_data
+        val_dir,
+        merge_syspop_data(output_dir, ["base", "work_and_school"]),
+        work_data,
+        exlcuded_business_code=["L", "Q", "P", "O", "C"],
     )
 
     logger.info("Validating household ...")
     validate_household(
-        val_dir, merge_syspop_data(output_dir, ["base", "household", "others"]), household
+        val_dir,
+        merge_syspop_data(output_dir, ["base", "household", "others"]),
+        household,
     )
 
     logger.info("Validating base population (gender) ...")

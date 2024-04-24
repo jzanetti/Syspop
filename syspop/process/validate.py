@@ -1,6 +1,6 @@
 from numpy import NaN
 from pandas import DataFrame, merge
-from process.vis import validate_vis_barh, validate_vis_plot
+from process.vis import validate_vis_barh, validate_vis_movement, validate_vis_plot
 
 
 def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
@@ -127,9 +127,71 @@ def validate_commute_area(
     ].sum(axis=1)
     truth_data = truth_data[["area_home", "area_work", "total"]]
 
+    validate_vis_movement(
+        val_dir,
+        model_data,
+        truth_data,
+        merge_method="left",  # left, inner
+    )
+
+    """
+    from matplotlib.pyplot import scatter, xlim, ylim, savefig, close, colorbar, clim, xlabel, ylabel, title, plot
+    x = model_data[model_data["total"] > 50]
+    y = truth_data[truth_data["total"] > 50]
+    x = x[x["area_home"] != x["area_work"]]
+    y = y[y["area_home"] != y["area_work"]]
+
+    merged_df = pd.merge(x, y, on=['area_home', 'area_work'], suffixes=('_x', '_y'), how='inner')
+
+    factor = merged_df["total_x"].sum() / merged_df["total_y"].sum()
+    merged_df["total_y"] = merged_df["total_y"] * 1.2
+
+    min_value = min(merged_df[["area_home", "area_work"]].min())
+    max_value = min(merged_df[["area_home", "area_work"]].max())
+
+    plot([min_value, max_value], [min_value, max_value], "k")
+
+    scatter(
+        merged_df["area_home"],
+        merged_df["area_work"],
+        c=merged_df["total_x"],
+        s=merged_df["total_x"],
+        cmap='jet',
+        alpha=0.5,
+    )
+    title("Synthetic population")
+    colorbar()
+    xlim(min_value - 1000, max_value + 1000)
+    ylim(min_value - 1000, max_value+ 1000)
+    clim([50, 450])
+    xlabel("SA2")
+    ylabel("SA2")
+    savefig("test2.png", bbox_inches='tight')
+    close()
+
+    plot([min_value, max_value], [min_value, max_value], "k")
+    scatter(
+        merged_df["area_home"],
+        merged_df["area_work"],
+        c=merged_df["total_y"],
+        s=merged_df["total_y"],
+        cmap='jet',
+        alpha=0.5,
+    )
+    title("Census 2018")
+    colorbar()
+    xlim(min_value - 1000, max_value + 1000)
+    ylim(min_value - 1000, max_value+ 1000)
+    clim([50, 450])
+    xlabel("SA2")
+    ylabel("SA2")
+    savefig("test1.png", bbox_inches='tight')
+    close()
+
+    """
+    """
     # get all unique home <-> work
     unique_area_combinations = truth_data[["area_home", "area_work"]].drop_duplicates()
-
     err_ratio = []
     err = {"truth": [], "model": []}
     for i, proc_combination in unique_area_combinations.iterrows():
@@ -171,6 +233,7 @@ def validate_commute_area(
         "Travel areas (between home and work)",
         "Error (Commute people, %): (model - truth) / truth",
     )
+    """
 
 
 def validate_commute_mode(
@@ -209,7 +272,7 @@ def validate_commute_mode(
             100.0 * (proc_model_data - proc_truth_data) / proc_truth_data
         )
         err["truth"][proc_travel_method] = proc_truth_data
-        err["model"][proc_travel_method] = proc_model_data
+        err["model"][proc_travel_method] = proc_model_data  # / 2.0
 
     validate_vis_barh(
         val_dir,
@@ -230,7 +293,12 @@ def validate_commute_mode(
     )
 
 
-def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFrame):
+def validate_work(
+    val_dir: str,
+    synpop_data: DataFrame,
+    work_census_data: DataFrame,
+    exlcuded_business_code: list = [],
+):
     """Validate work data
 
     Args:
@@ -255,6 +323,10 @@ def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFr
         err_ratio = {}
         err = {"truth": {}, "model": {}}
         for proc_code in all_business_code:
+
+            if proc_code in exlcuded_business_code:
+                continue
+
             total_truth = truth_data[truth_data["business_code"] == proc_code][
                 f"{work_type}_number"
             ].sum()
@@ -283,7 +355,8 @@ def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFr
             err,
             f"Validation: number of {work_type} for different sectors",
             f"validation_work_{work_type}_err",
-            f"Error: Model and Truth \n Model: {sum(err['model'].values())}; Truth: {sum(err['truth'].values())}",
+            f"Number of {work_type}",
+            # f"Error: Model and Truth \n Model: {sum(err['model'].values())}; Truth: {sum(err['truth'].values())}",
             "Business code",
             plot_ratio=False,
         )
@@ -299,7 +372,10 @@ def validate_work(val_dir: str, synpop_data: DataFrame, work_census_data: DataFr
 
 
 def validate_household(
-    val_dir: str, synpop_data: DataFrame, household_census_data: DataFrame
+    val_dir: str,
+    synpop_data: DataFrame,
+    household_census_data: DataFrame,
+    valid_thres: int = 1000,
 ):
     """Validate household (e.g., The number of household based on
     the number of children)
@@ -353,31 +429,37 @@ def validate_household(
             ]["household"].unique()
         )
 
-        err["model"][proc_household_composition] = proc_model
-        err["truth"][proc_household_composition] = proc_truth
+        if proc_model > valid_thres or proc_truth > valid_thres:
+            adult_num, children_num = proc_household_composition.split("_")
+            proc_household_composition_updated = (
+                f"Adult: {adult_num}; Children: {children_num}"
+            )
 
-        err_ratio[proc_household_composition] = (
-            100.0 * (proc_model - proc_truth) / proc_truth
-        )
+            err["model"][proc_household_composition_updated] = proc_model
+            err["truth"][proc_household_composition_updated] = proc_truth
+
+            err_ratio[proc_household_composition_updated] = (
+                100.0 * (proc_model - proc_truth) / proc_truth
+            )
 
     validate_vis_barh(
         val_dir,
         err,
-        f"Validation: number of children in a household",
+        f"Validation: household composition",
         f"validation_household_err",
         f"Error: Model and Truth \n Model: {sum(err['model'].values())}; Truth: {sum(err['truth'].values())}",
-        "Number of cdifference household composition",
+        "Household composition",
         plot_ratio=False,
-        figure_size=(6, 10),
+        figure_size=(6, 15),
     )
 
     validate_vis_barh(
         val_dir,
         err_ratio,
-        f"Validation: number of children in a household",
+        f"Validation: household composition",
         f"validation_household",
         "Error (%): (model - truth) / truth",
-        "Number of children",
+        "Household composition",
     )
 
 
