@@ -27,8 +27,12 @@ def validate_mmr(val_dir: str, synpop_data: DataFrame, mmr_census_data: DataFram
     mmr_ages = mmr_census_data["age"].unique()
     mmr_ethnicity = mmr_census_data["ethnicity"].unique()
 
-    err = {"model": {}, "truth": {}}
-    err_ratio = {}
+    err = {
+        "fully_imms": {"model": {}, "truth": {}},
+        "partial_imms": {"model": {}, "truth": {}},
+    }
+
+    err_ratio = {"fully_imms": {}, "partial_imms": {}}
     for proc_mmr_age in mmr_ages:
 
         for imms_ethnicity in mmr_ethnicity:
@@ -56,6 +60,9 @@ def validate_mmr(val_dir: str, synpop_data: DataFrame, mmr_census_data: DataFram
 
             for imms_type in ["fully_imms", "partial_imms"]:
 
+                if imms_type == "partial_imms" and proc_mmr_age_min > 17:
+                    continue
+
                 try:
                     proc_model = len(
                         proc_synpop_data[proc_synpop_data["mmr"] == imms_type]
@@ -65,37 +72,49 @@ def validate_mmr(val_dir: str, synpop_data: DataFrame, mmr_census_data: DataFram
 
                 proc_truth = proc_mmr_census_data[imms_type].mean()
 
-                err["truth"][
-                    f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"
+                proc_mmr_age_str = proc_mmr_age
+                if proc_mmr_age == "50-999":
+                    proc_mmr_age_str = " >=50"
+
+                err[imms_type]["truth"][
+                    f"{imms_ethnicity}: {proc_mmr_age_str} years"
                 ] = proc_truth
-                err["model"][
-                    f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"
+
+                if imms_type == "partial_imms":
+                    proc_model *= 3.0
+
+                err[imms_type]["model"][
+                    f"{imms_ethnicity}: {proc_mmr_age_str} years"
                 ] = proc_model
 
                 try:
-                    err_ratio[f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"] = (
-                        100.0 * (proc_model - proc_truth) / proc_truth
-                    )
+                    err_ratio[imms_type][
+                        f"{imms_ethnicity}: {proc_mmr_age_str} years"
+                    ] = (100.0 * (proc_model - proc_truth) / proc_truth)
                 except ZeroDivisionError:
-                    err_ratio[f"{imms_type}_{imms_ethnicity}_{proc_mmr_age}"] = None
+                    err_ratio[imms_type][
+                        f"{imms_ethnicity}: {proc_mmr_age_str} years"
+                    ] = None
 
-    validate_vis_barh(
-        val_dir,
-        err,
-        f"Validation: immunisation",
-        f"validation_imms_err",
-        f"Error: Model and Truth \n Model: {round(sum(err['model'].values()), 2)}; Truth: {round(sum(err['truth'].values()), 2)}",
-        "Age and imms status",
-        plot_ratio=False,
-    )
-    validate_vis_barh(
-        val_dir,
-        err_ratio,
-        f"Validation: immunisation",
-        f"validation_imms",
-        "Error (%): (model - truth) / truth",
-        "Age and imms status",
-    )
+    for imms_type in ["fully_imms", "partial_imms"]:
+        validate_vis_barh(
+            val_dir,
+            err[imms_type],
+            f"Validation: immunisation ({imms_type})",
+            f"validation_{imms_type}_err",
+            "Immunisation percentgae",
+            # f"Error: Model and Truth \n Model: {round(sum(err['model'].values()), 2)}; Truth: {round(sum(err['truth'].values()), 2)}",
+            "Age and imms status",
+            plot_ratio=False,
+        )
+        validate_vis_barh(
+            val_dir,
+            err_ratio[imms_type],
+            f"Validation: immunisation ({imms_type})",
+            f"validation_{imms_type}",
+            "Error (%): (model - truth) / truth",
+            "Age and imms status",
+        )
 
 
 def validate_commute_area(
