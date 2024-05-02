@@ -39,7 +39,7 @@ fi
 
 if [ -z "$llm_diary_path" ]
 then
-  echo "Please enter the LLM diary output (e.g., llm_diary.pickle):"
+  echo "Please enter the LLM diary output (e.g., etc/data/confidential_data/processed/llm/llm_diary.pickle):"
   read llm_diary_path
 fi
 

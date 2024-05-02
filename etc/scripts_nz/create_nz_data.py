@@ -20,6 +20,7 @@ from funcs.wrapper import (
 def import_raw_data(workdir: str):
     if not exists(workdir):
         makedirs(workdir)
+
     # -----------------------------
     # Create geography
     # -----------------------------

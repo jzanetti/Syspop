@@ -4,8 +4,12 @@ from os.path import exists, join
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 
+from numpy import nan as numpy_nan
+from numpy import repeat as numpy_repeat
+from numpy import round as numpy_round
 from numpy.random import choice as numpy_choice
 from pandas import DataFrame
+from pandas import Series as pandas_series
 from pandas import concat as pandas_concat
 from process.base_pop import base_pop_wrapper
 from process.hospital import hospital_wrapper
@@ -235,6 +239,88 @@ def create_shared_space(
 
     with open(tmp_data_path, "wb") as fid:
         pickle_dump({"synpop": base_pop_data, "synadd": address_data}, fid)
+
+
+def create_birthplace(tmp_data_path: str, birthplace_data: DataFrame):
+    """Create birthplace for the data
+
+    Args:
+        tmp_data_path (str): _description_
+        birthplace_data (DataFrame): _description_
+    """
+    with open(tmp_data_path, "rb") as fid:
+        base_pop = pickle_load(fid)
+
+    base_pop_data = base_pop["synpop"]
+
+    base_pop_data["birthplace"] = numpy_nan
+
+    all_areas = base_pop_data["area"].unique()
+
+    data_list = []
+    for proc_area in all_areas:
+        proc_birthplace_data = birthplace_data[birthplace_data["area"] == proc_area]
+        proc_base_pop_data = base_pop_data[base_pop_data["area"] == proc_area]
+
+        if len(proc_birthplace_data) == 0:
+            proc_base_pop_data["birthplace"] = 9999
+
+        else:
+            proc_birthplace_data["num"] = numpy_round(
+                proc_birthplace_data["percentage"] * len(proc_base_pop_data)
+            ).astype(int)
+
+            proc_birthplace_data_processed = (
+                proc_birthplace_data.loc[
+                    numpy_repeat(
+                        proc_birthplace_data.index.values, proc_birthplace_data["num"]
+                    )
+                ]
+                .reset_index()[["birthplace"]]
+                .sample(frac=1)
+                .reset_index(drop=True)
+            )
+            proc_birthplace_data_processed_length = len(proc_birthplace_data_processed)
+            proc_base_pop_data_length = len(proc_base_pop_data)
+
+            if proc_birthplace_data_processed_length >= proc_base_pop_data_length:
+
+                if proc_birthplace_data_processed_length > proc_base_pop_data_length:
+                    proc_birthplace_data_processed = (
+                        proc_birthplace_data_processed.sample(
+                            n=proc_base_pop_data_length, replace=False
+                        )
+                    )
+
+                proc_base_pop_data["birthplace"] = proc_birthplace_data_processed[
+                    "birthplace"
+                ].values
+            else:
+                random_indices = numpy_choice(
+                    proc_base_pop_data.index,
+                    size=len(proc_birthplace_data_processed),
+                    replace=False,
+                )
+                proc_base_pop_data.loc[random_indices, "birthplace"] = (
+                    proc_birthplace_data_processed["birthplace"].values
+                )
+
+                # assign the missing rows
+                proc_base_pop_data.loc[
+                    proc_base_pop_data["birthplace"].isnull(), "birthplace"
+                ] = numpy_choice(
+                    proc_birthplace_data_processed["birthplace"],
+                    size=proc_base_pop_data["birthplace"].isnull().sum(),
+                )
+
+        data_list.append(proc_base_pop_data)
+
+    base_pop_data.update(pandas_concat(data_list, axis=0))
+
+    base_pop_data["birthplace"] = base_pop_data["birthplace"].astype(int)
+
+    with open(tmp_data_path, "wb") as fid:
+        pickle_dump({"synpop": base_pop_data, "synadd": base_pop["synadd"]}, fid)
 
 
 def create_vaccine(

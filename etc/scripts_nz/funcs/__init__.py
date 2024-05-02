@@ -83,7 +83,10 @@ RAW_DATA = {
         "childcare": f"{RAW_DATA_DIR}/amenity_childcare.csv",
         "bakery": f"{RAW_DATA_DIR}/shop_bakery.csv",
     },
-    "others": {"mmr_vaccine": f"{RAW_DATA_DIR}/mmr_immunisation_all.csv"},
+    "others": {
+        "mmr_vaccine": f"{RAW_DATA_DIR}/mmr_immunisation-2024.csv",
+        "birthplace": f"{RAW_DATA_DIR}/birthplace-2024.csv",
+    },
 }
 
 REGION_CODES = {

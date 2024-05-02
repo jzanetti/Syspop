@@ -22,6 +22,7 @@ from funcs.household.household import (
     create_household_number,
 )
 from funcs.others.health import add_mmr
+from funcs.others.immigration import add_birthplace
 from funcs.population.population import (
     create_age,
     create_ethnicity_and_age,
@@ -80,8 +81,9 @@ def create_others_wrapper(workdir: str):
         workdir (str): Working directory
     """
     mmr_data = add_mmr()
+    birthplace_data = add_birthplace()
     with open(join(workdir, "others.pickle"), "wb") as fid:
-        pickle_dump({"mmr": mmr_data}, fid)
+        pickle_dump({"mmr": mmr_data, "birthplace": birthplace_data}, fid)
 
 
 def create_hospital_wrapper(workdir: str):

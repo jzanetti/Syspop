@@ -38,6 +38,7 @@ from process.vis import (
 )
 from wrapper_pop import (
     create_base_pop,
+    create_birthplace,
     create_hospital,
     create_household,
     create_school_and_kindergarten,
@@ -427,6 +428,7 @@ def create(
     cafe_data: DataFrame = None,
     kindergarten_data: DataFrame = None,
     mmr_data: DataFrame = None,
+    birthplace_data: DataFrame = None,
     assign_address_flag: bool = False,
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
@@ -668,6 +670,10 @@ def create(
         logger.info("Adding MMR data ...")
         create_vaccine(tmp_data_path, mmr_data)
 
+    if birthplace_data is not None:
+        logger.info("Adding birthplace data ...")
+        create_birthplace(tmp_data_path, birthplace_data)
+
     # ---------------------------
     # Export output
     # ---------------------------
@@ -695,6 +701,7 @@ def create(
             "park",
         ],
         "syspop_others": ["hhd_src"],
+        "syspop_immigration": ["birthplace"],
     }
 
     synpop_data["synpop"]["id"] = synpop_data["synpop"].index
