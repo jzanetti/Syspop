@@ -4,6 +4,7 @@ import torch
 from numpy import arange as numpy_arange
 from pandas import DataFrame as pandas_dataframe
 from pandas import merge as pandas_merge
+from sklearn.preprocessing import StandardScaler
 from torch.optim import SGD, Adam
 from torchmetrics.regression import MeanSquaredError
 
@@ -20,6 +21,18 @@ imms_survey = {
 
 base_census = pandas_dataframe(base_census)
 imms_survey = pandas_dataframe(imms_survey)
+
+num_max = base_census.num.max()
+percentage_max = imms_survey.percentage.max()
+
+base_census_err = 1.0
+imms_survey_err = 1.0
+
+# scaler_num = StandardScaler()
+# scaler_percentage = StandardScaler()
+
+# base_census["num"] = scaler_num.fit_transform(base_census[["num"]])
+# imms_survey["percentage"] = scaler_percentage.fit_transform(imms_survey[["percentage"]])
 
 base_census = base_census.groupby(["age", "ethnicity"]).sum().reset_index()
 
@@ -80,9 +93,10 @@ opt = SGD(
     differentiable=False,
 )
 
+
 opt = Adam(
     filter(lambda p: p.requires_grad, param_model.parameters()),
-    lr=0.1,
+    lr=0.01,
     differentiable=False,
 )  # loss_fn = NegativeCosineSimilarityLoss()
 
@@ -141,9 +155,10 @@ while epoch < total_epoch:
 
                 analysis_tensor = param[analysis[combined_conditions_analysis].index]
                 x = torch.sum(analysis_tensor) - torch.sum(target_tensor)
+                x = x / num_max
                 x = x.view(-1, 1)
                 xt = x.T
-                cost_func_list.append(torch.mm(x, xt))
+                cost_func_list.append(base_census_err * torch.mm(x, xt))
 
             elif data_to_process[proc_data_name]["method"]["name"] == "percentage":
 
@@ -167,12 +182,14 @@ while epoch < total_epoch:
                     analysis_tensor_ref = param[
                         analysis[combined_conditions_analysis_ref].index
                     ]
+
                     x = torch.sum(analysis_tensor_ref) / torch.sum(
                         analysis_tensor
                     ) - torch.sum(target_tensor)
+                    x = x / percentage_max
                     x = x.view(-1, 1)
                     xt = x.T
-                    cost_func_list.append(torch.mm(x, xt))
+                    cost_func_list.append(imms_survey_err * torch.mm(x, xt))
 
     for i, proc_func in enumerate(cost_func_list):
         if i == 0:
@@ -193,6 +210,11 @@ while epoch < total_epoch:
     for param in param_model.parameters():
         print(epoch, param, epoch_loss)
 
+    if len(epoch_loss_list) > 1:
+        if abs(epoch_loss - epoch_loss_list[-1]) < 1e-7:
+            param_values = param.detach().numpy()
+            break
+
     epoch_loss_list.append(epoch_loss)
     param_values = param.detach().numpy()
 
@@ -204,7 +226,7 @@ while epoch < total_epoch:
     epoch += 1
 
 analysis["num"] = param_values
-print(analysis)
+# print(analysis)
 analysis2 = (
     analysis[["age", "ethnicity", "num"]]
     .groupby(["age", "ethnicity"])
@@ -221,7 +243,7 @@ merged_df = pandas_merge(
 print(merged_df)
 
 grouped = analysis.groupby(["age", "ethnicity", "imms"])["num"].sum().unstack()
-grouped["percentage"] = grouped[1] / grouped[0]
+grouped["percentage"] = grouped[1] / (grouped[0] + grouped[1])
 grouped_reset = grouped.reset_index()[["age", "ethnicity", "percentage"]]
 
 merged_df2 = pandas_merge(
@@ -233,8 +255,8 @@ merged_df2 = pandas_merge(
 print(merged_df2)
 
 plt.plot(epoch_loss_list)
-plt.savefig("test/epoch_loss.png")
+plt.savefig("epoch_loss.png")
 plt.close()
 
-
+print(analysis)
 x = 3
