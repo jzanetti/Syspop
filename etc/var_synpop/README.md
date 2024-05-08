@@ -15,7 +15,7 @@ The first 50 iterations for creating synthetic population using the Variational 
 
 The following data are integrated using the Variational approach to create the synthetic population:
 
-## Census:
+### Census:
 The number of people in different age and ethnicity groups
 | Age | Ethnicity | Num |
 |-----|-----------|-----|
@@ -28,7 +28,7 @@ The number of people in different age and ethnicity groups
 | 3   | 6         | 5   |
 | 4   | 4         | 3   |
 
-## Immunisation Status:
+### Immunisation Status:
 The percentage of people in different immunisation status, groupped by age and ethnicity
 
 | Age | Ethnicity | Imms_status | Num  |
@@ -40,7 +40,7 @@ The percentage of people in different immunisation status, groupped by age and e
 | 3   | 5         | 1           | 0.30 |
 | 3   | 5         | 2           | 0.65 |
 
-## Household Composition:
+### Household Composition:
 The percentage of different types of households
 | Age | Depression | Household_composition_code | Num  |
 |-----|------------|----------------------------|------|
@@ -49,3 +49,17 @@ The percentage of different types of households
 | 1   | 3          | 11                         | 0.30 |
 | 2   | 3          | 11                         | 0.10 |
 | 2   | 4          | 11                         | 0.15 |
+
+### Synthetic population created by the above data
+| Age | Ethnicity | Immigration Status | Depression | Household Composition Code | Number           |
+|-----|-----------|--------------------|------------|----------------------------|------------------|
+| 1   | 4         | 0                  | 2          | 12                         | 4.224548e-12     |
+| 1   | 4         | 0                  | 2          | 13                         | 3.245442e-12     |
+| 1   | 4         | 0                  | 2          | 11                         | 7.067407e-12     |
+| 1   | 4         | 0                  | 3          | 12                         | 4.528123e-12     |
+| 1   | 4         | 0                  | 3          | 13                         | 4.528123e-12     |
+| ... | ...       | ...                | ...        | ...                        | ...              |
+| 4   | 6         | 2                  | 3          | 13                         | 1.000000e-02     |
+| 4   | 6         | 2                  | 3          | 11                         | 1.000000e-02     |
+| 4   | 6         | 2                  | 4          | 12                         | 1.000000e-02     |
+| 4   | 6         | 2                  | 4          | 13                         | 1.000000e-02     |
