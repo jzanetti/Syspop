@@ -57,9 +57,9 @@ input_data = {
 }
 
 
-analysis_data = var(input_data, output_cfg, total_epoch=1500)
+analysis_data = var(input_data, output_cfg, total_epoch=4500)
 
-analysis = analysis_data["data"][0]
+analysis = analysis_data["data"][-1]
 
 print(analysis)
 
@@ -86,7 +86,7 @@ print(census_comparisons)
 print(imms_survey_comparisons)
 print(household_composition_survey_comparisons)
 
-
+"""
 import matplotlib.pyplot as plt
 
 for i, proc_analysis in enumerate(analysis_data["data"]):
@@ -174,3 +174,4 @@ for i, proc_analysis in enumerate(analysis_data["data"]):
     plt.title(f"Comparison of analysis and truth\nIterations: {proc_state}")
     plt.savefig(f"test/loss_{proc_state}.png", bbox_inches="tight")
     plt.close()
+"""
