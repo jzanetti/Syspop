@@ -458,6 +458,7 @@ def create(
         rewrite_base_pop (bool, optional): if re-write base population. Defaults to False.
         use_parallel (bool, optional): use parallel processing. Defaults to False.
         ncpu (int, optional): number of CPUs. Defaults to 8.
+        data_year (int, optional): the Year that data to be used (if available). Defaults to None
 
     Raises:
         Exception: missing depedancies
