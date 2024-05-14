@@ -326,6 +326,7 @@ def create_birthplace(tmp_data_path: str, birthplace_data: DataFrame):
 def create_vaccine(
     tmp_data_path: str,
     vaccine_data: DataFrame,
+    data_year: int,
     fill_missing_adults_data_flag: bool = False,
     full_imms_age: int or None = 60,
 ) -> DataFrame:
@@ -339,6 +340,14 @@ def create_vaccine(
     Returns:
         DataFrame: _description_
     """
+
+    if data_year is not None:
+        vaccine_data = vaccine_data[vaccine_data["year"] == data_year]
+    else:
+        vaccine_data = vaccine_data[
+            vaccine_data["year"] == max(vaccine_data["year"].unique())
+        ]
+
     with open(tmp_data_path, "rb") as fid:
         base_pop = pickle_load(fid)
 

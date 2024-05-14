@@ -433,6 +433,7 @@ def create(
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
     ncpu: int = 8,
+    data_year: int = None,
 ):
     """Create synthetic population
 
@@ -668,7 +669,7 @@ def create(
 
     if mmr_data is not None:
         logger.info("Adding MMR data ...")
-        create_vaccine(tmp_data_path, mmr_data)
+        create_vaccine(tmp_data_path, mmr_data, data_year)
 
     if birthplace_data is not None:
         logger.info("Adding birthplace data ...")

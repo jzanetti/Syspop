@@ -9,7 +9,8 @@ from syspop import vis as syspop_vis
 
 test_data = _get_data_for_test("etc/data/test_data_latest")
 
-output_dir = "/tmp/syspop_test9/Auckland"
+data_year = 2022
+output_dir = f"/tmp/syspop_test10/Auckland/{data_year}"
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
         test_data["geog_data"]["hierarchy"]["region"].isin(["Auckland"])
@@ -52,6 +53,7 @@ if if_run_syspop_create:
         rewrite_base_pop=True,
         use_parallel=True,
         ncpu=8,
+        data_year=data_year,
     )
 
 if if_run_diary:
