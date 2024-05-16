@@ -7,10 +7,13 @@ from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
-test_data = _get_data_for_test("etc/data/test_data_latest")
+data_year = 2022  # can be None or an actual year
+output_dir = f"/tmp/syspop_test11/Auckland"
+if data_year is not None:
+    output_dir = f"{output_dir}/{data_year}"
 
-data_year = 2022
-output_dir = f"/tmp/syspop_test10/Auckland/{data_year}"
+
+test_data = _get_data_for_test("etc/data/test_data_latest")
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
         test_data["geog_data"]["hierarchy"]["region"].isin(["Auckland"])
@@ -72,6 +75,7 @@ if if_run_validation:
         work_data=test_data["work_data"],
         home_to_work=test_data["commute_data"]["home_to_work"],
         mmr_data=test_data["others"]["mmr"],
+        data_year=data_year,
     )
 
 if if_run_vis:

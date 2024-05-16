@@ -382,7 +382,7 @@ def create_vaccine(
             (base_pop_data["area"] == row.sa2.values[0])
             & (base_pop_data["mmr_ethnicity"] == row.ethnicity.values[0])
             & (base_pop_data["mmr_age"] >= int(row.age_min.values[0]))
-            & (base_pop_data["mmr_age"] < int(row.age_max.values[0]))
+            & (base_pop_data["mmr_age"] <= int(row.age_max.values[0]))
         ]
 
         fully_imms_base_pop = filtered_base_pop.sample(frac=row.fully_imms.values[0])

@@ -20,8 +20,17 @@ def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
     return list(area1.intersection(area2))
 
 
-def validate_mmr(val_dir: str, synpop_data: DataFrame, mmr_census_data: DataFrame):
+def validate_mmr(
+    val_dir: str,
+    synpop_data: DataFrame,
+    mmr_census_data: DataFrame,
+    data_year: int or None,
+):
 
+    if data_year is None:
+        data_year = max(list(mmr_census_data["year"].unique()))
+
+    mmr_census_data = mmr_census_data[mmr_census_data["year"] == data_year]
     mmr_census_data = mmr_census_data[mmr_census_data["sa2"].isin(synpop_data.area)]
 
     mmr_ages = mmr_census_data["age"].unique()

@@ -266,6 +266,7 @@ def validate(
     work_data: DataFrame or None = None,  # census
     home_to_work: DataFrame or None = None,  # census
     mmr_data: DataFrame or None = None,  # imms data
+    data_year: int or None = None,  # data year if it is used
 ):
     """Doding the validation of synthetic population
 
@@ -282,7 +283,7 @@ def validate(
 
     logger.info("Validating MMR ...")
     validate_mmr(
-        val_dir, merge_syspop_data(output_dir, ["base", "healthcare"]), mmr_data
+        val_dir, merge_syspop_data(output_dir, ["base", "healthcare"]), mmr_data, data_year
     )
 
     logger.info("Valdating commute (area) ...")
