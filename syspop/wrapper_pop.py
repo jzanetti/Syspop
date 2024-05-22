@@ -330,6 +330,7 @@ def create_vaccine(
     data_percentile: str or None,
     fill_missing_adults_data_flag: bool = False,
     full_imms_age: int or None = 60,
+    selected_ethnicity: list or None = ["Asian", "Maori", "Pacific", "Others"],
 ) -> DataFrame:
     """Create vaccination data
 
@@ -341,6 +342,9 @@ def create_vaccine(
     Returns:
         DataFrame: _description_
     """
+
+    if selected_ethnicity is not None:
+        vaccine_data = vaccine_data[vaccine_data["ethnicity"].isin(selected_ethnicity)]
 
     if data_percentile is not None:
         vaccine_data = vaccine_data[vaccine_data["percentile"] == data_percentile]
@@ -384,12 +388,16 @@ def create_vaccine(
     data_list = []
     for i in range(len(vaccine_data)):
         row = vaccine_data.iloc[[i]]
-        filtered_base_pop = base_pop_data[
-            (base_pop_data["area"] == row.sa2.values[0])
-            & (base_pop_data["mmr_ethnicity"] == row.ethnicity.values[0])
-            & (base_pop_data["mmr_age"] >= int(row.age_min.values[0]))
-            & (base_pop_data["mmr_age"] <= int(row.age_max.values[0]))
-        ]
+
+        try:
+            filtered_base_pop = base_pop_data[
+                (base_pop_data["area"] == row.sa2.values[0])
+                & (base_pop_data["mmr_ethnicity"] == row.ethnicity.values[0])
+                & (base_pop_data["mmr_age"] >= int(row.age_min.values[0]))
+                & (base_pop_data["mmr_age"] <= int(row.age_max.values[0]))
+            ]
+        except:
+            x = 3
 
         fully_imms_base_pop = filtered_base_pop.sample(frac=row.fully_imms.values[0])
         filtered_base_pop.loc[fully_imms_base_pop.index, "mmr"] = "fully_imms"
