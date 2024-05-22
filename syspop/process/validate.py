@@ -25,12 +25,17 @@ def validate_mmr(
     synpop_data: DataFrame,
     mmr_census_data: DataFrame,
     data_year: int or None,
+    data_percentile: str or None,
 ):
 
     if data_year is None:
         data_year = max(list(mmr_census_data["year"].unique()))
 
+    if data_percentile is None:
+        data_percentile = "median"
+
     mmr_census_data = mmr_census_data[mmr_census_data["year"] == data_year]
+    mmr_census_data = mmr_census_data[mmr_census_data["percentile"] == data_percentile]
     mmr_census_data = mmr_census_data[mmr_census_data["sa2"].isin(synpop_data.area)]
 
     mmr_ages = mmr_census_data["age"].unique()

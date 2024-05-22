@@ -326,7 +326,8 @@ def create_birthplace(tmp_data_path: str, birthplace_data: DataFrame):
 def create_vaccine(
     tmp_data_path: str,
     vaccine_data: DataFrame,
-    data_year: int,
+    data_year: int or None,
+    data_percentile: str or None,
     fill_missing_adults_data_flag: bool = False,
     full_imms_age: int or None = 60,
 ) -> DataFrame:
@@ -340,6 +341,11 @@ def create_vaccine(
     Returns:
         DataFrame: _description_
     """
+
+    if data_percentile is not None:
+        vaccine_data = vaccine_data[vaccine_data["percentile"] == data_percentile]
+    else:
+        vaccine_data = vaccine_data[vaccine_data["percentile"] == "median"]
 
     if data_year is not None:
         vaccine_data = vaccine_data[vaccine_data["year"] == data_year]

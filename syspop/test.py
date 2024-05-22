@@ -7,19 +7,22 @@ from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
-data_year = 2022  # can be None or an actual year
-output_dir = f"/tmp/syspop_test11/Auckland"
+data_year = 2019  # can be None or an actual year
+data_percentile = "median"
+# output_dir = f"/tmp/syspop_test11/Auckland"
+output_dir = "/DSC/digital_twin/abm/data_20240522/NZ"
 if data_year is not None:
     output_dir = f"{output_dir}/{data_year}"
 
 
 test_data = _get_data_for_test("etc/data/test_data_latest")
-syn_areas = list(
-    test_data["geog_data"]["hierarchy"][
-        test_data["geog_data"]["hierarchy"]["region"].isin(["Auckland"])
-    ]["area"]
-)
+# syn_areas = list(
+#    test_data["geog_data"]["hierarchy"][
+#        test_data["geog_data"]["hierarchy"]["region"].isin(["Auckland"])
+#    ]["area"]
+# )
 # syn_areas = [135400, 111400, 110400]
+syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
 
 if_run_syspop_create = True
 if_run_diary = True
@@ -57,6 +60,7 @@ if if_run_syspop_create:
         use_parallel=True,
         ncpu=8,
         data_year=data_year,
+        data_percentile=data_percentile,
     )
 
 if if_run_diary:
@@ -76,6 +80,7 @@ if if_run_validation:
         home_to_work=test_data["commute_data"]["home_to_work"],
         mmr_data=test_data["others"]["mmr"],
         data_year=data_year,
+        data_percentile=data_percentile,
     )
 
 if if_run_vis:

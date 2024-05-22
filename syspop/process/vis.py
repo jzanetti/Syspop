@@ -45,6 +45,9 @@ def validate_vis_movement(
         x, y, on=["area_home", "area_work"], suffixes=("_x", "_y"), how=merge_method
     )
 
+    if len(merged_df) == 0:
+        return
+
     if apply_factor:
         factor = merged_df["total_x"].sum() / merged_df["total_y"].sum()
         merged_df["total_y"] = merged_df["total_y"] * factor
