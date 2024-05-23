@@ -82,6 +82,9 @@ def query_results(
             )
             result = overpass.query(query)
 
+            if result.nodes() is None:
+                continue
+
             outputs = {"name": [], "lat": [], "lon": []}
             for i, node in enumerate(result.nodes()):
 
@@ -128,6 +131,7 @@ def query_results(
 if __name__ == "__main__":
     region = NaN  # can be NaN, or sth like Auckland
     country = "New Zealand"
+    # country = "Tonga"
 
     query_keys = {
         "amenity": [
@@ -151,9 +155,16 @@ if __name__ == "__main__":
         ],
         "leisure": ["park"],
         # "tourism": ["museum"],
+        # "building": ["house"],
     }
 
-    query_results(query_keys, region, country, if_add_random_loc=False)
+    query_results(
+        query_keys,
+        region,
+        country,
+        # output_dir="/tmp/osm/tonga",
+        if_add_random_loc=False,
+    )
 
     # query_results(
     #    {"amenity": ["kindergarten"]}, "Wellington", country, output_dir="/tmp/test"
