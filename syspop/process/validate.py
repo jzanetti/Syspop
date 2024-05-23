@@ -27,7 +27,15 @@ def validate_mmr(
     data_year: int or None,
     data_percentile: str or None,
 ):
+    """Validating MMR coverage
 
+    Args:
+        val_dir (str): _description_
+        synpop_data (DataFrame): _description_
+        mmr_census_data (DataFrame): _description_
+        data_year (intorNone): _description_
+        data_percentile (strorNone): _description_
+    """
     if data_year is None:
         data_year = max(list(mmr_census_data["year"].unique()))
 
@@ -52,7 +60,11 @@ def validate_mmr(
         for imms_ethnicity in mmr_ethnicity:
 
             proc_mmr_age_min = int(proc_mmr_age.split("-")[0])
-            proc_mmr_age_max = int(proc_mmr_age.split("-")[1])
+            try:
+                proc_mmr_age_max = int(proc_mmr_age.split("-")[1])
+            except IndexError:
+                proc_mmr_age_max = proc_mmr_age_min
+
             proc_synpop_data = synpop_data[
                 (synpop_data["age"] >= proc_mmr_age_min)
                 & (synpop_data["age"] <= proc_mmr_age_max)

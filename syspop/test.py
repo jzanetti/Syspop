@@ -7,10 +7,10 @@ from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
-data_year = 2023  # can be None or an actual year
+data_year = 2019  # can be None or an actual year
 data_percentile = "median"
 # output_dir = f"/tmp/syspop_test11/Auckland"
-output_dir = "/DSC/digital_twin/abm/data_20240523/Auckland"
+output_dir = "/DSC/digital_twin/abm/data_20240523/Northland"
 if data_year is not None:
     output_dir = f"{output_dir}/{data_year}"
 
@@ -22,15 +22,15 @@ test_data = _get_data_for_test("etc/data/test_data_latest")
 
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
-        test_data["geog_data"]["hierarchy"]["region"].isin(["Auckland"])
+        test_data["geog_data"]["hierarchy"]["region"].isin(["Northland"])
     ]["area"]
 )
 
 # syn_areas = [135400, 111400, 110400]
 # syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
 
-if_run_syspop_create = True
-if_run_diary = True
+if_run_syspop_create = False
+if_run_diary = False
 if_run_validation = True
 if_run_vis = True
 

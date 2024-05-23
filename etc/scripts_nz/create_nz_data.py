@@ -22,9 +22,9 @@ def import_raw_data(workdir: str):
         makedirs(workdir)
 
     # -----------------------------
-    # Create geography
+    # Create population
     # -----------------------------
-    create_geography_wrapper(workdir)
+    create_population_wrapper(workdir)
 
     # -----------------------------
     # Create household
@@ -32,9 +32,9 @@ def import_raw_data(workdir: str):
     create_household_wrapper(workdir)
 
     # -----------------------------
-    # Create population
+    # Create geography
     # -----------------------------
-    create_population_wrapper(workdir)
+    create_geography_wrapper(workdir)
 
     # -----------------------------
     # Create commute
