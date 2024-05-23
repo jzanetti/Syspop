@@ -326,6 +326,8 @@ def create_birthplace(tmp_data_path: str, birthplace_data: DataFrame):
 def create_vaccine(
     tmp_data_path: str,
     vaccine_data: DataFrame,
+    data_year: int or None,
+    data_percentile: str or None,
     fill_missing_adults_data_flag: bool = False,
     full_imms_age: int or None = 60,
 ) -> DataFrame:
@@ -339,6 +341,18 @@ def create_vaccine(
     Returns:
         DataFrame: _description_
     """
+    if data_percentile is not None:
+        vaccine_data = vaccine_data[vaccine_data["percentile"] == data_percentile]
+    else:
+        vaccine_data = vaccine_data[vaccine_data["percentile"] == "median"]
+
+    if data_year is not None:
+        vaccine_data = vaccine_data[vaccine_data["year"] == data_year]
+    else:
+        vaccine_data = vaccine_data[
+            vaccine_data["year"] == max(vaccine_data["year"].unique())
+        ]
+
     with open(tmp_data_path, "rb") as fid:
         base_pop = pickle_load(fid)
 
@@ -362,6 +376,7 @@ def create_vaccine(
     vaccine_data[["age_min", "age_max"]] = vaccine_data["age"].str.split(
         "-", expand=True
     )
+    vaccine_data["age_max"] = vaccine_data["age_max"].fillna(vaccine_data["age_min"])
 
     # -----------------------------
     # Assign imms to people for different ethnicity/age groups
@@ -369,11 +384,12 @@ def create_vaccine(
     data_list = []
     for i in range(len(vaccine_data)):
         row = vaccine_data.iloc[[i]]
+
         filtered_base_pop = base_pop_data[
             (base_pop_data["area"] == row.sa2.values[0])
             & (base_pop_data["mmr_ethnicity"] == row.ethnicity.values[0])
             & (base_pop_data["mmr_age"] >= int(row.age_min.values[0]))
-            & (base_pop_data["mmr_age"] < int(row.age_max.values[0]))
+            & (base_pop_data["mmr_age"] <= int(row.age_max.values[0]))
         ]
 
         fully_imms_base_pop = filtered_base_pop.sample(frac=row.fully_imms.values[0])
@@ -392,6 +408,7 @@ def create_vaccine(
     # -----------------------------
     # Set imms status for age of people > 60 (if needed) and people == 0
     # -----------------------------
+
     base_pop_data.update(pandas_concat(data_list, axis=0))
 
     if fill_missing_adults_data_flag:

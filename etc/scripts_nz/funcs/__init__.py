@@ -84,7 +84,7 @@ RAW_DATA = {
         "bakery": f"{RAW_DATA_DIR}/shop_bakery.csv",
     },
     "others": {
-        "mmr_vaccine": f"{RAW_DATA_DIR}/mmr_immunisation-2024.csv",
+        "mmr_vaccine": f"{RAW_DATA_DIR}/mmr_immunity.csv",
         "birthplace": f"{RAW_DATA_DIR}/birthplace-2024.csv",
     },
 }

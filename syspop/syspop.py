@@ -266,6 +266,8 @@ def validate(
     work_data: DataFrame or None = None,  # census
     home_to_work: DataFrame or None = None,  # census
     mmr_data: DataFrame or None = None,  # imms data
+    data_year: int or None = None,  # data year if it is used
+    data_percentile: str or None = None,  # lower, upper, and median
 ):
     """Doding the validation of synthetic population
 
@@ -282,7 +284,11 @@ def validate(
 
     logger.info("Validating MMR ...")
     validate_mmr(
-        val_dir, merge_syspop_data(output_dir, ["base", "healthcare"]), mmr_data
+        val_dir,
+        merge_syspop_data(output_dir, ["base", "healthcare"]),
+        mmr_data,
+        data_year,
+        data_percentile,
     )
 
     logger.info("Valdating commute (area) ...")
@@ -433,6 +439,8 @@ def create(
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
     ncpu: int = 8,
+    data_year: int = None,
+    data_percentile: str = "median",
 ):
     """Create synthetic population
 
@@ -457,6 +465,7 @@ def create(
         rewrite_base_pop (bool, optional): if re-write base population. Defaults to False.
         use_parallel (bool, optional): use parallel processing. Defaults to False.
         ncpu (int, optional): number of CPUs. Defaults to 8.
+        data_year (int, optional): the Year that data to be used (if available). Defaults to None
 
     Raises:
         Exception: missing depedancies
@@ -668,7 +677,7 @@ def create(
 
     if mmr_data is not None:
         logger.info("Adding MMR data ...")
-        create_vaccine(tmp_data_path, mmr_data)
+        create_vaccine(tmp_data_path, mmr_data, data_year, data_percentile)
 
     if birthplace_data is not None:
         logger.info("Adding birthplace data ...")
