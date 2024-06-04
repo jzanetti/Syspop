@@ -17,7 +17,7 @@ if data_year is not None:
 if data_percentile is not None:
     output_dir += f"/{data_percentile}"
 
-test_data = _get_data_for_test("etc/data/test_data_latest")
+test_data = _get_data_for_test("etc/data/test_data_latest2")
 
 # syn_areas = list(
 #    test_data["geog_data"]["hierarchy"][
