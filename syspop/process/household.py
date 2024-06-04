@@ -1067,6 +1067,9 @@ def obtain_household_children_num(
             proc_household_data["adults_num"] = proc_household_data.apply(
                 _randomize_unknown, axis=1
             )
+            proc_household_data["adults_num"] = proc_household_data[
+                "adults_num"
+            ].astype(int)
 
         proc_household_data["children_num"] = (
             proc_household_data["people_num"] - proc_household_data["adults_num"]
