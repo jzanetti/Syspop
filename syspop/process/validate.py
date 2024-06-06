@@ -448,6 +448,8 @@ def validate_household(
 
     data_truth = data_truth[data_truth["adults_num"] != "unknown"]
 
+    data_truth["adults_num"] = data_truth["adults_num"].astype(int)
+
     data_truth["children_num"] = data_truth["people_num"] - data_truth["adults_num"]
     data_truth["adults_num"] = data_truth["adults_num"].clip(lower=0)
     data_truth["household_composition"] = (
