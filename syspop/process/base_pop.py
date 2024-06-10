@@ -128,5 +128,7 @@ def base_pop_wrapper(
 
     logger.info(f"Processing time (base population): {total_mins}")
 
-    # Convert the population to a DataFrame
-    return DataFrame(population), base_address
+    output_df = DataFrame(population)
+
+    output_df["age"] = output_df["age"].astype(int)
+    return output_df, base_address

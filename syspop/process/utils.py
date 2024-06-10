@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from functools import reduce as functools_reduce
 from logging import INFO, Formatter, StreamHandler, basicConfig, getLogger
-from os.path import join
+from os.path import exists, join
 from pickle import load as pickle_load
 
 from pandas import DataFrame
@@ -81,14 +81,31 @@ def merge_syspop_data(data_dir: str, data_types: list) -> DataFrame:
 
     proc_data_list = []
     for required_data_type in data_types:
-        proc_data_list.append(
-            pandas_read_parquet(join(data_dir, f"syspop_{required_data_type}.parquet"))
-        )
+        proc_path = join(data_dir, f"syspop_{required_data_type}.parquet")
+
+        if exists(proc_path):
+            proc_data_list.append(pandas_read_parquet(proc_path))
 
     return functools_reduce(
         lambda left, right: pandas_merge(left, right, on="id", how="inner"),
         proc_data_list,
     )
+
+    """
+
+
+        work_data=test_data["work_data"],
+
+
+
+
+
+        park_data=test_data["park_data"]["park"],
+        cafe_data=test_data["cafe_data"]["cafe"],
+        mmr_data=test_data["others"]["mmr"],
+        birthplace_data=test_data["others"]["birthplace"],
+
+    """
 
 
 def _get_data_for_test(test_data_dir: str) -> dict:
@@ -96,58 +113,108 @@ def _get_data_for_test(test_data_dir: str) -> dict:
     with open(f"{test_data_dir}/population.pickle", "rb") as fid:
         test_data["pop_data"] = pickle_load(fid)
 
-    with open(f"{test_data_dir}/geography.pickle", "rb") as fid:
-        test_data["geog_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/geography.pickle", "rb") as fid:
+            test_data["geog_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["geog_data"] = None
 
-    with open(f"{test_data_dir}/household.pickle", "rb") as fid:
-        test_data["household_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/household.pickle", "rb") as fid:
+            test_data["household_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["household_data"] = {"household": None}
 
-    with open(f"{test_data_dir}/commute.pickle", "rb") as fid:
-        test_data["commute_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/commute.pickle", "rb") as fid:
+            test_data["commute_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["commute_data"] = {"home_to_work": None}
 
-    with open(f"{test_data_dir}/work.pickle", "rb") as fid:
-        test_data["work_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/work.pickle", "rb") as fid:
+            test_data["work_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["work_data"] = None
 
-    with open(f"{test_data_dir}/school.pickle", "rb") as fid:
-        test_data["school_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/school.pickle", "rb") as fid:
+            test_data["school_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["school_data"] = {"school": None}
 
-    with open(f"{test_data_dir}/kindergarten.pickle", "rb") as fid:
-        test_data["kindergarten_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/kindergarten.pickle", "rb") as fid:
+            test_data["kindergarten_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["kindergarten_data"] = {"kindergarten": None}
 
-    with open(f"{test_data_dir}/hospital.pickle", "rb") as fid:
-        test_data["hospital_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/hospital.pickle", "rb") as fid:
+            test_data["hospital_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["hospital_data"] = {"hospital": None}
 
-    with open(f"{test_data_dir}/supermarket.pickle", "rb") as fid:
-        test_data["supermarket_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/supermarket.pickle", "rb") as fid:
+            test_data["supermarket_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["supermarket_data"] = {"supermarket": None}
 
-    with open(f"{test_data_dir}/department_store.pickle", "rb") as fid:
-        test_data["department_store_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/department_store.pickle", "rb") as fid:
+            test_data["department_store_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["department_store_data"] = {"department_store": None}
 
-    with open(f"{test_data_dir}/wholesale.pickle", "rb") as fid:
-        test_data["wholesale_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/wholesale.pickle", "rb") as fid:
+            test_data["wholesale_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["wholesale_data"] = {"wholesale": None}
 
-    with open(f"{test_data_dir}/restaurant.pickle", "rb") as fid:
-        test_data["restaurant_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/restaurant.pickle", "rb") as fid:
+            test_data["restaurant_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["restaurant_data"] = {"restaurant": None}
 
-    with open(f"{test_data_dir}/fast_food.pickle", "rb") as fid:
-        test_data["fast_food_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/fast_food.pickle", "rb") as fid:
+            test_data["fast_food_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["fast_food_data"] = {"fast_food": None}
 
-    data_list = []
-    for proc_data_type in ["cafe", "bakery"]:
-        with open(f"{test_data_dir}/{proc_data_type}.pickle", "rb") as fid:
-            data_list.append(pickle_load(fid)[proc_data_type])
-    test_data["cafe_data"] = {"cafe": pandas_concat(data_list, axis=0)}
+    try:
+        data_list = []
+        for proc_data_type in ["cafe", "bakery"]:
+            with open(f"{test_data_dir}/{proc_data_type}.pickle", "rb") as fid:
+                data_list.append(pickle_load(fid)[proc_data_type])
+        test_data["cafe_data"] = {"cafe": pandas_concat(data_list, axis=0)}
+    except FileNotFoundError:
+        test_data["cafe_data"] = {"cafe": None}
 
-    with open(f"{test_data_dir}/pub.pickle", "rb") as fid:
-        test_data["pub_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/pub.pickle", "rb") as fid:
+            test_data["pub_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["pub_data"] = {"pub": None}
+    try:
+        with open(f"{test_data_dir}/park.pickle", "rb") as fid:
+            test_data["park_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["park_data"] = {"park": None}
 
-    with open(f"{test_data_dir}/park.pickle", "rb") as fid:
-        test_data["park_data"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/llm_diary.pickle", "rb") as fid:
+            test_data["llm_diary_data"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["llm_diary_data"] = None
 
-    with open(f"{test_data_dir}/llm_diary.pickle", "rb") as fid:
-        test_data["llm_diary_data"] = pickle_load(fid)
-
-    with open(f"{test_data_dir}/others.pickle", "rb") as fid:
-        test_data["others"] = pickle_load(fid)
+    try:
+        with open(f"{test_data_dir}/others.pickle", "rb") as fid:
+            test_data["others"] = pickle_load(fid)
+    except FileNotFoundError:
+        test_data["others"] = {"birthplace": None, "mmr": None}
 
     return test_data

@@ -855,7 +855,10 @@ def sort_household(
 
 
 def create_household_composition_v3(
-    proc_houshold_dataset: DataFrame, proc_base_pop: DataFrame, proc_area: int or str
+    proc_houshold_dataset: DataFrame,
+    proc_base_pop: DataFrame,
+    proc_area: int or str,
+    only_households_with_adults: bool = True,
 ) -> DataFrame:
     """Create household composition (V3)
 
@@ -867,6 +870,11 @@ def create_household_composition_v3(
     Returns:
         DataFrame: Updated population dataset
     """
+
+    if only_households_with_adults:
+        proc_houshold_dataset = proc_houshold_dataset[
+            proc_houshold_dataset["adults_num"] > 0
+        ]
 
     sorted_proc_houshold_dataset = sort_household(proc_houshold_dataset)
 

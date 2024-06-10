@@ -84,19 +84,26 @@ def vis(
         synpop_data["children_number_in_household"] = (
             synpop_data["household"].str.split("_").str[2]
         )
+
+        all_params = [
+            "age",
+            "gender",
+            "ethnicity",
+            "adults_number_in_household",
+            "children_number_in_household",
+            "social_economics",
+            "travel_mode_work",
+        ]
+
+        plot_params = []
+
+        for proc_params in all_params:
+            if proc_params in list(synpop_data.columns):
+                plot_params.append(proc_params)
+
         plot_pie_charts(
             vis_dir,
-            synpop_data[
-                [
-                    "age",
-                    "gender",
-                    "ethnicity",
-                    "adults_number_in_household",
-                    "children_number_in_household",
-                    "social_economics",
-                    "travel_mode_work",
-                ]
-            ],
+            synpop_data[plot_params],
         )
     # ---------------------------
     # 2. plot locations
@@ -716,7 +723,10 @@ def create(
     synpop_data["synpop"]["id"] = synpop_data["synpop"].index
     for name, cols in output_files.items():
         output_path = join(output_dir, f"{name}.parquet")
-        synpop_data["synpop"][["id"] + cols].to_parquet(output_path, index=False)
+        try:
+            synpop_data["synpop"][["id"] + cols].to_parquet(output_path, index=False)
+        except KeyError:
+            pass
 
     synpop_data["synadd"].to_parquet(
         join(output_dir, "syspop_location.parquet"), index=False
