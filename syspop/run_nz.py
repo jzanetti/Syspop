@@ -28,8 +28,8 @@ test_data = _get_data_for_test("etc/data/test_data_latest")
 # syn_areas = [135400, 111400, 110400]
 syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
 
-if_run_syspop_create = True
-if_run_diary = True
+if_run_syspop_create = False
+if_run_diary = False
 if_run_validation = True
 if_run_vis = True
 
