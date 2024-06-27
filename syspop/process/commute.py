@@ -2,7 +2,7 @@ from logging import getLogger
 from math import ceil
 
 import ray
-from numpy import NaN
+from numpy import nan as numpy_nan
 from numpy.random import choice as numpy_choice
 from pandas import DataFrame, merge
 
@@ -152,9 +152,9 @@ def assign_people_between_home_and_work(
             proc_working_age_people_sampled["area_work"] = int(proc_work_area)
             proc_working_age_people_sampled["travel_mode_work"] = proc_travel_method
 
-            proc_working_age_people.loc[
-                proc_working_age_people_sampled.index
-            ] = proc_working_age_people_sampled
+            proc_working_age_people.loc[proc_working_age_people_sampled.index] = (
+                proc_working_age_people_sampled
+            )
 
     return proc_working_age_people
 
@@ -179,7 +179,7 @@ def get_shared_transport_route_area_indicator(
         people_data["area"] = people_data["area"].astype(int)
         route_area_indicator = "super_area"
 
-    people_data["public_transport_trip"] = NaN
+    people_data["public_transport_trip"] = numpy_nan
     people_data = people_data.reset_index()
 
     return people_data, route_area_indicator
@@ -217,9 +217,9 @@ def add_super_area_to_destination_area(
         people_use_public_transport = people_use_public_transport.loc[
             :, ~people_use_public_transport.columns.duplicated()
         ]
-        people_use_public_transport[
-            f"super_area_{proc_travel_purpose}"
-        ] = people_use_public_transport[f"super_area_{proc_travel_purpose}"].astype(int)
+        people_use_public_transport[f"super_area_{proc_travel_purpose}"] = (
+            people_use_public_transport[f"super_area_{proc_travel_purpose}"].astype(int)
+        )
 
     return people_use_public_transport
 

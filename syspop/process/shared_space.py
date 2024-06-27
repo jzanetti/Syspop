@@ -1,4 +1,3 @@
-from numpy import NaN as numpy_nan
 from pandas import DataFrame, concat, merge
 from scipy.spatial.distance import cdist
 

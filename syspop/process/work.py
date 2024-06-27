@@ -1,7 +1,7 @@
 from copy import deepcopy
 from logging import getLogger
 
-from numpy import NaN
+from numpy import nan as numpy_nan
 from numpy import vectorize as numpy_vectorize
 from numpy.random import choice as numpy_choice
 from numpy.random import uniform as numpy_uniform

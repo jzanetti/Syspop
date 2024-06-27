@@ -1,10 +1,10 @@
-
-from pandas import DataFrame
-from numpy import NaN
-
 from logging import getLogger
 
+from numpy import nan as numpy_nan
+from pandas import DataFrame
+
 logger = getLogger()
+
 
 def social_economic_wrapper(base_pop: DataFrame, social_economic_dataset: DataFrame):
     """Assign social economics value to different area
@@ -14,7 +14,7 @@ def social_economic_wrapper(base_pop: DataFrame, social_economic_dataset: DataFr
         social_economic_dataset (DataFrame): Area dependant social economical data
     """
 
-    base_pop["social_economics"] = NaN
+    base_pop["social_economics"] = numpy_nan
 
     all_areas = list(base_pop["area"].unique())
 
@@ -26,13 +26,13 @@ def social_economic_wrapper(base_pop: DataFrame, social_economic_dataset: DataFr
 
         try:
             proc_social_economic = social_economic_dataset[
-                social_economic_dataset["area"] == proc_area]["socioeconomic_centile"].values[0]
+                social_economic_dataset["area"] == proc_area
+            ]["socioeconomic_centile"].values[0]
         except IndexError:
-            proc_social_economic = NaN
+            proc_social_economic = numpy_nan
 
         proc_base_pop["social_economics"] = proc_social_economic
 
         base_pop.loc[proc_base_pop.index] = proc_base_pop
-    
+
     return base_pop
-        

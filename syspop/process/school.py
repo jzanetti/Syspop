@@ -1,7 +1,7 @@
 from datetime import datetime
 from logging import getLogger
 
-from numpy import NaN
+from numpy import nan as numpy_nan
 from pandas import DataFrame, concat, merge
 
 logger = getLogger()
@@ -112,7 +112,7 @@ def school_and_kindergarten_wrapper(
         DataFrame: Updated population
     """
     start_time = datetime.utcnow()
-    pop_data[data_type] = NaN
+    pop_data[data_type] = numpy_nan
 
     # pop_data = pop_data.drop(columns=["super_area", "region"])
     school_data = create_school_names(school_data)

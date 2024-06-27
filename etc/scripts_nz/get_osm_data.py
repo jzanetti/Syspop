@@ -6,7 +6,7 @@ from time import sleep
 from urllib.error import HTTPError
 
 from funcs import RAW_DATA_DIR
-from numpy import NaN
+from numpy import nan as numpy_nan
 from numpy.random import uniform as numpy_uniform
 from OSMPythonTools.nominatim import Nominatim
 from OSMPythonTools.overpass import Overpass, overpassQueryBuilder
@@ -124,7 +124,7 @@ def query_results(
     if not exists(output_dir):
         makedirs(output_dir)
 
-    if region is not NaN:
+    if region is not numpy_nan:
         areaId = nominatim.query(f"{region},{country}").areaId()
     else:
         areaId = nominatim.query(f"{country}").areaId()

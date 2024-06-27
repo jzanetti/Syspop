@@ -3,7 +3,6 @@ from datetime import datetime
 from logging import getLogger
 
 import ray
-from numpy import NaN
 from pandas import DataFrame
 
 logger = getLogger()

@@ -5,7 +5,7 @@ from os.path import exists, join
 from pickle import load as pickle_load
 
 import ray
-from numpy import NaN as numpy_nan
+from numpy import nan as numpy_nan
 from numpy import unique as numpy_unique
 from numpy import zeros as numpy_zeros
 from pandas import DataFrame
@@ -13,17 +13,6 @@ from pandas import concat as pandas_concat
 from pandas import cut as pandas_cut
 from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
-from wrapper_pop import (
-    create_base_pop,
-    create_birthplace,
-    create_hospital,
-    create_household,
-    create_school_and_kindergarten,
-    create_shared_space,
-    create_socialeconomics,
-    create_vaccine,
-    create_work,
-)
 
 from syspop.process.diary import (
     create_diary,
@@ -47,6 +36,17 @@ from syspop.process.vis import (
     plot_map_html,
     plot_pie_charts,
     plot_travel_html,
+)
+from syspop.wrapper_pop import (
+    create_base_pop,
+    create_birthplace,
+    create_hospital,
+    create_household,
+    create_school_and_kindergarten,
+    create_shared_space,
+    create_socialeconomics,
+    create_vaccine,
+    create_work,
 )
 
 logger = setup_logging(workdir="")

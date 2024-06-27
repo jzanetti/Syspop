@@ -1,4 +1,4 @@
-from numpy import NaN
+from numpy import nan as numpy_nan
 from pandas import DataFrame, merge
 
 from syspop.process.vis import (
@@ -382,7 +382,7 @@ def validate_work(
             ].sum()
 
             if total_truth == 0:
-                err_ratio[proc_code] = NaN
+                err_ratio[proc_code] = numpy_nan
 
             if work_type == "employee":
                 total_model = len(model_data[model_data["business_code"] == proc_code])
@@ -396,7 +396,7 @@ def validate_work(
             err["truth"][proc_code] = total_truth
             err["model"][proc_code] = total_model
             if total_truth == 0:
-                err_ratio[proc_code] = NaN
+                err_ratio[proc_code] = numpy_nan
             else:
                 err_ratio[proc_code] = 100.0 * (total_model - total_truth) / total_truth
 

@@ -5,9 +5,9 @@ from random import choices as random_choices
 from random import sample as random_sample
 
 import ray
-from numpy import NaN
 from numpy import array as numpy_array
 from numpy import isnan
+from numpy import nan as numpy_nan
 from numpy.random import choice as numpy_choice
 from numpy.random import choice as random_choice
 from numpy.random import randint
@@ -178,11 +178,11 @@ def compared_synpop_household_with_census(
             household_data_result["household"].str.split("_").str[1].astype(int)
         )
         household_data_result["household"] = household_data_result["household"].replace(
-            "default_9999_9999", NaN
+            "default_9999_9999", numpy_nan
         )
         household_data_result["children_num"] = household_data_result[
             "children_num"
-        ].replace(9999, NaN)
+        ].replace(9999, numpy_nan)
 
         return household_data_result
 
@@ -986,9 +986,9 @@ def household_wrapper(
     """
     start_time = datetime.utcnow()
 
-    base_pop["household"] = NaN
-    base_pop["dwelling_type"] = NaN
-    base_pop["hhd_src"] = NaN
+    base_pop["household"] = numpy_nan
+    base_pop["dwelling_type"] = numpy_nan
+    base_pop["hhd_src"] = numpy_nan
 
     houshold_dataset["hhd_src"] = houshold_dataset["adults_num"].apply(
         lambda x: "dwelling" if x == "unknown" else "hhd"
