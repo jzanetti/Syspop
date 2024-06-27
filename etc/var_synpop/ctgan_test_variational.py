@@ -2,8 +2,9 @@
 import matplotlib.pyplot as plt
 from pandas import DataFrame as pandas_dataframe
 from pandas import merge as pandas_merge
-from process.var.validate import validate_num, validate_percentage
-from process.var.var import var
+
+from syspop.process.var.validate import validate_num, validate_percentage
+from syspop.process.var.var import var
 
 output_cfg = {
     "variables": [

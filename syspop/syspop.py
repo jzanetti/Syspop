@@ -13,29 +13,6 @@ from pandas import concat as pandas_concat
 from pandas import cut as pandas_cut
 from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
-from process.diary import (
-    create_diary,
-    create_diary_remote,
-    map_loc_to_diary,
-    quality_check_diary,
-)
-from process.utils import merge_syspop_data, setup_logging
-from process.validate import (
-    validate_base_pop_and_age,
-    validate_commute_area,
-    validate_commute_mode,
-    validate_household,
-    validate_mmr,
-    validate_work,
-)
-from process.vis import (
-    plot_average_occurence_charts,
-    plot_location_occurence_charts_by_hour,
-    plot_location_timeseries_charts,
-    plot_map_html,
-    plot_pie_charts,
-    plot_travel_html,
-)
 from wrapper_pop import (
     create_base_pop,
     create_birthplace,
@@ -46,6 +23,30 @@ from wrapper_pop import (
     create_socialeconomics,
     create_vaccine,
     create_work,
+)
+
+from syspop.process.diary import (
+    create_diary,
+    create_diary_remote,
+    map_loc_to_diary,
+    quality_check_diary,
+)
+from syspop.process.utils import merge_syspop_data, setup_logging
+from syspop.process.validate import (
+    validate_base_pop_and_age,
+    validate_commute_area,
+    validate_commute_mode,
+    validate_household,
+    validate_mmr,
+    validate_work,
+)
+from syspop.process.vis import (
+    plot_average_occurence_charts,
+    plot_location_occurence_charts_by_hour,
+    plot_location_timeseries_charts,
+    plot_map_html,
+    plot_pie_charts,
+    plot_travel_html,
 )
 
 logger = setup_logging(workdir="")

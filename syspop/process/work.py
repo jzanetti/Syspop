@@ -6,8 +6,9 @@ from numpy import vectorize as numpy_vectorize
 from numpy.random import choice as numpy_choice
 from numpy.random import uniform as numpy_uniform
 from pandas import DataFrame, concat
-from process.address import add_random_address
-from process.commute import home_and_work, shared_transport
+
+from syspop.process.address import add_random_address
+from syspop.process.commute import home_and_work, shared_transport
 
 logger = getLogger()
 
@@ -87,9 +88,9 @@ def align_commute_data_to_employee_data(
     total_employee_from_employee_data = employee_input["employee_number"].sum()
 
     if total_employee_from_commute_data == 0:
-        commute_input.loc[
-            commute_input.index, "Other"
-        ] = total_employee_from_employee_data
+        commute_input.loc[commute_input.index, "Other"] = (
+            total_employee_from_employee_data
+        )
         return commute_input
 
     # Step 1: scaling up/down the commute employee number

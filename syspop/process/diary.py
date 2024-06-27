@@ -11,8 +11,9 @@ from numpy.random import normal as numpy_normal
 from pandas import DataFrame
 from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
-from process import DIARY_CFG, MAPING_DIARY_CFG_LLM_DIARY
-from process.utils import merge_syspop_data, round_a_datetime
+
+from syspop.process import DIARY_CFG, MAPING_DIARY_CFG_LLM_DIARY
+from syspop.process.utils import merge_syspop_data, round_a_datetime
 
 logger = getLogger()
 

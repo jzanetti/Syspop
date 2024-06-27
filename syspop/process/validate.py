@@ -1,6 +1,11 @@
 from numpy import NaN
 from pandas import DataFrame, merge
-from process.vis import validate_vis_barh, validate_vis_movement, validate_vis_plot
+
+from syspop.process.vis import (
+    validate_vis_barh,
+    validate_vis_movement,
+    validate_vis_plot,
+)
 
 
 def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
