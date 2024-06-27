@@ -2,10 +2,11 @@ from setuptools import find_packages, setup
 
 setup(
     name="syspop",
-    version="0.1.8",
+    version="0.1.9",
     setup_requires=["setuptools-git-versioning"],
     packages=find_packages(),
     install_requires=[
+        "python==3.10",
         "numpy",
         "pandas",
         "matplotlib",
@@ -18,6 +19,8 @@ setup(
         "ray[default]",
         "xlrd",
         "OSMPythonTools",
+        "folium",
+        "seaborn",
     ],
     entry_points={
         "console_scripts": [
