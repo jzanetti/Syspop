@@ -6,7 +6,6 @@ setup(
     setup_requires=["setuptools-git-versioning"],
     packages=find_packages(),
     install_requires=[
-        "python==3.10",
         "numpy",
         "pandas",
         "matplotlib",
@@ -27,5 +26,5 @@ setup(
             "syspop=syspop.syspop:create",
         ],
     },
-    # python_requires='==3.9.*',
+    # python_requires="==3.10.*",
 )
