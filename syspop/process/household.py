@@ -15,8 +15,7 @@ from numpy.random import randint as numpy_randint
 from pandas import DataFrame, Series, concat, isna
 from pandas import merge as pandas_merge
 from pandas import to_numeric as pandas_to_numeric
-
-from syspop.process.address import add_random_address
+from process.address import add_random_address
 
 logger = getLogger()
 

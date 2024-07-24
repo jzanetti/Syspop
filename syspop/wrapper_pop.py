@@ -11,14 +11,13 @@ from numpy.random import choice as numpy_choice
 from pandas import DataFrame
 from pandas import Series as pandas_series
 from pandas import concat as pandas_concat
-
-from syspop.process.base_pop import base_pop_wrapper
-from syspop.process.hospital import hospital_wrapper
-from syspop.process.household import household_wrapper
-from syspop.process.school import school_and_kindergarten_wrapper
-from syspop.process.shared_space import shared_space_wrapper
-from syspop.process.social_economic import social_economic_wrapper
-from syspop.process.work import work_and_commute_wrapper
+from process.base_pop import base_pop_wrapper
+from process.hospital import hospital_wrapper
+from process.household import household_wrapper
+from process.school import school_and_kindergarten_wrapper
+from process.shared_space import shared_space_wrapper
+from process.social_economic import social_economic_wrapper
+from process.work import work_and_commute_wrapper
 
 
 def create_base_pop(

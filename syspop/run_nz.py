@@ -1,10 +1,11 @@
-# export PYTHONPATH=/home/zhangs/Github/Syspop/syspop
+# export PYTHONPATH=/home/zhangs/Github/Syspop
+
+from process.utils import _get_data_for_test
 
 from syspop import create as syspop_create
 from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
-from syspop.process.utils import _get_data_for_test
 
 data_year = 2023  # can be None or an actual year
 data_percentile = "median"
@@ -29,7 +30,7 @@ syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
 
 if_run_syspop_create = False
 if_run_diary = False
-if_run_validation = True
+if_run_validation = False
 if_run_vis = True
 
 if if_run_syspop_create:

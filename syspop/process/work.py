@@ -6,9 +6,8 @@ from numpy import vectorize as numpy_vectorize
 from numpy.random import choice as numpy_choice
 from numpy.random import uniform as numpy_uniform
 from pandas import DataFrame, concat
-
-from syspop.process.address import add_random_address
-from syspop.process.commute import home_and_work, shared_transport
+from process.address import add_random_address
+from process.commute import home_and_work, shared_transport
 
 logger = getLogger()
 
