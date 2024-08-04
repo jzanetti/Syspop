@@ -12,23 +12,24 @@ INPUT_DATA_PATH = {
     "sypop_address_path": "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_location.parquet",
     "syspop_diaries_path": "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_diaries.parquet",
 }
-AREA_ID = 251400
-SELECTED_PEOPLE = 10
+AREA_IDS = [251300, 251400, 251600, 251700, 251800]
+SELECTED_PEOPLE_EACH_BATCH = 50
 PARALLEL_JOBS = 10
 
 sypop_base = read_parquet(INPUT_DATA_PATH["sypop_base_path"])
-sypop_base = sypop_base[(sypop_base["area"] == AREA_ID)]
+sypop_base = sypop_base[(sypop_base["area"].isin(AREA_IDS))]
 all_ids = list(sypop_base["id"].unique())
 
 cmd_lists = []
 job_index = 0
-for i in range(0, len(all_ids), SELECTED_PEOPLE):
-    selected_ids = " ".join(map(str, all_ids[i : i + SELECTED_PEOPLE]))
+for i in range(0, len(all_ids), SELECTED_PEOPLE_EACH_BATCH):
+    selected_ids = " ".join(map(str, all_ids[i : i + SELECTED_PEOPLE_EACH_BATCH]))
+    selected_areas = " ".join(str(item) for item in AREA_IDS)
 
     cmd = (
         f"python /home/zhangs/Github/Syspop/etc/route_model/create_routes.py "
         + f"--workdir {WORKDIR} "
-        + f"--area_id {AREA_ID} "
+        + f"--area_ids {selected_areas} "
         + f"--people_ids {selected_ids} "
         + f"--sypop_base_path {INPUT_DATA_PATH['sypop_base_path']} "
         + f"--sypop_address_path {INPUT_DATA_PATH['sypop_address_path']} "
@@ -37,7 +38,7 @@ for i in range(0, len(all_ids), SELECTED_PEOPLE):
     cmd_lists.append(cmd)
     job_index += 1
 
-    if job_index > 10:
+    if job_index > 30:
         break
 
 submit(

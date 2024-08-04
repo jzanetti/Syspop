@@ -23,11 +23,21 @@ from PIL import Image
 from scipy.interpolate import interp1d
 from shapely.geometry import LineString
 
+from syspop.process.utils import setup_logging
+
 ox.config(use_cache=True, log_console=True)
+logger = setup_logging(workdir="/tmp", log_type="syspop_routine")
 
 
 def get_domain_range(df: DataFrame) -> dict:
-    # Remove the 'id' column
+    """Obtain domain range
+
+    Args:
+        df (DataFrame): address data frame
+
+    Returns:
+        dict: Domain range, min and max for lat/lon
+    """
     df = df.drop(columns=["id"])
 
     # Flatten the DataFrame to a Series
@@ -51,8 +61,16 @@ def get_domain_range(df: DataFrame) -> dict:
     }
 
 
-def interpolate_coordinates(latlon: list, frames: int):
+def interpolate_coordinates(latlon: list, frames: int) -> list:
+    """Interpolate coordinates for lat and lon
 
+    Args:
+        latlon (list): the list of lat and lon to be interploated
+        frames (int): number of frames
+
+    Returns:
+        list: the list of coordinates
+    """
     # Separate the lat and lon into two lists
     lat = [x[0] for x in latlon]
     lon = [x[1] for x in latlon]
@@ -79,14 +97,27 @@ def read_data(
     sypop_base_path: str,
     sypop_address_path: str,
     syspop_diaries_path: str,
-    area_id: list,
+    area_ids: list,
     people_ids: int,
-):
+) -> DataFrame:
+    """Read datasets
+
+    Args:
+        sypop_base_path (str): Basic sypop datasets
+        sypop_address_path (str): Syspop address dataset path
+        syspop_diaries_path (str): Syspop diary dataset path
+        area_ids (list): a list of area ids
+        people_ids (int): a list of people ids
+
+    Returns:
+        DataFrame: The dataframe for the processed data
+    """
     synpop_data = pandas_read_parquet(sypop_base_path)
     synpop_address = pandas_read_parquet(sypop_address_path)
     syspop_diaries = pandas_read_parquet(syspop_diaries_path)
 
-    synpop_data = synpop_data[synpop_data["area"] == int(area_id)]
+    area_ids = [int(item) for item in area_ids]
+    synpop_data = synpop_data[synpop_data["area"].isin(area_ids)]
     people_ids = [int(item) for item in people_ids]
     synpop_data = synpop_data[synpop_data["id"].isin(people_ids)]
 
@@ -131,6 +162,14 @@ def read_data(
 
 
 def create_geo_object(domain: dict):
+    """Create geo object for OSMNX
+
+    Args:
+        domain (dict): Domain size
+
+    Returns:
+        _type_: Geo object for OSMNX
+    """
     G = ox.graph_from_bbox(
         domain["north"],
         domain["south"],
@@ -150,13 +189,25 @@ def create_routes(
     G: MultiDiGraph,
     hourly_data: DataFrame,
     frames=60,
-):
+) -> dict:
+    """Creating routes with OSMNX
 
+    Args:
+        G (MultiDiGraph): OSMNX object
+        hourly_data (DataFrame): Hourly diary data
+        frames (int, optional): default number of fames. Defaults to 60.
+
+    Returns:
+        dict: Route data
+    """
     all_hours = list(hourly_data.columns)
     all_hours.remove("id")
 
     routes_data = {}
-    for _, proc_agent in hourly_data.iterrows():
+    total_agents = len(hourly_data)
+    for i, proc_agent in hourly_data.iterrows():
+
+        logger.info(f"Processing {i}/{total_agents} ...")
 
         routes_data[proc_agent.id] = {}
 
@@ -209,21 +260,33 @@ def create_routes(
 
 def main(
     workdir: str,
-    area_id: str,
+    area_ids: list,
     people_ids: list,
     sypop_base_path: str,
     sypop_address_path: str,
     syspop_diaries_path: str,
 ):
+    """Main function for creating routes
 
-    if not os.path.exists(workdir):
+    Args:
+        workdir (str): Working directory
+        area_ids (list): A list of areas to be used (SA2)
+        people_ids (list): A list of people to be used (people ID from syspop)
+        sypop_base_path (str): Base syspop data path
+        sypop_address_path (str): Syspop address data path
+        syspop_diaries_path (str): Syspop diary data path
+    """
+
+    try:
         makedirs(workdir)
+    except FileExistsError:
+        pass
 
     hourly_data = read_data(
         sypop_base_path,
         sypop_address_path,
         syspop_diaries_path,
-        area_id=area_id,
+        area_ids=area_ids,
         people_ids=people_ids,
     )
 
@@ -246,10 +309,9 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--area_id",
-        type=str,
-        required=False,
-        default="251400",
+        "--area_ids",
+        nargs="+",
+        required=True,
         help="Area ID",
     )
 
@@ -304,7 +366,7 @@ if __name__ == "__main__":
 
     main(
         args.workdir,
-        args.area_id,
+        args.area_ids,
         args.people_ids,
         args.sypop_base_path,
         args.sypop_address_path,

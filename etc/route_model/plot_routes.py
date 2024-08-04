@@ -51,11 +51,17 @@ if use_data_latlon_range:
     min_lon = 9999
     max_lon = -9999
 else:
+
     min_lat = -41.31
     max_lat = -41.26
     min_lon = 174.74
     max_lon = 174.79
-
+    """
+    min_lat = -41.17
+    max_lat = -41.13
+    min_lon = 174.97
+    max_lon = 175.04
+    """
 for proc_file in all_files:
     proc_data_all_agents = pickle_load(open(proc_file, "rb"))
 
@@ -102,7 +108,7 @@ for proc_hr in all_hrs:
 
     for frame in range(frames):
 
-        print(f"{proc_hr}: {frame}")
+        print(f"Hour: {proc_hr}; Frame: {frame}")
 
         request = cimgt.OSM()
         fig, ax = plt.subplots(
@@ -118,15 +124,19 @@ for proc_hr in all_hrs:
         for data_to_plot in proc_data:
             if len(data_to_plot) == 1:
                 data_to_plot2 = data_to_plot[0]
-                alpha_flag = 0.25
+                alpha_flag = 0.15
+                color = "y"
+                markersize = 1.5
             else:
                 data_to_plot2 = data_to_plot[frame]
-                alpha_flag = 0.75
+                alpha_flag = 0.3
+                color = "r"
+                markersize = 3
             ax.plot(
                 data_to_plot2[1],
                 data_to_plot2[0],
-                "ro",
-                markersize=3,
+                f"{color}o",
+                markersize=markersize,
                 alpha=alpha_flag,
                 transform=ccrs.PlateCarree(),
             )
