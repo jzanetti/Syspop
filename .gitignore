@@ -5,9 +5,11 @@ cache
 etc/data/archive
 etc/data/confidential_data
 etc/data/raw_nz*
+etc/data/raw_wellington*
 etc/data/raw_tonga*
 etc/data/test_data*
 !etc/data/test_data_latest
+etc/route_model/slurm_jobs
 build
 cache
 dist

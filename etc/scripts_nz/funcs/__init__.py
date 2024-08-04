@@ -22,7 +22,7 @@ DEPENDENT_CHILDREN_COUNT_CODE = {
 # ---------------------------------
 # Synthentic data information
 # ---------------------------------
-RAW_DATA_DIR = "etc/data/raw_nz_latest"
+RAW_DATA_DIR = "etc/data/raw_wellington_latest"
 
 RAW_DATA = {
     "geography": {

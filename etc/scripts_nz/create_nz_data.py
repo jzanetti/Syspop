@@ -96,7 +96,5 @@ if __name__ == "__main__":
         help="Working directory",
     )
 
-    args = parser.parse_args(
-        # ["--workdir", "/tmp/test/"]
-    )
+    args = parser.parse_args()  # ["--workdir", "etc/data/test_data_wellington_latest"]
     import_raw_data(args.workdir)

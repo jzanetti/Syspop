@@ -161,7 +161,7 @@ def query_results(
 
             for i, node in enumerate(all_results):
 
-                logger.info(i)
+                logger.info(f"{proc_value}: {i} / {len(all_results)}")
 
                 try:
                     recorded_name = f"{proc_value}_{i}"
@@ -216,13 +216,13 @@ def query_results(
 
 
 if __name__ == "__main__":
-    region = "Tongatapu"  # can be NaN, or sth like Auckland
-    country = "Tonga"  # New Zealand, Tonga
+    region = "Wellington"  # can be NaN, or sth like Auckland
+    country = "New Zealand"  # New Zealand, Tonga
     query_results(
         QUERY_KEYS[country],
         region,
         country,
-        output_dir="etc/data/raw_tonga_latest",
+        output_dir="etc/data/raw_wellington_latest",
         if_add_random_loc=False,
         use_element=True,
     )

@@ -25,7 +25,7 @@ def assign_employers_to_base_pop(
     Returns:
         DataFrame: Updated population
     """
-    base_pop["company"] = NaN
+    base_pop["company"] = numpy_nan
     total_people = len(base_pop)
 
     if use_for_loop:

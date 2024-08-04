@@ -36,7 +36,7 @@ def home_and_work(
         ray.init(num_cpus=n_cpu, include_dashboard=False)
 
     base_pop["area_work"] = -9999
-    base_pop["travel_mode_work"] = NaN
+    base_pop["travel_mode_work"] = numpy_nan
 
     working_age_people = base_pop[
         (base_pop["age"] >= work_age["min"]) & (base_pop["age"] <= work_age["max"])
