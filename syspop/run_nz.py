@@ -9,7 +9,7 @@ from syspop import vis as syspop_vis
 
 data_year = 2023  # can be None or an actual year
 data_percentile = "median"
-output_dir = f"/tmp/syspop_test12/Wellington"
+output_dir = f"/tmp/syspop_test13/Wellington_test"
 # output_dir = "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ"
 if data_year is not None:
     output_dir = f"{output_dir}/{data_year}"
@@ -25,13 +25,13 @@ syn_areas = list(
     ]["area"]
 )
 
-# syn_areas = [135400, 111400, 110400]
+# syn_areas = [247900]
 # syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
 
 if_run_syspop_create = True
-if_run_diary = False
-if_run_validation = False
-if_run_vis = False
+if_run_diary = True
+if_run_validation = True
+if_run_vis = True
 
 if if_run_syspop_create:
     syspop_create(

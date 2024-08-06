@@ -10,7 +10,10 @@ logger = getLogger()
 
 @ray.remote
 def assign_place_to_address_remote(
-    address_type: str, pop_data_input: DataFrame, address_data_input: DataFrame
+    address_type: str,
+    pop_data_input: DataFrame,
+    address_data_input: DataFrame,
+    proc_area: int,
 ):
     """Randomly assign each household to an address (for parallel processing)
 
@@ -22,12 +25,15 @@ def assign_place_to_address_remote(
         DataFrame: Processed population data
     """
     return assign_place_to_address(
-        address_type, deepcopy(pop_data_input), address_data_input
+        address_type, deepcopy(pop_data_input), address_data_input, proc_area
     )
 
 
 def assign_place_to_address(
-    address_type: str, pop_data_input: DataFrame, address_data_input: DataFrame
+    address_type: str,
+    pop_data_input: DataFrame,
+    address_data_input: DataFrame,
+    proc_area: int,
 ) -> DataFrame:
     """Randomly assign each household to an address
 
@@ -47,7 +53,7 @@ def assign_place_to_address(
         if len(address_data_input) > 0:
             proc_address = address_data_input.sample(n=1)
             all_address.append(
-                f"{proc_address_name}, {round(proc_address['latitude'].values[0], 5)},{round(proc_address['longitude'].values[0], 5)}"
+                f"{proc_address_name}, {round(proc_address['latitude'].values[0], 5)},{round(proc_address['longitude'].values[0], 5)}, {proc_area}"
             )
 
     return all_address
@@ -94,11 +100,11 @@ def add_random_address(
 
         if use_parallel:
             processed_address = assign_place_to_address_remote.remote(
-                address_type, proc_pop_data, proc_address_data
+                address_type, proc_pop_data, proc_address_data, proc_area
             )
         else:
             processed_address = assign_place_to_address(
-                address_type, proc_pop_data, proc_address_data
+                address_type, proc_pop_data, proc_address_data, proc_area
             )
 
         results.append(processed_address)
@@ -108,15 +114,18 @@ def add_random_address(
         ray.shutdown()
 
     flattened_results = [item for sublist in results for item in sublist]
-    results_dict = {"name": [], "latitude": [], "longitude": []}
+    results_dict = {"name": [], "latitude": [], "longitude": [], "area": []}
     for proc_result in flattened_results:
         proc_value = proc_result.split(",")
         results_dict["name"].append(proc_value[0])
         results_dict["latitude"].append(float(proc_value[1]))
         results_dict["longitude"].append(float(proc_value[2]))
+        results_dict["area"].append(int(proc_value[3]))
 
     results_df = DataFrame.from_dict(results_dict)
     results_df["type"] = address_type
+
+    results_df["area"] = results_df["area"].astype(int)
 
     end_time = datetime.utcnow()
 

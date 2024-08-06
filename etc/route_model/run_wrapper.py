@@ -4,6 +4,8 @@ from random import randint
 from pandas import read_parquet
 from slurm.submit import submit
 
+# pip install slurm_esr
+
 os.chdir("/home/zhangs/Github/EpiModel_ESR/etc/submit/slurm")
 
 WORKDIR = "/home/zhangs/Github/Syspop/etc/route_model/agents_movement_output"
@@ -38,8 +40,8 @@ for i in range(0, len(all_ids), SELECTED_PEOPLE_EACH_BATCH):
     cmd_lists.append(cmd)
     job_index += 1
 
-    if job_index > 30:
-        break
+    # if job_index > 30:
+    #    break
 
 submit(
     job_name="syspop_routing",

@@ -36,7 +36,7 @@ def shared_space_wrapper(
         }
     )
 
-    shared_space_data = shared_space_data.drop(columns=["area"])
+    # shared_space_data = shared_space_data.drop(columns=["area"])
 
     geography_location_data_updated = geography_location_data.rename(
         columns={
@@ -70,6 +70,8 @@ def shared_space_wrapper(
         nearest_rows = shared_space_data.iloc[nearest_indices].reset_index(drop=True)
 
         nearest_rows.rename(columns={shared_space_name: f"tmp_{i}"}, inplace=True)
+
+        nearest_rows = nearest_rows.drop(columns=["area"])
 
         pop_data = concat([pop_data, nearest_rows], axis=1)
 

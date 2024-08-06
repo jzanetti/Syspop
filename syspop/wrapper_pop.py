@@ -442,7 +442,8 @@ def create_vaccine(
 
         data_list.append(proc_pop)
 
-    base_pop_data.update(pandas_concat(data_list, axis=0))
+    if len(data_list) > 0:
+        base_pop_data.update(pandas_concat(data_list, axis=0))
 
     with open(tmp_data_path, "wb") as fid:
         pickle_dump({"synpop": base_pop_data, "synadd": base_pop["synadd"]}, fid)

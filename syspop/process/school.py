@@ -45,19 +45,59 @@ def obtain_available_schools(
     Returns:
         list or None: _description_
     """
+
+    def _create_area_list(
+        initial_value: int, range_value: int = 100, area_range_interval: int = 10
+    ):
+        """Return neighbooring areas, e.g., for 4000, we would have 4000, 3999, 4001, 3998, 4002, ...
+
+        Args:
+            initial_value (int): initial value, e.g., 400
+            range_value (int, optional): _description_. Defaults to 30.
+        """
+        area_list = [initial_value]
+
+        if range_value is not None:
+            for i in range(0, range_value, area_range_interval):
+                area_list.append(initial_value + i)
+                area_list.append(initial_value - i)
+
+        return area_list[2:]
+
     for area_key in possile_area_levels:
-        proc_schools = school_data[
-            (
-                (school_data[area_key] == proc_people_location[area_key])
-                & (school_data["age_min"] <= proc_people_age)
-                & (school_data["age_max"] >= proc_people_age)
-            )
-        ]
 
-        proc_schools = proc_schools[~proc_schools["school_name"].isin(processed_school)]
+        if area_key == "area":
+            area_range_value = 300
+            area_range_interval = 10
+        elif area_key == "super_area":
+            area_range_value = 100
+            area_range_interval = 10
+        elif area_key == "region":
+            area_range_value = None
+            area_range_interval = None
 
-        if len(proc_schools) > 0:
-            return proc_schools
+        possible_area_values = _create_area_list(
+            proc_people_location[area_key],
+            range_value=area_range_value,
+            area_range_interval=area_range_interval,
+        )
+
+        for _, possible_area_value in enumerate(possible_area_values):
+
+            proc_schools = school_data[
+                (
+                    (school_data[area_key] == possible_area_value)
+                    & (school_data["age_min"] <= proc_people_age)
+                    & (school_data["age_max"] >= proc_people_age)
+                )
+            ]
+
+            proc_schools = proc_schools[
+                ~proc_schools["school_name"].isin(processed_school)
+            ]
+
+            if len(proc_schools) > 0:
+                return proc_schools
 
     return None
 
@@ -98,6 +138,7 @@ def school_and_kindergarten_wrapper(
     geography_hierarchy_data: DataFrame,
     assign_address_flag: bool = False,
     possile_area_levels: list = ["area", "super_area", "region"],
+    max_students_factor: int = 2,
 ) -> DataFrame:
     """Wrapper to assign school to individuals (Note this is a very slow process)
     We are not able to use multiprocessing since the school data
@@ -142,6 +183,8 @@ def school_and_kindergarten_wrapper(
 
     school_data = school_data[school_data["max_students"] > 0]
 
+    school_data["max_students"] = school_data["max_students"] * max_students_factor
+
     pop_data = merge(
         pop_data,
         geography_hierarchy_data[["area", "super_area", "region"]],
@@ -159,7 +202,7 @@ def school_and_kindergarten_wrapper(
     full_school = []
 
     if assign_address_flag:
-        school_address = {"name": [], "latitude": [], "longitude": []}
+        school_address = {"name": [], "latitude": [], "longitude": [], "area": []}
 
     for i in range(total_school_people):
         proc_people = school_population.sample(n=1)
@@ -188,7 +231,11 @@ def school_and_kindergarten_wrapper(
                 school_population = school_population[
                     school_population["index"] != proc_people["index"].values[0]
                 ]
-                logger.info(f"Not able to find any {data_type} data ...")
+                proc_people_area = proc_people.area.values[0]
+                proc_people_id = proc_people.index.values[0]
+                logger.info(
+                    f"Not able to find any {data_type} data in {proc_people_area}, people {proc_people_id} missed out ..."
+                )
                 break
 
             proc_school = get_a_school(proc_schools, school_assigned_people)
@@ -205,7 +252,7 @@ def school_and_kindergarten_wrapper(
                     school_address["longitude"].append(
                         float(proc_school["longitude"].values[0])
                     )
-
+                    school_address["area"].append(float(proc_school["area"].values[0]))
                 proc_people[data_type] = proc_school_name
                 processed_people.append(proc_people)
                 school_population = school_population[
@@ -240,4 +287,5 @@ def school_and_kindergarten_wrapper(
         f"{data_type} processing runtime: {round(((datetime.utcnow() - start_time).total_seconds()) / 60.0, 3)}"
     )
 
+    address_data["area"] = address_data["area"].astype(int)
     return pop_data, address_data
