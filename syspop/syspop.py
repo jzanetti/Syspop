@@ -564,7 +564,7 @@ def create(
             kindergarten_data,
             geo_hierarchy,
             assign_address_flag,
-            possile_area_levels=["area", "super_area"],
+            possile_area_levels=["area"],
         )
 
     if hospital_data is not None:
@@ -581,7 +581,7 @@ def create(
             "supermarket",
             geo_location,
             assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 2, "area_work": 1},
+            area_name_keys_and_selected_nums={"area": 2},
         )
 
     if restaurant_data is not None:
@@ -593,7 +593,7 @@ def create(
             "restaurant",
             geo_location,
             assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 3, "area_work": 1},
+            area_name_keys_and_selected_nums={"area": 3, "area_work": 0},
         )
 
     if pharmacy_data is not None:
@@ -655,7 +655,7 @@ def create(
             "fast_food",
             geo_location,
             assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
+            area_name_keys_and_selected_nums={"area": 1, "area_work": 0},
         )
 
     if pub_data is not None:
@@ -667,7 +667,7 @@ def create(
             "pub",
             geo_location,
             assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
+            area_name_keys_and_selected_nums={"area": 1},
         )
 
     if park_data is not None:
@@ -679,7 +679,7 @@ def create(
             "park",
             geo_location,
             assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 1, "area_work": 1},
+            area_name_keys_and_selected_nums={"area": 1},
         )
 
     if mmr_data is not None:

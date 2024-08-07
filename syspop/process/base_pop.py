@@ -131,4 +131,5 @@ def base_pop_wrapper(
     output_df = DataFrame(population)
 
     output_df["age"] = output_df["age"].astype(int)
+
     return output_df, base_address

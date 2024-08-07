@@ -225,12 +225,24 @@ def create_shared_space(
 
     base_pop_data = base_pop["synpop"]
     address_data = base_pop["synadd"]
+
+    household_address = base_pop_data[["household"]].merge(
+        address_data[["name", "latitude", "longitude"]],
+        left_on="household",
+        right_on="name",
+        how="left",
+    )
+    household_address = household_address[
+        ["household", "latitude", "longitude"]
+    ].drop_duplicates()
+
     for area_name_key in area_name_keys_and_selected_nums:
         base_pop_data, address_data = shared_space_wrapper(
             shared_space_type,  # "restaurant",
             shared_space_data,  # restaurant_data,
             base_pop_data,
             address_data,
+            household_address,
             geo_location,
             num_nearest=area_name_keys_and_selected_nums[area_name_key],  # 4,
             assign_address_flag=assign_address_flag,

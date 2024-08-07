@@ -1,5 +1,13 @@
-from pandas import DataFrame, concat, merge
+from logging import getLogger
+
+from numpy import NaN as numpy_nan
+from numpy import arange as numpy_arrange
+from numpy import where as numpy_where
+from pandas import DataFrame, concat
+from process import SHARED_SPACE_NEAREST_DISTANCE_KM
 from scipy.spatial.distance import cdist
+
+logger = getLogger()
 
 
 def _remove_duplicates_shared_space(row):
@@ -15,6 +23,7 @@ def shared_space_wrapper(
     shared_space_data: DataFrame,
     pop_data: DataFrame,
     address_data: DataFrame,
+    household_address: DataFrame,
     geography_location_data: DataFrame,
     num_nearest: int = 3,
     assign_address_flag: bool = False,
@@ -36,28 +45,44 @@ def shared_space_wrapper(
         }
     )
 
-    # shared_space_data = shared_space_data.drop(columns=["area"])
+    if area_name_key == "area":
+        pop_data = pop_data.merge(
+            household_address[["household", "latitude", "longitude"]],
+            on="household",
+            how="left",
+        )
 
-    geography_location_data_updated = geography_location_data.rename(
-        columns={
-            "area": area_name_key,
-            "latitude": f"{area_name_key}_latitude",
-            "longitude": f"{area_name_key}_longitude",
-        }
-    )
-
-    pop_data = merge(
-        pop_data,
-        geography_location_data_updated,
-        on=area_name_key,
-        how="left",
-    )
+        pop_data = pop_data.rename(
+            columns={
+                "latitude": "src_latitude",
+                "longitude": "src_longitude",
+            }
+        )
+    else:
+        geography_location_data_updated = geography_location_data.rename(
+            columns={
+                "area": area_name_key,
+                "latitude": f"{area_name_key}_latitude",
+                "longitude": f"{area_name_key}_longitude",
+            }
+        )
+        pop_data = pop_data.merge(
+            geography_location_data_updated,
+            on="area_work",
+            how="left",
+        )
+        pop_data = pop_data.rename(
+            columns={
+                "area_work_latitude": "src_latitude",
+                "area_work_longitude": "src_longitude",
+            }
+        )
 
     for i in range(num_nearest):
 
         if i == 0:
             distance_matrix = cdist(
-                pop_data[[f"{area_name_key}_latitude", f"{area_name_key}_longitude"]],
+                pop_data[[f"src_latitude", f"src_longitude"]],
                 shared_space_data[
                     [f"latitude_{shared_space_name}", f"longitude_{shared_space_name}"]
                 ],
@@ -67,11 +92,26 @@ def shared_space_wrapper(
             distance_matrix[range(len(nearest_indices)), nearest_indices] = float("inf")
 
         nearest_indices = distance_matrix.argmin(axis=1)
+
         nearest_rows = shared_space_data.iloc[nearest_indices].reset_index(drop=True)
 
         nearest_rows.rename(columns={shared_space_name: f"tmp_{i}"}, inplace=True)
 
         nearest_rows = nearest_rows.drop(columns=["area"])
+
+        # Remove shared space too far away
+        dis_value = distance_matrix[
+            numpy_arrange(nearest_indices.shape[0]), nearest_indices
+        ]
+        dis_indices = numpy_where(
+            dis_value > SHARED_SPACE_NEAREST_DISTANCE_KM[shared_space_name] / 110.0
+        )[0]
+
+        logger.info(
+            f"{shared_space_name}({i}, {area_name_key}): Removing {round((dis_indices.shape[0] / dis_value.shape[0]) * 100.0, 2)}% due to distance"
+        )
+
+        nearest_rows.loc[dis_indices, :] = numpy_nan
 
         pop_data = concat([pop_data, nearest_rows], axis=1)
 
@@ -94,9 +134,7 @@ def shared_space_wrapper(
     pop_data[shared_space_name] = (
         pop_data[shared_space_name].str.replace(",,", ",").str.strip(",")
     )
-    pop_data = pop_data.drop(
-        columns=[f"{area_name_key}_latitude", f"{area_name_key}_longitude"]
-    )
+    pop_data = pop_data.drop(columns=["src_latitude", "src_longitude"])
 
     if assign_address_flag:
         address_data = add_shared_space_address(

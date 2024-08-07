@@ -4,6 +4,11 @@ from logging import INFO, Formatter, StreamHandler, basicConfig, getLogger
 from os.path import exists, join
 from pickle import load as pickle_load
 
+from numpy import all as numpy_all
+from numpy import array as numpy_array
+from numpy import isnan as numpy_isnan
+from numpy import nan as numpy_nan
+from numpy import nanargmin as numpy_nanargmin
 from pandas import DataFrame
 from pandas import concat as pandas_concat
 from pandas import merge as pandas_merge
@@ -218,3 +223,18 @@ def _get_data_for_test(test_data_dir: str) -> dict:
         test_data["others"] = {"birthplace": None, "mmr": None}
 
     return test_data
+
+
+def safe_nanargmin(arr, axis=1):
+    # Initialize an empty list to store the result
+    result = []
+    # Iterate over each row in the array
+    for row in arr:
+        # If all values in the row are NaN, append NaN to the result
+        if numpy_all(numpy_isnan(row)):
+            result.append(numpy_nan)
+        else:
+            # Otherwise, append the index of the minimum non-NaN value
+            result.append(numpy_nanargmin(row))
+    # Convert the result to a numpy array and return it
+    return numpy_array(result)

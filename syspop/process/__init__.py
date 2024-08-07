@@ -116,3 +116,16 @@ DIARY_CFG = {
         # },
     },
 }
+
+
+SHARED_SPACE_NEAREST_DISTANCE_KM = {
+    "restaurant": 3.0,
+    "fast_food": 2.0,
+    "pub": 2.0,
+    "supermarket": 2.5,
+    "pharmacy": 5.0,
+    "cafe": 2.0,
+    "department_store": 10.0,
+    "wholesale": 10.0,
+    "park": 3.0,
+}
