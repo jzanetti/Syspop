@@ -29,6 +29,12 @@ def convert_png_to_gif(png_files, gif_path, duration):
     )
 
 
+"""
+filepaths = []
+for hr in range(0, 30):
+    filepaths.append(f"etc/route_model/agents_movement_output/vis/test_7_{hr}.png")
+convert_png_to_gif(filepaths, "test.gif", 500)
+"""
 workdir = "/home/zhangs/Github/Syspop/etc/route_model/agents_movement_output"
 workdir_vis = join(workdir, "vis")
 plot_hours = [7, 8, 9]  # range(24)
