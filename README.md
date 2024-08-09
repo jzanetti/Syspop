@@ -2,11 +2,11 @@
 
 # Synthetic & Simulated Population (SysPop)
 
-<p align="center">
+<p align="center" style="margin-bottom:0">
     <img src="etc/wiki_img/agent2.gif?raw=true" alt="GIF Example" width="22%">
     <img src="etc/wiki_img/work_place.gif?raw=true" alt="Sample Image" width="40%">
 </p>
-<p align="center">
+<p align="center" style="margin-top:0">
     <img src="etc/wiki_img/241800.png?raw=true" alt="Sample Image" width="30%">
     <img src="etc/wiki_img/241800_travel_7am.gif?raw=true" alt="Sample Image" width="30%">
 </p>
