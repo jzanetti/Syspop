@@ -1,4 +1,3 @@
-
 from argparse import ArgumentParser
 from os import makedirs
 from os.path import join
@@ -14,10 +13,7 @@ from pandas import DataFrame
 from pandas import read_parquet as pandas_read_parquet
 from scipy.interpolate import interp1d
 
-from syspop.process.utils import setup_logging
-
 ox.config(use_cache=True, log_console=True)
-logger = setup_logging(workdir="/tmp", log_type="syspop_routine")
 
 
 def get_domain_range(df: DataFrame) -> dict:
@@ -90,6 +86,7 @@ def read_data(
     syspop_diaries_path: str,
     area_ids: list,
     people_ids: int,
+    pertubate_latlon: float = 0.0,
 ) -> DataFrame:
     """Read datasets
 
@@ -113,7 +110,7 @@ def read_data(
     synpop_data = synpop_data[synpop_data["id"].isin(people_ids)]
 
     all_hours = [int(item) for item in list(syspop_diaries.hour.unique())]
-
+    # all_hours = [7, 8]
     latlon_data = {}
     for proc_hr in all_hours:
         latlon_data[proc_hr] = []
@@ -132,20 +129,21 @@ def read_data(
                 "location"
             ].values[0]
 
-            if proc_location is not None:
+            if (proc_location is not None) and (proc_location != "nan"):
                 proc_address = synpop_address[synpop_address["name"] == proc_location]
 
                 proc_latlon = (
                     proc_address.latitude.values[0],
                     proc_address.longitude.values[0],
                 )
+
             else:
                 proc_latlon = (
-                    proc_address.latitude.values[0] + random_uniform(-0.03, 0.03),
-                    proc_address.longitude.values[0] + random_uniform(-0.03, 0.03),
+                    proc_address.latitude.values[0]
+                    + random_uniform(-pertubate_latlon, pertubate_latlon),
+                    proc_address.longitude.values[0]
+                    + random_uniform(-pertubate_latlon, pertubate_latlon),
                 )
-                # proc_lat += random_uniform(-0.03, 0.03)
-                # proc_lon += random_uniform(-0.03, 0.03)
 
             latlon_data[proc_hr].append(proc_latlon)
 
@@ -177,9 +175,7 @@ def create_geo_object(domain: dict):
 
 
 def create_routes(
-    G: MultiDiGraph,
-    hourly_data: DataFrame,
-    frames=60,
+    G: MultiDiGraph, hourly_data: DataFrame, interp: bool, frames=60
 ) -> dict:
     """Creating routes with OSMNX
 
@@ -191,14 +187,20 @@ def create_routes(
     Returns:
         dict: Route data
     """
+
     all_hours = list(hourly_data.columns)
     all_hours.remove("id")
+    # all_hours = [7]
 
     routes_data = {}
     total_agents = len(hourly_data)
+
     for i, proc_agent in hourly_data.iterrows():
 
-        logger.info(f"Processing {i}/{total_agents} ...")
+        # if proc_agent.id != 127114:
+        #    continue
+
+        print(f"Processing {i}/{total_agents} ...")
 
         routes_data[proc_agent.id] = {}
 
@@ -233,10 +235,12 @@ def create_routes(
                         latlon.append(
                             (G.nodes[proc_node]["y"], G.nodes[proc_node]["x"]),
                         )
-                    try:
-                        latlon = interpolate_coordinates(latlon, frames)
-                    except ValueError:
-                        latlon = None
+
+                    if interp:
+                        try:
+                            latlon = interpolate_coordinates(latlon, frames)
+                        except ValueError:
+                            latlon = None
 
             except nx.exception.NetworkXNoPath:
                 continue
@@ -256,6 +260,7 @@ def main(
     sypop_base_path: str,
     sypop_address_path: str,
     syspop_diaries_path: str,
+    interp: bool,
 ):
     """Main function for creating routes
 
@@ -266,12 +271,15 @@ def main(
         sypop_base_path (str): Base syspop data path
         sypop_address_path (str): Syspop address data path
         syspop_diaries_path (str): Syspop diary data path
+        interp (bool): run interpolation flag
     """
 
     try:
         makedirs(workdir)
     except FileExistsError:
         pass
+
+    # people_ids = people_ids[0].split(" ")
 
     hourly_data = read_data(
         sypop_base_path,
@@ -283,9 +291,11 @@ def main(
 
     domain = get_domain_range(hourly_data)
     G = create_geo_object(domain)
-    routes = create_routes(G, hourly_data)
+    routes = create_routes(G, hourly_data, interp)
 
     pickle_dump(routes, open(join(workdir, f"routes_{str(uuid4())[:6]}.pickle"), "wb"))
+
+    print("All jobs done ...")
 
 
 if __name__ == "__main__":
@@ -334,23 +344,32 @@ if __name__ == "__main__":
         help="Syspop diary path",
     )
 
+    parser.add_argument(
+        "--interp",
+        action="store_true",
+        help="Interpolate the data to the minuite level",
+    )
+
     args = parser.parse_args()
+
     """
     args = parser.parse_args(
         [
             "--workdir",
-            "/tmp/agents_movement",
+            "etc/route_model/agents_movement",
             "--area_id",
-            "251400",
+            "241800",
             "--people_ids",
-            "3479584",
-            "3479586",
+            # "127114",
+            # "127115",
+            "127070 127071 127072 127073 127074 127075 127076 127077 127078 127079 127080 127081 127082 127083 127084 127085 127086 127087 127088 127089 127090 127091 127092 127093 127094 127095 127096 127097 127098 127099 127100 127101 127102 127103 127104 127105 127106 127107 127108 127109 127110 127111 127112 127113 127114 127115 127116 127117 127118 127119",
             "--sypop_base_path",
-            "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_base.parquet",
+            "/DSC/digital_twin/abm/synthetic_population/v3.0/Wellington/syspop_base.parquet",
             "--sypop_address_path",
-            "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_location.parquet",
+            "/DSC/digital_twin/abm/synthetic_population/v3.0/Wellington/syspop_location.parquet",
             "--syspop_diaries_path",
-            "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_diaries.parquet",
+            "/DSC/digital_twin/abm/synthetic_population/v3.0/Wellington/syspop_diaries.parquet",
+            "--interp",
         ]
     )
     """
@@ -362,4 +381,5 @@ if __name__ == "__main__":
         args.sypop_base_path,
         args.sypop_address_path,
         args.syspop_diaries_path,
+        args.interp,
     )

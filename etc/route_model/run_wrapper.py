@@ -1,5 +1,4 @@
 import os
-from random import randint
 
 from pandas import read_parquet
 from slurm.submit import submit
@@ -8,17 +7,31 @@ from slurm.submit import submit
 
 os.chdir("/home/zhangs/Github/EpiModel_ESR/etc/submit/slurm")
 
+# -----------------------------------------------------
+# Set up the user information
+# - workdir: where the output should sit
+#       e.g., /home/zhangs/Github/Syspop/etc/route_model/agents_movement_output
+# - input_dir: where is the input
+# - area_ids: a list contains the SA2 ids
+# - selected_people_each_batch: for each slurm job, how many agents we want to process
+# - parallel_jobs: how many slurm jobs to run in parallel
+# -----------------------------------------------------
 WORKDIR = "/home/zhangs/Github/Syspop/etc/route_model/agents_movement_output"
-INPUT_DATA_PATH = {
-    "sypop_base_path": "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_base.parquet",
-    "sypop_address_path": "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_location.parquet",
-    "syspop_diaries_path": "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ/2023/median/syspop_diaries.parquet",
-}
-AREA_IDS = [251300, 251400, 251600, 251700, 251800]
+INPUT_DIR = "/DSC/digital_twin/abm/synthetic_population/v3.0/Wellington"
+AREA_IDS = [241800]
 SELECTED_PEOPLE_EACH_BATCH = 50
 PARALLEL_JOBS = 10
 
-sypop_base = read_parquet(INPUT_DATA_PATH["sypop_base_path"])
+# ---------------------------------------------------
+# Job starts here
+# ---------------------------------------------------
+input_data_dict = {
+    "sypop_base_path": f"{INPUT_DIR}/syspop_base.parquet",
+    "sypop_address_path": f"{INPUT_DIR}/syspop_location.parquet",
+    "syspop_diaries_path": f"{INPUT_DIR}/syspop_diaries.parquet",
+}
+
+sypop_base = read_parquet(input_data_dict["sypop_base_path"])
 sypop_base = sypop_base[(sypop_base["area"].isin(AREA_IDS))]
 all_ids = list(sypop_base["id"].unique())
 
@@ -33,9 +46,10 @@ for i in range(0, len(all_ids), SELECTED_PEOPLE_EACH_BATCH):
         + f"--workdir {WORKDIR} "
         + f"--area_ids {selected_areas} "
         + f"--people_ids {selected_ids} "
-        + f"--sypop_base_path {INPUT_DATA_PATH['sypop_base_path']} "
-        + f"--sypop_address_path {INPUT_DATA_PATH['sypop_address_path']} "
-        + f"--syspop_diaries_path {INPUT_DATA_PATH['syspop_diaries_path']}"
+        + f"--sypop_base_path {input_data_dict['sypop_base_path']} "
+        + f"--sypop_address_path {input_data_dict['sypop_address_path']} "
+        + f"--syspop_diaries_path {input_data_dict['syspop_diaries_path']} "
+        + "--interp"
     )
     cmd_lists.append(cmd)
     job_index += 1

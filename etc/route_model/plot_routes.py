@@ -31,6 +31,7 @@ def convert_png_to_gif(png_files, gif_path, duration):
 
 workdir = "/home/zhangs/Github/Syspop/etc/route_model/agents_movement_output"
 workdir_vis = join(workdir, "vis")
+plot_hours = [7, 8, 9]  # range(24)
 frames = 60
 
 if not exists(workdir_vis):
@@ -43,7 +44,7 @@ all_data = {}
 for proc_hr in range(24):
     all_data[proc_hr] = []
 
-use_data_latlon_range = False
+use_data_latlon_range = True
 
 if use_data_latlon_range:
     min_lat = 9999
@@ -96,11 +97,12 @@ for proc_file in all_files:
             # else:
             #    all_data[proc_hr].append(proc_data[proc_hr]["routes"])
 
-all_hrs = range(24)
-all_hrs = [7, 8]
+
+request = cimgt.OSM()
+
 files_list_all = []
 files_list_hr = []
-for proc_hr in all_hrs:
+for proc_hr in plot_hours:
     proc_data = all_data[proc_hr]
     files_list_hr = []
     if len(proc_data) == 0:
@@ -110,7 +112,6 @@ for proc_hr in all_hrs:
 
         print(f"Hour: {proc_hr}; Frame: {frame}")
 
-        request = cimgt.OSM()
         fig, ax = plt.subplots(
             figsize=(10, 10), subplot_kw=dict(projection=request.crs)
         )
@@ -118,20 +119,18 @@ for proc_hr in all_hrs:
         ax.set_extent([min_lon, max_lon, min_lat, max_lat])
 
         ax.add_image(request, 15)
-
+        # ax.stock_img()  # Add base map
         ax.set_title(f"T{proc_hr} + {frame}")
 
         for data_to_plot in proc_data:
             if len(data_to_plot) == 1:
                 data_to_plot2 = data_to_plot[0]
-                alpha_flag = 0.15
-                color = "y"
-                markersize = 1.5
             else:
                 data_to_plot2 = data_to_plot[frame]
-                alpha_flag = 0.3
-                color = "r"
-                markersize = 3
+
+            alpha_flag = 0.5
+            color = "r"
+            markersize = 2
             ax.plot(
                 data_to_plot2[1],
                 data_to_plot2[0],
