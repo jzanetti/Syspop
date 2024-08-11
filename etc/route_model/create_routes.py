@@ -129,8 +129,11 @@ def interpolate_coordinates(
     lon = [x[1] for x in latlon]
 
     # Create the interpolation function
-    f_lat = interp1d(np.arange(len(lat)), lat, kind="cubic")
-    f_lon = interp1d(np.arange(len(lon)), lon, kind="cubic")
+    try:
+        f_lat = interp1d(np.arange(len(lat)), lat, kind="cubic")
+        f_lon = interp1d(np.arange(len(lon)), lon, kind="cubic")
+    except ValueError:
+        raise Exception(f"interp1D error, with lat/lon as {lat}/{lon}")
 
     # Create the new indices for interpolation
     new_indices = np.linspace(0, len(lat) - 1, frames)

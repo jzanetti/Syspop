@@ -34,7 +34,7 @@ def plot_data(all_data_points, ax):
 
     alpha_flag = 0.5
     color = "r"
-    markersize = 2
+    markersize = 5
     ax.plot(
         longitudes,
         latitudes,
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     workdir = "/home/zhangs/Github/Syspop/etc/route_model/agents_movement_output_v2.0"
     workdir_vis = join(workdir, "vis")
-    plot_hours = [7, 8]  # range(24)
+    plot_hours = [7, 8, 9]  # range(24)
     frames = 60
 
     if not exists(workdir_vis):
@@ -128,7 +128,7 @@ if __name__ == "__main__":
             )
             ax.set_extent([min_lon, max_lon, min_lat, max_lat])
             ax.add_image(request, 12)
-            ax.set_title(f"T{proc_hr} + {frame}")
+            ax.set_title(f"{str(proc_hr).zfill(2)} hr + {str(frame).zfill(2)} min")
 
             all_data_points = []
             for data_to_plot in proc_data:
