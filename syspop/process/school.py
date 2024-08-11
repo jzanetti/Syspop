@@ -318,7 +318,7 @@ def school_and_kindergarten_wrapper(
     if assign_address_flag:
         school_address_df = DataFrame.from_dict(school_address)
         school_address_df["type"] = data_type
-        address_data = concat([address_data, school_address_df])
+        address_data = concat([address_data, school_address_df.drop_duplicates()])
 
     logger.info(
         f"{data_type} processing runtime: {round(((datetime.utcnow() - start_time).total_seconds()) / 60.0, 3)}"

@@ -9,7 +9,7 @@ from syspop import vis as syspop_vis
 
 data_year = 2023  # can be None or an actual year
 data_percentile = "median"
-output_dir = f"/tmp/syspop_test15/Wellington_test"
+output_dir = f"/tmp/syspop_test16/Wellington_test"
 # output_dir = "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ"
 if data_year is not None:
     output_dir = f"{output_dir}/{data_year}"
