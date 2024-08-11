@@ -1,12 +1,7 @@
-import os
-
 from pandas import read_parquet
 from slurm.submit import submit
 
 # pip install slurm_esr
-
-os.chdir("/home/zhangs/Github/EpiModel_ESR/etc/submit/slurm")
-
 # -----------------------------------------------------
 # Set up the user information
 # - workdir: where the output should sit
@@ -16,11 +11,11 @@ os.chdir("/home/zhangs/Github/EpiModel_ESR/etc/submit/slurm")
 # - selected_people_each_batch: for each slurm job, how many agents we want to process
 # - parallel_jobs: how many slurm jobs to run in parallel
 # -----------------------------------------------------
-WORKDIR = "/home/zhangs/Github/Syspop/etc/route_model/agents_movement_output"
+WORKDIR = "/home/zhangs/Github/Syspop/etc/route_model/agents_movement_output_v2.0"
 INPUT_DIR = "/DSC/digital_twin/abm/synthetic_population/v3.0/Wellington"
 AREA_IDS = [241800]
 SELECTED_PEOPLE_EACH_BATCH = 50
-PARALLEL_JOBS = 10
+PARALLEL_JOBS = 30
 
 # ---------------------------------------------------
 # Job starts here
@@ -49,7 +44,7 @@ for i in range(0, len(all_ids), SELECTED_PEOPLE_EACH_BATCH):
         + f"--sypop_base_path {input_data_dict['sypop_base_path']} "
         + f"--sypop_address_path {input_data_dict['sypop_address_path']} "
         + f"--syspop_diaries_path {input_data_dict['syspop_diaries_path']} "
-        + "--interp"
+        + "--interp --pert"
     )
     cmd_lists.append(cmd)
     job_index += 1

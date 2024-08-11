@@ -10,7 +10,8 @@ etc/data/raw_tonga*
 etc/data/test_data*
 !etc/data/test_data_latest
 etc/route_model/slurm_jobs
-etc/route_model/agents_movement_output
+etc/route_model/agents_movement_output*
+etc/route_model/agents_movement_single*
 build
 cache
 dist

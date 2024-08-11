@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 from os import makedirs
 from os.path import join
 from pickle import dump as pickle_dump
+from random import randint as random_randint
 from random import uniform as random_uniform
 from uuid import uuid4
 
@@ -14,6 +15,135 @@ from pandas import read_parquet as pandas_read_parquet
 from scipy.interpolate import interp1d
 
 ox.config(use_cache=True, log_console=True)
+
+
+def perturbate_routes(
+    input_routes: dict,
+    next_nodes_thres: int = 15,
+    next_nodes_to_move_ratio: float = 0.5,
+    cur_nodes_to_copy: int = 15,
+    pert_start_loc: int = 15,
+):
+    """Perturbate routes across different hours,
+        e.g., some nodes from 0600 will be added to 05:45,
+        this will make the subsequent visualisation smoother
+
+    Args:
+        input_routes (dict): Input data routes, e.g., {agent_id: {"routes": [(lat1, lon1), (lat2, lon2), ...]}}
+        next_nodes_thres (int, optional):
+            we only do the purturbation if the next routes has nodes more than 15. Defaults to 15.
+        next_nodes_to_move_ratio (float, optional):
+            The percentage of nodes to be moved from the next routes. Defaults to 0.3.
+        cur_notes_to_copy (int, optional):
+            where to add the next routes to the current routes, working wil pert_start_loc. Defaults to 15.
+        pert_start_loc (int, optional): From the location of 30,
+            we start considering add the next routes to the current route. Defaults to 30.
+
+    Returns:
+        _type_: _description_
+    """
+    # Iterate over each person
+    for _, routes_hours in input_routes.items():
+        # Iterate over each hour
+        for hour in range(24):
+            # Check if the next hour exists in the dict
+            if hour + 1 in routes_hours:
+                # Get the routes for the current and the next hour
+                current_hour_routes = routes_hours[hour]["routes"]
+                next_hour_routes = routes_hours[hour + 1]["routes"]
+
+                if len(next_hour_routes) > next_nodes_thres:
+                    num_routes_to_move = random_randint(
+                        3, int(len(next_hour_routes) * next_nodes_to_move_ratio)
+                    )
+
+                    if len(current_hour_routes) == 1:
+                        num_routes_to_add = pert_start_loc + random_randint(
+                            0, cur_nodes_to_copy
+                        )
+                        current_hour_routes = current_hour_routes * num_routes_to_add
+
+                    current_hour_routes = (
+                        current_hour_routes + next_hour_routes[0:num_routes_to_move]
+                    )
+                    next_hour_routes = next_hour_routes[num_routes_to_move:]
+                    routes_hours[hour]["routes"] = current_hour_routes
+                    routes_hours[hour + 1]["routes"] = next_hour_routes
+
+    return input_routes
+
+
+def interpolate_coordinates(
+    latlon: list, frames: int, add_random_timestep: bool = True
+) -> list:
+    """Interpolate coordinates for lat and lon
+
+    Args:
+        latlon (list): the list of lat and lon to be interploated
+        frames (int): number of frames
+
+    Returns:
+        list: the list of coordinates
+    """
+
+    def _add_random_timestep(
+        lst_input: list,
+        first_item_repeats: list = [0, 10],
+        last_item_repeats: list = [0, 10],
+    ) -> list:
+        """Add some randomness in the timestep, otherwise all
+            agents always starts moving at T0,
+            and stop moving at the last timestep
+
+        Args:
+            lst_input (list): input latlon
+            first_item_repeats (list, optional): how many repeated first
+                item to be added. Defaults to [0, 10].
+            last_item_repeats (list, optional): how many repeated last
+                item to be attached. Defaults to [0, 10].
+
+        Returns:
+            list: Updated list
+        """
+        # Get the first and last items
+        first_item = lst_input[0]
+        last_item = lst_input[-1]
+
+        # Create 3 repeated first item and 4 repeated last item
+        return (
+            [first_item] * random_randint(first_item_repeats[0], first_item_repeats[1])
+            + lst_input
+            + [last_item] * random_randint(last_item_repeats[0], last_item_repeats[1])
+        )
+
+    if add_random_timestep:
+        latlon = _add_random_timestep(latlon, first_item_repeats=[0, 0])
+
+    if (
+        len(latlon) < 3
+    ):  # otherwise no interpolation can be done, as interp requires boundaries
+        latlon = latlon + latlon[-1] * 3
+
+    # Separate the lat and lon into two lists
+    lat = [x[0] for x in latlon]
+    lon = [x[1] for x in latlon]
+
+    # Create the interpolation function
+    f_lat = interp1d(np.arange(len(lat)), lat, kind="cubic")
+    f_lon = interp1d(np.arange(len(lon)), lon, kind="cubic")
+
+    # Create the new indices for interpolation
+    new_indices = np.linspace(0, len(lat) - 1, frames)
+
+    # Interpolate the lat and lon
+    new_lat = f_lat(new_indices)
+    new_lon = f_lon(new_indices)
+
+    # Combine the interpolated lat and lon into a list of tuples
+    new_lat_lon = list(zip(new_lat, new_lon))
+
+    # Print the interpolated lat and lon
+    return new_lat_lon
 
 
 def get_domain_range(df: DataFrame) -> dict:
@@ -46,38 +176,6 @@ def get_domain_range(df: DataFrame) -> dict:
         "west": min_lon - 0.1,
         "east": max_lon + 0.1,
     }
-
-
-def interpolate_coordinates(latlon: list, frames: int) -> list:
-    """Interpolate coordinates for lat and lon
-
-    Args:
-        latlon (list): the list of lat and lon to be interploated
-        frames (int): number of frames
-
-    Returns:
-        list: the list of coordinates
-    """
-    # Separate the lat and lon into two lists
-    lat = [x[0] for x in latlon]
-    lon = [x[1] for x in latlon]
-
-    # Create the interpolation function
-    f_lat = interp1d(np.arange(len(lat)), lat, kind="cubic")
-    f_lon = interp1d(np.arange(len(lon)), lon, kind="cubic")
-
-    # Create the new indices for interpolation
-    new_indices = np.linspace(0, len(lat) - 1, frames)
-
-    # Interpolate the lat and lon
-    new_lat = f_lat(new_indices)
-    new_lon = f_lon(new_indices)
-
-    # Combine the interpolated lat and lon into a list of tuples
-    new_lat_lon = list(zip(new_lat, new_lon))
-
-    # Print the interpolated lat and lon
-    return new_lat_lon
 
 
 def read_data(
@@ -175,7 +273,11 @@ def create_geo_object(domain: dict):
 
 
 def create_routes(
-    G: MultiDiGraph, hourly_data: DataFrame, interp: bool, frames=60
+    G: MultiDiGraph,
+    hourly_data: DataFrame,
+    interp_flag: bool,
+    pert_flag: bool,
+    frames=60,
 ) -> dict:
     """Creating routes with OSMNX
 
@@ -190,15 +292,11 @@ def create_routes(
 
     all_hours = list(hourly_data.columns)
     all_hours.remove("id")
-    # all_hours = [7]
 
     routes_data = {}
     total_agents = len(hourly_data)
 
     for i, proc_agent in hourly_data.iterrows():
-
-        # if proc_agent.id != 127114:
-        #    continue
 
         print(f"Processing {i}/{total_agents} ...")
 
@@ -236,12 +334,6 @@ def create_routes(
                             (G.nodes[proc_node]["y"], G.nodes[proc_node]["x"]),
                         )
 
-                    if interp:
-                        try:
-                            latlon = interpolate_coordinates(latlon, frames)
-                        except ValueError:
-                            latlon = None
-
             except nx.exception.NetworkXNoPath:
                 continue
 
@@ -249,6 +341,27 @@ def create_routes(
             routes["length"] = length
 
             routes_data[proc_agent.id][proc_hr] = routes
+
+    if pert_flag:
+        routes_data = perturbate_routes(routes_data, pert_start_loc=int(frames / 2))
+
+    if interp_flag:
+        for agent_id in routes_data:
+            for proc_hr in range(24):
+                proc_routes = routes_data[agent_id][proc_hr]["routes"]
+                proc_routes_length = routes_data[agent_id][proc_hr]["length"]
+
+                if len(proc_routes) > 1:
+                    # originally, this is a static route, however, we may add pertubation
+                    # from next route here, so we don't want to add randomness anymore
+                    add_random_timestep_flag = True
+                    if proc_routes_length == 0:
+                        add_random_timestep_flag = False
+                    routes_data[agent_id][proc_hr]["routes"] = interpolate_coordinates(
+                        proc_routes,
+                        frames,
+                        add_random_timestep=add_random_timestep_flag,
+                    )
 
     return routes_data
 
@@ -261,6 +374,7 @@ def main(
     sypop_address_path: str,
     syspop_diaries_path: str,
     interp: bool,
+    pert: bool,
 ):
     """Main function for creating routes
 
@@ -291,7 +405,7 @@ def main(
 
     domain = get_domain_range(hourly_data)
     G = create_geo_object(domain)
-    routes = create_routes(G, hourly_data, interp)
+    routes = create_routes(G, hourly_data, interp, pert)
 
     pickle_dump(routes, open(join(workdir, f"routes_{str(uuid4())[:6]}.pickle"), "wb"))
 
@@ -299,7 +413,7 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="Creating NZ data")
+    parser = ArgumentParser(description="Creating routine data")
 
     parser.add_argument(
         "--workdir",
@@ -347,7 +461,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--interp",
         action="store_true",
-        help="Interpolate the data to the minuite level",
+        help="Interpolate the data to the minuite level, "
+        + "if set to False the output will only include OSM nodes",
+    )
+
+    parser.add_argument(
+        "--pert",
+        action="store_true",
+        help="Perturbate the hourly data",
     )
 
     args = parser.parse_args()
@@ -356,13 +477,13 @@ if __name__ == "__main__":
     args = parser.parse_args(
         [
             "--workdir",
-            "etc/route_model/agents_movement",
+            "etc/route_model/agents_movement_single_v2.0",
             "--area_id",
             "241800",
             "--people_ids",
-            # "127114",
+            "127114",
             # "127115",
-            "127070 127071 127072 127073 127074 127075 127076 127077 127078 127079 127080 127081 127082 127083 127084 127085 127086 127087 127088 127089 127090 127091 127092 127093 127094 127095 127096 127097 127098 127099 127100 127101 127102 127103 127104 127105 127106 127107 127108 127109 127110 127111 127112 127113 127114 127115 127116 127117 127118 127119",
+            # "127070 127071 127072 127073 127074 127075 127076 127077 127078 127079 127080 127081 127082 127083 127084 127085 127086 127087 127088 127089 127090 127091 127092 127093 127094 127095 127096 127097 127098 127099 127100 127101 127102 127103 127104 127105 127106 127107 127108 127109 127110 127111 127112 127113 127114 127115 127116 127117 127118 127119",
             "--sypop_base_path",
             "/DSC/digital_twin/abm/synthetic_population/v3.0/Wellington/syspop_base.parquet",
             "--sypop_address_path",
@@ -370,6 +491,7 @@ if __name__ == "__main__":
             "--syspop_diaries_path",
             "/DSC/digital_twin/abm/synthetic_population/v3.0/Wellington/syspop_diaries.parquet",
             "--interp",
+            "--pert",
         ]
     )
     """
@@ -382,4 +504,5 @@ if __name__ == "__main__":
         args.sypop_address_path,
         args.syspop_diaries_path,
         args.interp,
+        args.pert,
     )
