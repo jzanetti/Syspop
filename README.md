@@ -3,7 +3,7 @@
 # Synthetic & Simulated Population (SysPop)
 
 <p align="center" style="margin-bottom:0">
-    <img src="etc/wiki_img/test_all.gif?raw=true" alt="Sample Image" width="50%">
+    <img src="etc/wiki_img/silverstream_travel.gif?raw=true" alt="Sample Image" width="50%">
 </p>
 <p align="center" style="margin-top:0">
     <img src="etc/wiki_img/241800.png?raw=true" alt="Sample Image" width="37.5%">
