@@ -7,15 +7,15 @@ from pandas import isnull as pandas_isnull
 from pandas import read_csv
 
 
-def create_household_and_dwelling_number(workdir):
+def create_household_and_dwelling_number():
     """Create household number
 
     Args:
-        workdir (str): _description_
+        workdir (str): Household and dwelling number
     """
     data = read_csv(RAW_DATA["household"]["household_number"])
 
-    data = data.rename(
+    return data.rename(
         columns={
             "SA2 Code": "area",
             "Number of people": "people_num",
@@ -24,8 +24,6 @@ def create_household_and_dwelling_number(workdir):
             "Count": "household_num",
         }
     )
-
-    return data
 
 
 def create_household_number(workdir):

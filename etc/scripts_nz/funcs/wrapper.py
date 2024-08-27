@@ -47,7 +47,7 @@ logger = getLogger()
 
 
 def create_household_wrapper(workdir: str):
-    data = create_household_and_dwelling_number(workdir)
+    data = create_household_and_dwelling_number()
 
     with open(join(workdir, "household.pickle"), "wb") as fid:
         pickle_dump({"household": data}, fid)
