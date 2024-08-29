@@ -4,6 +4,7 @@ cache
 .log.swp
 etc/data/archive
 etc/data/confidential_data
+etc/data/projection_data
 etc/data/raw_nz*
 etc/data/raw_wellington*
 etc/data/raw_tonga*

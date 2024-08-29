@@ -23,6 +23,7 @@ DEPENDENT_CHILDREN_COUNT_CODE = {
 # Synthentic data information
 # ---------------------------------
 RAW_DATA_DIR = "etc/data/raw_wellington_latest"
+PROJ_DATA_DIR = "etc/data/projection_data/nz"
 
 RAW_DATA = {
     "geography": {
@@ -86,6 +87,13 @@ RAW_DATA = {
     "others": {
         "mmr_vaccine": f"{RAW_DATA_DIR}/mmr_immunity.csv",
         "birthplace": f"{RAW_DATA_DIR}/birthplace-2024.csv",
+    },
+    "projection": {
+        "population": {
+            "population_by_age_by_gender": f"{PROJ_DATA_DIR}/POPPR_SUB_007.csv",
+            "population_by_ethnicity": f"{PROJ_DATA_DIR}/POPPR_ETH_010.csv",
+        },
+        "business": {"labours": f"{PROJ_DATA_DIR}/POPPR_LAB_001.csv"},
     },
 }
 
