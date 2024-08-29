@@ -96,7 +96,7 @@ def project_pop_data(workdir: str):
         RAW_DATA["projection"]["population"]["population_by_age_by_gender"]
     )
     proj_data_age_and_gender = proj_data_age_and_gender.rename(columns={"sa2": "area"})
-    raw_pop_data = pickle_load(open(join(workdir, "population.pickle"), "rb"))
+    # raw_pop_data = pickle_load(open(join(workdir, "population.pickle"), "rb"))
 
     all_years = list(proj_data_age_and_gender.year.unique())
 

@@ -92,7 +92,8 @@ RAW_DATA = {
         "population": {
             "population_by_age_by_gender": f"{PROJ_DATA_DIR}/POPPR_SUB_007.csv",
             "population_by_ethnicity": f"{PROJ_DATA_DIR}/POPPR_ETH_010.csv",
-        }
+        },
+        "business": {"labours": f"{PROJ_DATA_DIR}/POPPR_LAB_001.csv"},
     },
 }
 

@@ -251,11 +251,12 @@ def read_data(
     return DataFrame.from_dict(latlon_data)
 
 
-def create_geo_object(domain: dict):
+def create_geo_object(domain: dict, network_type: str = "drive"):
     """Create geo object for OSMNX
 
     Args:
         domain (dict): Domain size
+        network_type (str): can be all, or drive
 
     Returns:
         _type_: Geo object for OSMNX
@@ -265,7 +266,7 @@ def create_geo_object(domain: dict):
         domain["south"],
         domain["east"],
         domain["west"],
-        network_type="all",
+        network_type=network_type,
     )
 
     # impute missing edge speed and add travel times
