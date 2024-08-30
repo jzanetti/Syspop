@@ -5,6 +5,7 @@ from os.path import exists
 
 from funcs.proj.population import project_pop_data
 from funcs.proj.validation import pop_validation
+from funcs.proj.work import project_work_data
 from funcs.wrapper import (
     create_geography_wrapper,
     create_hospital_wrapper,
@@ -97,6 +98,7 @@ def import_raw_data(workdir: str):
 
 
 def produce_proj_data(workdir: str):
+    project_work_data(workdir)
     project_pop_data(workdir)
     pop_validation(workdir)
 

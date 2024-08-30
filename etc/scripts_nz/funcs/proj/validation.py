@@ -36,11 +36,16 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
             "Asian": {},
             "European and others": {},
         },
+        "employee": {},
+        "employer": {},
     }
     for proc_year in range(year_range[0], year_range[1]):
         try:
             proc_pop = pickle_load(
                 open(join(workdir, "proj", str(proc_year), "population.pickle"), "rb")
+            )
+            proc_work = pickle_load(
+                open(join(workdir, "proj", str(proc_year), "work.pickle"), "rb")
             )
         except FileNotFoundError:
             continue
@@ -70,6 +75,11 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
                 )
             except TypeError:
                 all_data["ethnicity"][proc_eth][proc_year] = numpy_nan
+
+        for proc_work_type in ["employee", "employer"]:
+            all_data[proc_work_type][proc_year] = proc_work[proc_work_type][
+                f"{proc_work_type}_number"
+            ].sum()
 
     all_years = list(all_data["age"].keys())
     plt.figure(figsize=(10, 6))
@@ -136,3 +146,20 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
     plt.legend()
     plt.savefig(join(vis_dir, "ethnicity.png"))
     plt.close()
+
+    for i, proc_work_type in enumerate(["employer", "employee"]):
+        plt.figure(figsize=(10, 6))
+        plt.bar(
+            all_years,
+            list(all_data[proc_work_type].values()),
+            label=proc_work_type,
+        )
+        plt.xlabel("Year")
+        plt.ylabel(proc_work_type)
+        plt.title(f"{proc_work_type} by Year")
+        plt.xticks(all_years)  # Ensure all years are shown on the x-axis
+        plt.grid(axis="y", linestyle="--", alpha=0.7)
+        plt.tight_layout()
+        plt.legend()
+        plt.savefig(join(vis_dir, f"{proc_work_type}.png"))
+        plt.close()

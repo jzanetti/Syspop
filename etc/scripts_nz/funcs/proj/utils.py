@@ -209,7 +209,7 @@ def process_gender_age_data(raw_data_path: str, scenario: str = "MEDIUM") -> Dat
     """
 
     logger.info("Reading projection raw data (sex/age)")
-    pop_age_sex_data = read_csv(raw_data_path).sample(1000)
+    pop_age_sex_data = read_csv(raw_data_path)
 
     logger.info("Processing projection raw data")
     pop_age_sex_data = pop_age_sex_data[
