@@ -4,6 +4,7 @@ from os import makedirs
 from os.path import exists
 
 from funcs.proj.population import project_pop_data
+from funcs.proj.utils import copy_others as project_copy_others
 from funcs.proj.validation import pop_validation
 from funcs.proj.work import project_work_data
 from funcs.wrapper import (
@@ -23,9 +24,10 @@ from funcs.wrapper import (
 def import_raw_data(workdir: str):
     """Imports and processes raw data for various demographic and geographic categories.
 
-    This function checks if the specified working directory exists and creates it if it does not. It then calls a series
-    of wrapper functions to create and process data for different categories such as population, household, geography,
-    commute, work, school, kindergarten, hospital, and shared spaces. Finally, it creates additional attributes.
+    This function checks if the specified working directory exists and creates it if it does not.
+    It then calls a series of wrapper functions to create and process data for different categories such as population,
+    household, geography, commute, work, school, kindergarten, hospital, and shared spaces.
+    Finally, it creates additional attributes.
 
     Args:
         workdir (str): The working directory where the data will be stored and processed.
@@ -97,10 +99,25 @@ def import_raw_data(workdir: str):
     print("Job done ...")
 
 
-def produce_proj_data(workdir: str):
-    project_work_data(workdir)
-    project_pop_data(workdir)
+def produce_proj_data(
+    workdir: str, all_years: None or list = [2023, 2028, 2033, 2038, 2043]
+):
+    """
+    Produces projected data by copying files and processing population and work data
+    for specified target years.
+
+    Args:
+        workdir (str): The working directory containing the data files.
+        all_years (None or list, optional): A list of target years for projection.
+            Defaults to [2023, 2028, 2033, 2038, 2043].
+
+    Returns:
+        None
+    """
+    project_pop_data(workdir, all_years=all_years)
+    project_work_data(workdir, all_years=all_years)
     pop_validation(workdir)
+    project_copy_others(workdir, all_years)
 
 
 if __name__ == "__main__":

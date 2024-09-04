@@ -8,13 +8,16 @@ from funcs import RAW_DATA
 from pandas import read_csv
 
 
-def project_work_data(workdir, scenario="median"):
+def project_work_data(
+    workdir,
+    scenario="median",
+    all_years: None or list = [2023, 2028, 2033, 2038, 2043],
+):
     """Projects work data based on a given scenario and reference year.
 
     Parameters:
         workdir (str): The working directory where the raw work data and projections are stored.
         scenario (str): The scenario to use for projections. Default is "median".
-        proj_ref_year (int): The reference year for the projections. Default is 2020.
 
     Raises:
         Exception: If the specified scenario is not implemented.
@@ -66,7 +69,8 @@ def project_work_data(workdir, scenario="median"):
 
     proj_data["scaler"] = proj_data["value"] / proj_data.iloc[0]["value"]
 
-    all_years = proj_data.year.unique()
+    if all_years is None:
+        all_years = proj_data.year.unique()
 
     for proc_year in all_years:
 

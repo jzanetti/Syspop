@@ -1,9 +1,48 @@
+from glob import glob
 from logging import getLogger
+from os.path import basename, join
+from shutil import copyfile
 
 from numpy import arange, isinf
 from pandas import DataFrame, isna, read_csv
 
 logger = getLogger()
+
+
+def copy_others(
+    workdir: str,
+    all_years: list,
+    exclude_files: list = ["population.pickle", "work.pickle"],
+):
+    """
+    Copies .pickle files from the specified working directory to target year directories,
+    excluding specified files.
+
+    Args:
+        workdir (str): The working directory containing the .pickle files.
+        all_years (list): A list of target years as strings.
+            Files will be copied to directories named after these years.
+        exclude_files (list, optional): A list of filenames to exclude from copying.
+            Defaults to ["population.pickle", "work.pickle"].
+
+    Returns:
+        None
+    """
+    all_files = glob(workdir + "/*.pickle")
+
+    for proc_file in all_files:
+        proc_filename = basename(proc_file)
+        if proc_filename in exclude_files:
+            continue
+
+        for proc_target_year in all_years:
+            proc_dir = join(workdir, "proj", str(proc_target_year))
+            copyfile(
+                proc_file,
+                join(proc_dir, proc_filename),
+            )
+
+        x = 3
 
 
 def _expand_age_ranges(df) -> DataFrame:

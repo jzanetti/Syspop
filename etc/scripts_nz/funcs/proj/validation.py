@@ -23,7 +23,7 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
     Returns:
         None
     """
-    vis_dir = join(workdir, "vis")
+    vis_dir = join(workdir, "proj", "vis")
 
     if not exists(vis_dir):
         makedirs(vis_dir)

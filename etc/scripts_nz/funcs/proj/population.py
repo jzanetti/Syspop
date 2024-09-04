@@ -25,11 +25,14 @@ def obtain_ref_scaler(
     The resulting DataFrame contains the scaling factors for each area and age group.
 
     Parameters:
-        proj_data_ref (DataFrame): DataFrame containing projected population data with columns ['area', 'year', 'age', 'scenarios', 'value'].
-        raw_pop_data (DataFrame): DataFrame containing raw population data with columns ['area', 'age', 'value'].
+        proj_data_ref (DataFrame): DataFrame containing projected
+            population data with columns ['area', 'year', 'age', 'scenarios', 'value'].
+        raw_pop_data (DataFrame): DataFrame containing
+            raw population data with columns ['area', 'age', 'value'].
 
     Returns:
-        DataFrame: A DataFrame with columns ['area'] and scaling factors for each age group, where the column names are the age groups.
+        DataFrame: A DataFrame with columns ['area'] and scaling factors for each age group,
+            where the column names are the age groups.
     """
     proj_data_ref = proj_data[proj_data["year"] == reference_year]
     proj_data_ref_age = deepcopy(
@@ -65,7 +68,10 @@ def obtain_ref_scaler(
     return scaler_ref
 
 
-def project_pop_data(workdir: str):
+def project_pop_data(
+    workdir: str,
+    all_years: None or list = [2023, 2028, 2033, 2038, 2043],
+):
     """
     Processes and projects population data by age, gender, and ethnicity.
 
@@ -96,9 +102,9 @@ def project_pop_data(workdir: str):
         RAW_DATA["projection"]["population"]["population_by_age_by_gender"]
     )
     proj_data_age_and_gender = proj_data_age_and_gender.rename(columns={"sa2": "area"})
-    # raw_pop_data = pickle_load(open(join(workdir, "population.pickle"), "rb"))
 
-    all_years = list(proj_data_age_and_gender.year.unique())
+    if all_years is None:
+        all_years = list(proj_data_age_and_gender.year.unique())
 
     for proc_year in all_years:
 
