@@ -273,8 +273,7 @@ def validate(
     work_data: DataFrame or None = None,  # census
     home_to_work: DataFrame or None = None,  # census
     mmr_data: DataFrame or None = None,  # imms data
-    data_year: int or None = None,  # data year if it is used
-    data_percentile: str or None = None,  # lower, upper, and median
+    data_years: dict = {"vaccine": 2023},
 ):
     """Doding the validation of synthetic population
 
@@ -294,8 +293,7 @@ def validate(
         val_dir,
         merge_syspop_data(output_dir, ["base", "healthcare"]),
         mmr_data,
-        data_year,
-        data_percentile,
+        data_years["vaccine"],
     )
 
     logger.info("Valdating commute (area) ...")
@@ -446,7 +444,7 @@ def create(
     rewrite_base_pop: bool = False,
     use_parallel: bool = False,
     ncpu: int = 8,
-    data_year: int = None,
+    data_years: dict = {"vaccine": 2023},
     data_percentile: str = "median",
 ):
     """Create synthetic population
@@ -684,7 +682,7 @@ def create(
 
     if mmr_data is not None:
         logger.info("Adding MMR data ...")
-        create_vaccine(tmp_data_path, mmr_data, data_year, data_percentile)
+        create_vaccine(tmp_data_path, mmr_data, data_years["vaccine"])
 
     if birthplace_data is not None:
         logger.info("Adding birthplace data ...")

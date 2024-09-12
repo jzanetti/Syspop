@@ -114,10 +114,12 @@ def produce_proj_data(
     Returns:
         None
     """
+    print("Start projection ...")
     project_pop_data(workdir, all_years=all_years)
     project_work_data(workdir, all_years=all_years)
     pop_validation(workdir)
     project_copy_others(workdir, all_years)
+    print("Projection done ...")
 
 
 if __name__ == "__main__":

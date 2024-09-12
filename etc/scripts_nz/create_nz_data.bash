@@ -74,7 +74,7 @@ cp -rf ${conf_data_dir}/processed/*.csv ${raw_data_dir}
 # Step 4: Create NZ data (write NZ data from the raw data directory)
 # --------------------------------
 echo "Running create_nz_data ..."
-python etc/scripts_nz/create_nz_data.py --workdir ${nz_data_dir}
+python etc/scripts_nz/create_nz_data.py --workdir ${nz_data_dir} --add_proj
 
 # --------------------------------
 # Step 5: Copy the latest diary data from LLM

@@ -35,11 +35,14 @@ def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
     # Randomly assign gender and ethnicity to each individual
     genders = choice(gender_probs["gender"], size=n_individuals, p=gender_probs["prob"])
 
-    ethnicities = choice(
-        ethnicity_probs["ethnicity"],
-        size=n_individuals,
-        p=ethnicity_probs["prob"],
-    )
+    try:
+        ethnicities = choice(
+            ethnicity_probs["ethnicity"],
+            size=n_individuals,
+            p=ethnicity_probs["prob"],
+        )
+    except:
+        x = 3
 
     for gender, ethnicity in zip(genders, ethnicities):
         individual = {

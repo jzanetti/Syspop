@@ -68,6 +68,33 @@ def obtain_ref_scaler(
     return scaler_ref
 
 
+def _eu_melaa_ratio(workdir: str):
+    """
+    Calculate the percentage of European and MELAA ethnicities within each area and age group.
+
+    This function loads population data from a pickle file, filters it to include only European and MELAA ethnicities,
+    and then calculates the percentage of each ethnicity within each area and age group. The result is returned as a
+    pivot table with areas and ethnicities as the index, ages as the columns, and percentages as the values.
+
+    Parameters:
+        workdir (str): The directory path where the population pickle file is located.
+
+    Returns:
+        pd.DataFrame: A pivot table with the percentage of each ethnicity within each area and age group.
+    """
+    raw_data = pickle_load(open(join(workdir, "population.pickle"), "rb"))["ethnicity"]
+
+    raw_data = raw_data[raw_data["ethnicity"].isin(["European", "MELAA"])]
+    df_melted = raw_data.melt(
+        id_vars=["area", "ethnicity"], var_name="age", value_name="count"
+    )
+    total_counts = df_melted.groupby(["area", "age"])["count"].transform("sum")
+    df_melted["percentage"] = (df_melted["count"] / total_counts) * 100
+    return df_melted.pivot_table(
+        index=["area", "ethnicity"], columns="age", values="percentage"
+    ).reset_index()
+
+
 def project_pop_data(
     workdir: str,
     all_years: None or list = [2023, 2028, 2033, 2038, 2043],
@@ -103,6 +130,8 @@ def project_pop_data(
     )
     proj_data_age_and_gender = proj_data_age_and_gender.rename(columns={"sa2": "area"})
 
+    eu_melaa_ratio = _eu_melaa_ratio(workdir)
+
     if all_years is None:
         all_years = list(proj_data_age_and_gender.year.unique())
 
@@ -120,7 +149,7 @@ def project_pop_data(
         ]
         proc_proj_data_ethnicity = proj_data_ethnicity[
             proj_data_ethnicity["year"] == str(proc_year)
-        ][["area_code", "ethnicity", "age", "sex", "value"]]
+        ][["area_code", "ethnicity", "age", "gender", "value"]]
 
         # ---------------------
         # Processing age
@@ -140,7 +169,7 @@ def project_pop_data(
         # Processing gender percentage
         # ---------------------
         proc_proj_data_gender = deepcopy(
-            proc_proj_data.groupby(["area", "age", "sex"], as_index=False)[
+            proc_proj_data.groupby(["area", "age", "gender"], as_index=False)[
                 "value"
             ].sum()
         )
@@ -163,7 +192,7 @@ def project_pop_data(
 
         # Drop the 'total_value' column if not needed
         proc_proj_data_gender = proc_proj_data_gender[
-            ["area", "age", "sex", "percentage"]
+            ["area", "age", "gender", "percentage"]
         ]
 
         proc_proj_data_age_melted = proc_proj_data_age.melt(
@@ -183,7 +212,7 @@ def project_pop_data(
 
         # Pivot the dataframe back to wide-form
         proc_proj_data_gender = proc_proj_data_gender.pivot_table(
-            index=["area", "sex"], columns="age", values="population"
+            index=["area", "gender"], columns="age", values="population"
         ).reset_index()
 
         # ---------------------
@@ -227,9 +256,40 @@ def project_pop_data(
         proc_proj_data_ethnicity.columns.name = None
         proc_proj_data_ethnicity["ethnicity"].replace(
             "European or Other (including New Zealander)",
-            "European and others",
+            "European and MELAA",
             inplace=True,
         )
+
+        rows_to_split = proc_proj_data_ethnicity[
+            proc_proj_data_ethnicity["ethnicity"] == "European and MELAA"
+        ]
+        # percentages = {"European": 98.611111, "others": 1.388889}
+        # Create new rows based on the percentages
+        new_rows = []
+        import pandas as pd
+
+        new_rows = []
+        for _, row in rows_to_split.iterrows():
+            area = row["area"]
+            for _, perc_row in eu_melaa_ratio[
+                eu_melaa_ratio["area"] == area
+            ].iterrows():
+                new_row = row.copy()
+                new_row["ethnicity"] = perc_row["ethnicity"]
+                for col in proc_proj_data_ethnicity.columns[2:]:
+                    new_row[col] = row[col] * (perc_row[col] / 100)
+                new_rows.append(new_row)
+
+        new_rows_df = pd.DataFrame(new_rows)
+
+        new_rows_df.fillna(0.0, inplace=True)
+
+        proc_proj_data_ethnicity = pd.concat(
+            [proc_proj_data_ethnicity, new_rows_df], ignore_index=True
+        )
+        proc_proj_data_ethnicity = proc_proj_data_ethnicity[
+            proc_proj_data_ethnicity["ethnicity"] != "European and MELAA"
+        ]
 
         pickle_dump(
             {

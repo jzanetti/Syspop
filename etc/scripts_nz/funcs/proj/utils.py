@@ -202,6 +202,8 @@ def process_ethnicity_data(raw_data_path: str, scenario: str = "Medium") -> Data
         )
     ]
 
+    pop_ethnicity_data = pop_ethnicity_data.rename(columns={"sex": "gender"})
+
     return _expand_age_ranges(pop_ethnicity_data)
 
 
@@ -305,7 +307,7 @@ def process_gender_age_data(raw_data_path: str, scenario: str = "MEDIUM") -> Dat
             "AREA_POPPR_SUB_007": "sa2",
             "YEAR_POPPR_SUB_007": "year",
             "Age": "age",
-            "Sex": "sex",
+            "Sex": "gender",
             "PROJECTION_POPPR_SUB_007": "scenarios",
             "OBS_VALUE": "value",
         }

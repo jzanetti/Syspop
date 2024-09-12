@@ -25,7 +25,7 @@ def validate_mmr(
     synpop_data: DataFrame,
     mmr_census_data: DataFrame,
     data_year: int or None,
-    data_percentile: str or None,
+    data_percentile: str or None = "median",
 ):
     """Validating MMR coverage
 

@@ -34,7 +34,8 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
             "Maori": {},
             "Pacific": {},
             "Asian": {},
-            "European and others": {},
+            "European": {},
+            "MELAA": {},
         },
         "employee": {},
         "employer": {},
@@ -52,18 +53,18 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
 
         all_data["age"][proc_year] = proc_pop["age"].loc[:, 0:100].sum().sum()
         all_data["gender"]["male"][proc_year] = (
-            proc_pop["gender"][proc_pop["gender"]["sex"] == "Male"]
+            proc_pop["gender"][proc_pop["gender"]["gender"] == "Male"]
             .loc[:, 0:100]
             .sum()
             .sum()
         )
         all_data["gender"]["female"][proc_year] = (
-            proc_pop["gender"][proc_pop["gender"]["sex"] == "Female"]
+            proc_pop["gender"][proc_pop["gender"]["gender"] == "Female"]
             .loc[:, 0:100]
             .sum()
             .sum()
         )
-        for proc_eth in ["Maori", "Pacific", "Asian", "European and others"]:
+        for proc_eth in ["Maori", "Pacific", "Asian", "European", "MELAA"]:
             try:
                 all_data["ethnicity"][proc_eth][proc_year] = (
                     proc_pop["ethnicity"][
@@ -124,7 +125,7 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
 
     plt.figure(figsize=(10, 6))
     prev_value = 0
-    for i, proc_eth in enumerate(["Maori", "Pacific", "Asian", "European and others"]):
+    for i, proc_eth in enumerate(["Maori", "Pacific", "Asian", "European", "MELAA"]):
 
         plt.bar(
             all_years,

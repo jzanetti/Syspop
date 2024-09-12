@@ -67,3 +67,9 @@ check_port:
 # -----------------------
 create_nz_data:
 	etc/scripts_nz/create_nz_data.bash
+
+# -----------------------
+# Run NZ syspop
+# -----------------------
+run_syspop_nz:
+	nohup python syspop/run_nz.py >& log.syspop &

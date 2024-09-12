@@ -339,7 +339,7 @@ def create_vaccine(
     tmp_data_path: str,
     vaccine_data: DataFrame,
     data_year: int or None,
-    data_percentile: str or None,
+    data_percentile: str or None = "median",
     fill_missing_adults_data_flag: bool = False,
     full_imms_age: int or None = 60,
 ) -> DataFrame:
