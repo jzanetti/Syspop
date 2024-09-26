@@ -1,7 +1,6 @@
-from funcs import RAW_DATA
-from pandas import read_csv
+from funcs.preproc import _read_original_csv
+from pandas import DataFrame
 
 
-def add_mmr():
-    mmr_vaccine = RAW_DATA["others"]["mmr_vaccine"]
-    return read_csv(mmr_vaccine).drop_duplicates()
+def add_mmr(mmr_data_path: str) -> DataFrame:
+    return _read_original_csv(mmr_data_path)

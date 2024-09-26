@@ -1,20 +1,19 @@
 from logging import getLogger
 from math import ceil
 
-import ray
 from numpy import nan as numpy_nan
+from numpy import mean as numpy_mean
 from numpy.random import choice as numpy_choice
 from pandas import DataFrame, merge
 
 logger = getLogger()
 
 
-def home_and_work(
+def travel_between_home_and_work(
     commute_dataset: DataFrame,
     base_pop: DataFrame,
-    work_age: dict = {"min": 16, "max": 75},
-    use_parallel: bool = False,
-    n_cpu: int = 8,
+    all_employees: dict,
+    work_age: dict = {"min": 16, "max": 75}
 ) -> DataFrame:
     """Assign commute data (home to work) to base population
 
@@ -32,9 +31,6 @@ def home_and_work(
         Dataframe: the population with commute
     """
 
-    if use_parallel:
-        ray.init(num_cpus=n_cpu, include_dashboard=False)
-
     base_pop["area_work"] = -9999
     base_pop["travel_mode_work"] = numpy_nan
 
@@ -42,36 +38,30 @@ def home_and_work(
         (base_pop["age"] >= work_age["min"]) & (base_pop["age"] <= work_age["max"])
     ]
 
-    travel_methods = list(
-        commute_dataset.drop(
-            columns=["area_home", "area_work", "Total", "Work_at_home"]
-        )
-    )
-
-    # Set work_at_home at the end so most people will be assigned to other commute methods
-    travel_methods.append("Work_at_home")
+    travel_methods = [item for item in list(commute_dataset.columns) if not item.endswith("_percentage")]
+    travel_methods = [item for item in travel_methods if item not in ["area_home", "area_work", "super_area_home"]]
 
     all_areas_home = list(base_pop["area"].unique())
 
     results = []
 
     for i, proc_home_area in enumerate(all_areas_home):
-        logger.info(f"Commute processing at {i}/{len(all_areas_home)}")
+        logger.info(f"Commute (work): {i}/{len(all_areas_home)} ({int(i * 100.0/len(all_areas_home))}%)")
 
-        if use_parallel:
-            proc_working_age_people = assign_people_between_home_and_work_remote.remote(
-                working_age_people, commute_dataset, proc_home_area, travel_methods
-            )
-        else:
-            proc_working_age_people = assign_people_between_home_and_work(
-                working_age_people, commute_dataset, proc_home_area, travel_methods
-            )
+        proc_working_age_people = working_age_people[working_age_people["area"] == proc_home_area]
+
+        proc_working_age_people = proc_working_age_people.sample(
+            min([len(proc_working_age_people), all_employees[proc_home_area]])
+        )
+
+        proc_working_age_people = assign_people_between_home_and_work(
+            proc_working_age_people, 
+            commute_dataset, 
+            proc_home_area, 
+            travel_methods
+        )
 
         results.append(proc_working_age_people)
-
-    if use_parallel:
-        results = ray.get(results)
-        ray.shutdown()
 
     for result in results:
         base_pop.loc[result.index] = result
@@ -81,34 +71,12 @@ def home_and_work(
     return base_pop
 
 
-@ray.remote
-def assign_people_between_home_and_work_remote(
-    working_age_people: DataFrame,
-    commute_dataset: DataFrame,
-    proc_home_area: int,
-    travel_methods: list,
-):
-    """Assign/sample people between home and work (for parallel processing)
-
-    Args:
-        working_age_people (DataFrame): People at working age
-        commute_dataset (DataFrame): Commute dataset
-        proc_home_area (int): Home area to be used
-        travel_methods (list): All travel methods (e.g., bus, car etc.)
-
-    Returns:
-        DataFrame: Updated working age people
-    """
-    return assign_people_between_home_and_work(
-        working_age_people, commute_dataset, proc_home_area, travel_methods
-    )
-
-
 def assign_people_between_home_and_work(
-    working_age_people: DataFrame,
+    proc_working_age_people: DataFrame,
     commute_dataset: DataFrame,
     proc_home_area: int,
     travel_methods: list,
+    use_super_area: bool = True
 ) -> DataFrame:
     """Assign/sample people between home and work
 
@@ -120,41 +88,43 @@ def assign_people_between_home_and_work(
 
     Returns:
         DataFrame: Updated working age people
-    """
+    """ 
 
-    proc_working_age_people = working_age_people[
-        working_age_people["area"] == proc_home_area
-    ]
+    if use_super_area:
+        proc_home_super_area = commute_dataset[
+            commute_dataset["area_home"] == proc_home_area]["super_area_home"].values[0]
+        proc_commute_dataset_super_area = commute_dataset[
+            commute_dataset["super_area_home"] == proc_home_super_area
+        ]
+    else:
+        proc_commute_dataset_super_area = None
 
     proc_commute_dataset = commute_dataset[
         commute_dataset["area_home"] == proc_home_area
     ]
 
     for proc_work_area in list(proc_commute_dataset["area_work"].unique()):
-        for proc_travel_method in travel_methods:
-            proc_people_num = proc_commute_dataset[
+
+        proc_commute = proc_commute_dataset[
                 proc_commute_dataset["area_work"] == proc_work_area
-            ][proc_travel_method].values[0]
-
-            unassigned_people = proc_working_age_people[
-                proc_working_age_people["area_work"] == -9999
             ]
+        
+        for index, proc_people in proc_working_age_people.iterrows():
+            
+            proc_people["area_work"] = proc_work_area
+            if proc_commute_dataset_super_area is None:
+                travel_methods_prob = proc_commute[[item + "_percentage" for item in travel_methods]].values[0]
+            else:
+                travel_methods_prob = numpy_mean(
+                    proc_commute_dataset_super_area[
+                        [item + "_percentage" for item in travel_methods]].values, 0)
 
-            if len(unassigned_people) == 0:
-                continue
+            try:
+                proc_people["travel_mode_work"] = numpy_choice(travel_methods, p=travel_methods_prob)
+            except ValueError: # no record from commute data ...
+                proc_people["travel_mode_work"] = "Unknown"
 
-            people_num_to_use = min([proc_people_num, len(unassigned_people)])
-
-            proc_working_age_people_sampled = proc_working_age_people[
-                proc_working_age_people["area_work"] == -9999
-            ].sample(people_num_to_use)
-
-            proc_working_age_people_sampled["area_work"] = int(proc_work_area)
-            proc_working_age_people_sampled["travel_mode_work"] = proc_travel_method
-
-            proc_working_age_people.loc[proc_working_age_people_sampled.index] = (
-                proc_working_age_people_sampled
-            )
+            proc_working_age_people.loc[index] = proc_people
 
     return proc_working_age_people
 

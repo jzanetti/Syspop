@@ -27,11 +27,11 @@ def social_economic_wrapper(base_pop: DataFrame, social_economic_dataset: DataFr
         try:
             proc_social_economic = social_economic_dataset[
                 social_economic_dataset["area"] == proc_area
-            ]["socioeconomic_centile"].values[0]
+            ]["deprivation"].values[0]
         except IndexError:
             proc_social_economic = numpy_nan
 
-        proc_base_pop["social_economics"] = proc_social_economic
+        proc_base_pop["deprivation"] = proc_social_economic
 
         base_pop.loc[proc_base_pop.index] = proc_base_pop
 

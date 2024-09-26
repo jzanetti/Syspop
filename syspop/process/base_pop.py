@@ -1,20 +1,13 @@
 from datetime import datetime
 from logging import getLogger
-from pickle import dump as pickle_dump
 
-import ray
 from numpy.random import choice
 from pandas import DataFrame
 
 logger = getLogger()
 
 
-@ray.remote
-def create_base_pop_remote(output_area, age, df_gender_melt, df_ethnicity_melt):
-    return create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt)
-
-
-def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
+def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt, ref_population: str = "gender"):
     population = []
     # Get the gender and ethnicity probabilities for the current output_area and age
     gender_probs = df_gender_melt.loc[
@@ -27,7 +20,12 @@ def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
     ]
 
     # Determine the number of individuals for the current output_area and age
-    n_individuals = int(gender_probs["count"].sum())
+    if ref_population == "gender":
+        n_individuals = int(gender_probs["count"].sum())
+    elif ref_population == "ethnicity":
+        n_individuals = int(ethnicity_probs["count"].sum())
+    else:
+        raise Exception("Total people must be within [gender, ethnicity]")
 
     if n_individuals == 0:
         return []
@@ -35,14 +33,11 @@ def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt):
     # Randomly assign gender and ethnicity to each individual
     genders = choice(gender_probs["gender"], size=n_individuals, p=gender_probs["prob"])
 
-    try:
-        ethnicities = choice(
-            ethnicity_probs["ethnicity"],
-            size=n_individuals,
-            p=ethnicity_probs["prob"],
-        )
-    except:
-        x = 3
+    ethnicities = choice(
+        ethnicity_probs["ethnicity"],
+        size=n_individuals,
+        p=ethnicity_probs["prob"],
+    )
 
     for gender, ethnicity in zip(genders, ethnicities):
         individual = {
@@ -60,8 +55,7 @@ def base_pop_wrapper(
     gender_data: DataFrame,
     ethnicity_data: DataFrame,
     output_area_filter: list or None,
-    use_parallel: bool = False,
-    n_cpu: int = 8,
+    ref_population: str = "gender"
 ) -> DataFrame:
     """Create base population
 
@@ -69,7 +63,6 @@ def base_pop_wrapper(
         gender_data (DataFrame): Gender data for each age
         ethnicity_data (DataFrame): Ethnicity data for each age
         output_area_filter (list or None): With area ID to be used
-        use_parallel (bool, optional): If apply ray parallel processing. Defaults to False.
 
     Returns:
         DataFrame: Produced base population
@@ -97,29 +90,19 @@ def base_pop_wrapper(
 
     start_time = datetime.utcnow()
 
-    if use_parallel:
-        ray.init(num_cpus=n_cpu, include_dashboard=False)
-
     results = []
 
     output_areas = list(df_gender_melt["area"].unique())
     total_output_area = len(output_areas)
     for i, output_area in enumerate(output_areas):
-        logger.info(f"Processing: {i}/{total_output_area}")
+        logger.info(f"Base population: {i}/{total_output_area} ({int(i * 100.0/total_output_area)}%)")
         for age in df_gender_melt["age"].unique():
-            if use_parallel:
-                result = create_base_pop_remote.remote(
-                    output_area, age, df_gender_melt, df_ethnicity_melt
-                )
-            else:
-                result = create_base_pop(
-                    output_area, age, df_gender_melt, df_ethnicity_melt
-                )
-            results.append(result)
 
-    if use_parallel:
-        results = ray.get(results)
-        ray.shutdown()
+            result = create_base_pop(
+                output_area, age, df_gender_melt, df_ethnicity_melt, ref_population=ref_population
+            )
+
+            results.append(result)
 
     population = [item for sublist in results for item in sublist]
 

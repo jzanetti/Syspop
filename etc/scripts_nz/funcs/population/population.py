@@ -9,166 +9,93 @@ from pandas import DataFrame, concat, melt, merge, read_csv, read_excel, to_nume
 from funcs import RAW_DATA
 from funcs.utils import sort_column_by_names
 
-def create_age(total_population_data: DataFrame):
-    def _find_range(number, ranges):
-        for age_range in ranges:
-            start, end = map(int, age_range.split("-"))
-            if start <= number <= end:
-                return age_range
-        return None
+from funcs.preproc import _read_raw_population, _read_raw_age, _read_raw_gender, _read_raw_ethnicity, _read_raw_nzdep
 
-    df = read_excel(RAW_DATA["population"]["population_by_age"], header=2)
 
-    df.columns = df.columns.str.strip()
+def create_age_based_on_scaler(total_population_data: DataFrame, raw_age_path: str) -> DataFrame:
+    """
+    Adjusts age-based population data using a scaling factor derived from total population data.
 
-    df = df[
-        [
-            "Region and Age",
-            "0-4 Years",
-            "5-9 Years",
-            "10-14 Years",
-            "15-19 Years",
-            "20-24 Years",
-            "25-29 Years",
-            "30-34 Years",
-            "35-39 Years",
-            "40-44 Years",
-            "45-49 Years",
-            "50-54 Years",
-            "55-59 Years",
-            "60-64 Years",
-            "65-69 Years",
-            "70-74 Years",
-            "75-79 Years",
-            "80-84 Years",
-            "85-89 Years",
-            "90 Years and over",
-        ]
+    Args:
+        total_population_data (DataFrame): A DataFrame containing total population data by region.
+
+    Returns:
+        DataFrame: A DataFrame with adjusted population data by age and region.
+
+    The function performs the following steps:
+    1. Reads raw age-based population data.
+    2. Merges the age-based data with the total population data on the 'area' column.
+    3. Calculates a scaling factor for each region by dividing the population by the total.
+    4. Adjusts the age-based population counts using the scaling factor.
+    5. Replaces infinite values with NaN and drops rows with NaN values.
+    6. Rounds the adjusted population counts and converts them to integers.
+    7. Drops the 'total', 'population', and 'scaler' columns.
+    8. Renames the columns to ensure they are integers representing age groups.
+
+    Returns:
+        DataFrame: The final DataFrame with adjusted age-based population data by region.
+    """
+    age_data = _read_raw_age(raw_age_path) 
+
+    age_data = age_data.merge(total_population_data, on="area")
+    age_data["scaler"] = age_data["population"] / age_data["total"]
+
+    for col in [item for item in list(age_data.columns) if item not in [
+        "area", "total", "population", "ratop"]]:
+        age_data[col] = age_data[col] / age_data["scaler"]
+
+    age_data.replace([inf, -inf], nan, inplace=True)
+    age_data.dropna(inplace=True)
+
+    age_data = age_data.round().astype(int)
+
+    age_data = age_data.drop(["total", "population", "scaler"], axis=1)
+
+    age_data.columns = ["area"] + [
+        int(col) for col in age_data.columns if col not in ["area"]
     ]
 
-    df = df.drop(df.index[-1])
-
-    df["Region and Age"] = df["Region and Age"].str.strip()
-
-    df = df[~df["Region and Age"].isin(["NZRC", "NIRC", "SIRC"])]
-
-    df["Region and Age"] = df["Region and Age"].astype(int)
-
-    df = df[df["Region and Age"] > 10000]
-
-    df = df.set_index("Region and Age")
-
-    df.columns = [str(name).replace(" Years", "") for name in df]
-    df = df.rename(columns={"90 and over": "90-100"})
-
-    new_df = DataFrame(columns=["Region"] + list(range(0, 101)))
-
-    for cur_age in list(new_df.columns):
-        if cur_age == "Region":
-            new_df["Region"] = df.index
-        else:
-            age_range = _find_range(cur_age, list(df.columns))
-            age_split = age_range.split("-")
-            start_age = int(age_split[0])
-            end_age = int(age_split[1])
-            age_length = end_age - start_age + 1
-            new_df[cur_age] = (df[age_range] / age_length).values
-
-    new_df = new_df.applymap(math_ceil)
-
-    new_df = new_df.rename(columns={"Region": "area"})
-
-    all_ages = range(101)
-    for index, row in new_df.iterrows():
-        total = sum(row[col] for col in all_ages)
-        new_df.at[index, "total"] = total
-
-    total_population_data = total_population_data.rename(
-        columns={"area": "area"}
-    )
-    df_after_ratio = new_df.merge(total_population_data, on="area")
-    df_after_ratio["ratio"] = df_after_ratio["population"] / df_after_ratio["total"]
-
-    for col in all_ages:
-        df_after_ratio[col] = df_after_ratio[col] / df_after_ratio["ratio"]
-
-    df_after_ratio.replace([inf, -inf], nan, inplace=True)
-    df_after_ratio.dropna(inplace=True)
-
-    df_after_ratio = df_after_ratio.round().astype(int)
-
-    new_df = df_after_ratio.drop(["total", "population", "ratio"], axis=1)
-
-    new_df.columns = ["area"] + [
-        int(col) for col in new_df.columns if col not in ["area"]
-    ]
+    return age_data
 
 
-    return new_df
+def create_ethnicity_ratio(raw_ethnicity_path: str, age_group_keys: list = [0, 15, 30, 65]):
+    """
+    Processes raw ethnicity data and creates a DataFrame with ethnicity and age group proportions.
 
+    Args:
+        raw_ethnicity_path (str): The file path to the raw ethnicity data.
+        age_group_keys (list, optional): List of age group keys to 
+        be used for grouping. Defaults to [0, 15, 30, 65].
 
-def create_ethnicity_and_age(total_population_data: DataFrame):
-    dfs = {}
+        The output looks like:
 
-    for proc_age_key in RAW_DATA["population"]["population_by_age_by_ethnicity"]:
-        df = read_excel(
-            RAW_DATA["population"]["population_by_age_by_ethnicity"][proc_age_key],
-            header=4,
-        )
-        df = df.drop([0, 1]).drop(df.tail(3).index)
-        df = df.drop("Unnamed: 1", axis=1)
-        df.columns = df.columns.str.strip()
+                area ethnicity         0        15        30        65
+        0      100100  European  0.356250  0.333333  0.467797  0.630252
+        1      100200  European  0.427152  0.440217  0.519280  0.644928
+        2      100300  European  1.000000  1.000000  0.842105  1.000000
+        3      100400  European  0.381818  0.418182  0.612903  0.780702
+        4      100500  European  0.435484  0.473684  0.504854  0.597015
+        ....
 
-        df = df.rename(
-            columns={
-                "Ethnic group": "area",
-                "Pacific Peoples": "Pacific",
-                "Middle Eastern/Latin American/African": "MELAA",
-            }
-        )
+        For each area, we have sth like:
+                area ethnicity        0        15        30        65
+        0     100100  European  0.35625  0.333333  0.467797  0.630252
+        2134  100100     Maori  0.55625  0.555556  0.474576  0.344538
+        4268  100100   Pacific  0.06250  0.070707  0.037288  0.025210
+        6402  100100     Asian  0.01875  0.040404  0.013559  0.000000
+        8536  100100     MELAA  0.00625  0.000000  0.006780  0.000000
 
-        df = (
-            df.apply(to_numeric, errors="coerce").dropna().astype(int)
-        )  # convert str ot others to NaN, and drop them and convert the rests to int
-
-        df["total"] = (
-            df["European"] + df["Maori"] + df["Pacific"] + df["Asian"] + df["MELAA"]
-        )
-
-        dfs[proc_age_key] = df
-
-    df_ratio = concat(list(dfs.values()))
-    df_ratio = df_ratio.groupby("area").sum().reset_index()
-    total_population_data = total_population_data.rename(
-        columns={"area": "area"}
-    )
-    df_ratio = df_ratio.merge(total_population_data, on="area")
-    df_ratio["ratio"] = df_ratio["population"] / df_ratio["total"]
-    df_ratio = df_ratio.drop(
-        ["European", "Maori", "Pacific", "Asian", "MELAA", "total", "population"],
-        axis=1,
-    )
-
-    dfs_after_ratio = {}
-    for proc_age in dfs:
-        df = dfs[proc_age]
-
-        df = df.merge(df_ratio, on="area")
-        for race_key in ["European", "Maori", "Pacific", "Asian", "MELAA", "total"]:
-            df[race_key] = df[race_key] * df["ratio"]
-        df = df.drop(["ratio", "total"], axis=1)
-        # df = df.astype(int)
-        # df = df.apply(math_ceil).astype(int)
-        df = df.round().astype(int)
-        dfs_after_ratio[proc_age] = df
-
-    dfs = dfs_after_ratio
+    Returns:
+        DataFrame: A DataFrame with columns for area, ethnicity, 
+        and the proportions of each age group within each area.
+    """
+    dfs = _read_raw_ethnicity(raw_ethnicity_path)
 
     dfs_output = []
-    for proc_age in dfs:
+    for proc_age in list(dfs["age"].unique()):
         dfs_output.append(
             melt(
-                dfs[proc_age],
+                dfs[dfs["age"] == proc_age],
                 id_vars=["area"],
                 value_vars=[
                     "European",
@@ -193,11 +120,13 @@ def create_ethnicity_and_age(total_population_data: DataFrame):
         if col not in ["area", "ethnicity"]
     ]
 
+    combined_df[age_group_keys] = combined_df.groupby(
+        "area")[age_group_keys].transform(lambda x: x / x.sum())
 
     return combined_df
 
 
-def create_female_ratio():
+def create_female_ratio(raw_gender_path: str) -> DataFrame:
     """Write gender_profile_female_ratio
 
     Args:
@@ -205,27 +134,7 @@ def create_female_ratio():
         gender_profile_female_ratio_cfg (dict): gender_profile_female_ratio configuration
     """
 
-    df = read_excel(RAW_DATA["population"]["population_by_age_by_gender"], header=3)
-
-    df = df.rename(
-        columns={
-            "Male": "Male (15)",
-            "Female": "Female (15)",
-            "Male.1": "Male (40)",
-            "Female.1": "Female (40)",
-            "Male.2": "Male (65)",
-            "Female.2": "Female (65)",
-            "Male.3": "Male (90)",
-            "Female.3": "Female (90)",
-            "Sex": "area",
-        }
-    )
-
-    df = df.drop("Unnamed: 1", axis=1)
-
-    df = df.drop([0, 1, 2]).drop(df.tail(3).index).astype(int)
-
-    df = df[df["area"] > 10000]
+    df = _read_raw_gender(raw_gender_path)
 
     for age in ["15", "40", "65", "90"]:
         df[age] = df[f"Female ({age})"] / (df[f"Male ({age})"] + df[f"Female ({age})"])
@@ -241,53 +150,16 @@ def create_female_ratio():
     return df
 
 
-def create_population():
+def create_base_population(raw_population_path: str):
     """Read population
-
-    Args:
-        population_path (str): Population data path
     """
-    data = read_excel(RAW_DATA["population"]["total_population"], header=6)
-
-    data = data.rename(columns={"Area": "area", "Unnamed: 2": "population"})
-
-    data = data.drop("Unnamed: 1", axis=1)
-
-    # Drop the last row
-    data = data.drop(data.index[-1])
-
-    data = data.astype(int)
-
-    data = data[data["area"] > 10000]
-
-    return data
+    return _read_raw_population(raw_population_path)
 
 
-def create_socialeconomic(geography_hierarchy_data: DataFrame):
-    """Write area area_socialeconomic_index data
-
-    Args:
-        workdir (str): Working directory
-        area_socialeconomic_index_cfg (dict): Area_socialeconomic_index configuration
-        geography_hierarchy_definition (DataFrame or None): Geography hierarchy definition
+def create_nzdep(nzdep_data_path: str):
+    """Read nz deprivation index
     """
-    data = read_csv(RAW_DATA["population"]["socialeconomics"])[
-        ["SA22018_code", "SA2_average_NZDep2018"]
-    ]
-
-    data = data.rename(
-        columns={
-            "SA22018_code": "area",
-            "SA2_average_NZDep2018": "socioeconomic_centile",
-        }
-    )
-
-    # get hierarchy defination data
-    geog_hierarchy = geography_hierarchy_data[["area"]]
-
-    data = merge(data, geog_hierarchy, on="area")
-
-    return data
+    return _read_raw_nzdep(nzdep_data_path)
 
 
 
@@ -328,32 +200,47 @@ def create_gender_percentage_for_each_age(age_data: DataFrame, gender_data: Data
 
     return concat(gender_data_percentage_all, axis=0, ignore_index=True)
 
-
-
 def create_ethnicity_percentage_for_each_age(
     age_data: DataFrame, ethnicity_data: DataFrame
 ):
+    """
+    Calculate the percentage of each ethnicity for each age group within specified areas.
+
+    This function maps age groups to individual ages and calculates the percentage of each ethnicity
+    for each age within those groups. The results are concatenated into a single DataFrame.
+
+    Parameters:
+        age_data (DataFrame): A DataFrame containing age-related data, including an 'area' column.
+        ethnicity_data (DataFrame): A DataFrame containing ethnicity data, including an 'area' column and columns for each age group.
+    
+    The output is sth like
+
+                area  ethnicity            1        2        3      ...           99       100
+        0      100100  European     0.356250  0.333333  0.467797    ...     0.630252  0.630252
+        1      100100     Maori     0.556250  0.555556  0.474576    ...     0.556250  0.556250  
+        2      100100   Pacific     0.062500  0.070707  0.037288    ...     0.062500  0.062500  
+        3      100100     Asian     0.018750  0.040404  0.013559    ...     0.018750  0.018750  
+        4      100100     MELAA     0.006250  0.000000  0.006780    ...     0.006250  0.006250
+            ......
+    
+    Returns:
+        DataFrame: A concatenated DataFrame with the percentage of each ethnicity for each age within the specified areas.
+    """
     age_mapping = {
         0: list(range(0, 15)),
         15: list(range(15, 30)),
         30: list(range(30, 65)),
         65: list(range(65, 101)),
     }
+
     ethnicity_data_percentage = []
     for proc_area in age_data["area"].unique():
         proc_ethnicity_data = ethnicity_data[ethnicity_data["area"] == proc_area]
-        age_group_keys = list(age_mapping.keys())
-        proc_ethnicity_data_total = proc_ethnicity_data[age_group_keys].sum()
-        proc_ethnicity_data[age_group_keys] = (
-            proc_ethnicity_data[age_group_keys] / proc_ethnicity_data_total
-        )
 
         df_new = proc_ethnicity_data.copy()
         for age_group, ages in age_mapping.items():
             # calculate the percentage for each individual age
             individual_percentage = proc_ethnicity_data[age_group]
-
-            # create new columns for each individual age
             for age in ages:
                 df_new[age] = individual_percentage
 

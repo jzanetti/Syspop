@@ -4,7 +4,6 @@ from logging import getLogger
 from random import choices as random_choices
 from random import sample as random_sample
 
-import ray
 from numpy import array as numpy_array
 from numpy import isnan
 from numpy import nan as numpy_nan
@@ -16,6 +15,8 @@ from pandas import DataFrame, Series, concat, isna
 from pandas import merge as pandas_merge
 from pandas import to_numeric as pandas_to_numeric
 from process.address import add_random_address
+
+from uuid import uuid4
 
 logger = getLogger()
 
@@ -358,19 +359,6 @@ def send_remained_children_to_household(proc_base_pop: DataFrame) -> DataFrame:
     return proc_base_pop
 
 
-@ray.remote
-def create_household_composition_remote(
-    houshold_dataset: DataFrame,
-    proc_base_pop: DataFrame,
-    num_children: list,
-    all_ethnicities: list,
-    proc_area: str,
-) -> DataFrame:
-    return create_household_composition(
-        houshold_dataset, proc_base_pop, num_children, all_ethnicities, proc_area
-    )
-
-
 def update_household_name(proc_base_pop: DataFrame) -> DataFrame:
     """Update household name from {area}_{id} to {area}_{child num}_{id}
 
@@ -621,7 +609,7 @@ def assign_any_remained_people(
     adults: DataFrame,
     children: DataFrame,
     assign_children: bool = True,
-    assign_adults: bool = False,
+    assign_adults: bool = True,
 ) -> DataFrame:
     """Randomly assign remained people to existing household"""
 
@@ -753,7 +741,7 @@ def obtain_adult_index_based_on_ethnicity(
         len(unique_base_pop_ethnicity) - 1
     )
 
-    if proc_household_composition["adults_num"] > 1:
+    if proc_household_composition["adults"].values[0] > 1:
 
         probabilities = []
         for proc_ethnicity in unique_base_pop_ethnicity:
@@ -766,7 +754,8 @@ def obtain_adult_index_based_on_ethnicity(
         probabilities = probabilities / probabilities.sum()
 
         other_adults_ethnicities = []
-        for _ in range(proc_household_composition["adults_num"] - 1):
+
+        for _ in range(proc_household_composition["adults"].values[0] - 1):
             other_adults_ethnicities.append(
                 numpy_choice(
                     unique_base_pop_ethnicity,
@@ -793,7 +782,7 @@ def obtain_adult_index_based_on_ethnicity(
 
 def assign_household_and_dwelling_id(
     proc_base_pop: DataFrame,
-    household_id: int,
+    household_id: str,
     adult_ids: DataFrame,
     children_ids: DataFrame,
     proc_household_composition: DataFrame,
@@ -817,6 +806,7 @@ def assign_household_and_dwelling_id(
         f"{household_id}"
     )
 
+    """
     proc_base_pop.loc[proc_base_pop["index"].isin(adult_ids), "dwelling_type"] = int(
         proc_household_composition.dwelling_type
     )
@@ -832,9 +822,28 @@ def assign_household_and_dwelling_id(
     proc_base_pop.loc[proc_base_pop["index"].isin(children_ids), "hhd_src"] = (
         proc_household_composition.hhd_src
     )
-
+    """
     return proc_base_pop
 
+
+def sort_household_v2(proc_houshold_dataset: DataFrame, exclude_row_indices: list) -> DataFrame:
+    """
+    Sorts the household dataset by randomly selecting a row based on the 'percentage' column,
+    after excluding a specified row.
+
+    Parameters:
+        proc_houshold_dataset (DataFrame): The household dataset to process.
+        exclude_row_index (int): The index of the row to exclude from the dataset.
+
+    Returns:
+        DataFrame: A dataframe with one randomly selected row based on the 'percentage' column.
+    """
+    proc_houshold_dataset = proc_houshold_dataset.drop(exclude_row_indices)
+
+    if len(proc_houshold_dataset) == 0:
+        return None
+
+    return proc_houshold_dataset.sample(weights=proc_houshold_dataset["percentage"])
 
 def sort_household(
     proc_houshold_dataset: DataFrame, use_level_flag: bool = True
@@ -873,15 +882,8 @@ def create_household_composition_v3(
 
     if only_households_with_adults:
         proc_houshold_dataset = proc_houshold_dataset[
-            proc_houshold_dataset["adults_num"] > 0
+            proc_houshold_dataset["adults"] > 0
         ]
-
-    sorted_proc_houshold_dataset = sort_household(proc_houshold_dataset)
-
-    # Remove empty household
-    sorted_proc_houshold_dataset = sorted_proc_houshold_dataset[
-        (sorted_proc_houshold_dataset["people_num"] != 0)
-    ]
 
     unassigned_adults = proc_base_pop[proc_base_pop["age"] >= 18].copy()
     unassigned_children = proc_base_pop[proc_base_pop["age"] < 18].copy()
@@ -889,6 +891,72 @@ def create_household_composition_v3(
     unique_base_pop_ethnicity = list(proc_base_pop["ethnicity"].unique())
 
     household_id = 0
+
+    exclude_hhd_composition_indices = []
+
+    while True:
+        proc_household_composition = sort_household_v2(
+            proc_houshold_dataset, exclude_hhd_composition_indices)
+
+        household_id = str(uuid4())[:6]
+
+        if proc_household_composition is None:
+            break
+
+        if (
+            len(unassigned_adults) < proc_household_composition["adults"].values[0]
+            or len(unassigned_children) < proc_household_composition["children"].values[0]
+        ):
+            # print("Not enough adults or children to assign.")
+            exclude_hhd_composition_indices.append(proc_household_composition.index.values[0])
+            continue
+
+        adult_ids, ref_ethnicity = obtain_adult_index_based_on_ethnicity(
+            unassigned_adults,
+            proc_household_composition,
+            unique_base_pop_ethnicity,
+        )
+
+        try:
+            children_ids = (
+                unassigned_children[
+                    unassigned_children["ethnicity"] == ref_ethnicity
+                ]
+                .sample(proc_household_composition["children"].values[0])["index"]
+                .tolist()
+            )
+        except (
+                ValueError,
+                IndexError,
+            ):
+            # Value Error: not enough children for a particular ethnicity to be sampled from;
+            # IndexError: len(adults_id) = 0 so mode() does not work
+            children_ids = unassigned_children.sample(
+                proc_household_composition["children"].values[0]
+            )["index"].tolist()
+
+        proc_base_pop = assign_household_and_dwelling_id(
+            proc_base_pop,
+            f"household_{proc_area}_{len(adult_ids)}-{len(children_ids)}_{household_id}",
+            adult_ids,
+            children_ids,
+            proc_household_composition,
+        )
+
+        unassigned_adults = unassigned_adults.loc[
+            ~unassigned_adults["index"].isin(adult_ids)
+        ]
+        unassigned_children = unassigned_children.loc[
+            ~unassigned_children["index"].isin(children_ids)
+        ]
+
+    proc_base_pop = assign_any_remained_people(
+        proc_base_pop, unassigned_adults, unassigned_children
+    )
+
+    return proc_base_pop
+
+    """
     for _, proc_household_composition in sorted_proc_houshold_dataset.iterrows():
 
         for _ in range(proc_household_composition["household_num"]):
@@ -945,7 +1013,7 @@ def create_household_composition_v3(
             ]
 
             household_id += 1
-
+    """
     proc_base_pop = assign_any_remained_people(
         proc_base_pop, unassigned_adults, unassigned_children
     )
@@ -973,9 +1041,7 @@ def household_wrapper(
     houshold_dataset: DataFrame,
     base_pop: DataFrame,
     base_address: DataFrame,
-    geo_address_data: DataFrame or None = None,
-    use_parallel: bool = False,
-    n_cpu: int = 8,
+    geo_address_data: DataFrame or None = None
 ) -> DataFrame:
     """Assign people to different households
 
@@ -989,9 +1055,9 @@ def household_wrapper(
     base_pop["dwelling_type"] = numpy_nan
     base_pop["hhd_src"] = numpy_nan
 
-    houshold_dataset["hhd_src"] = houshold_dataset["adults_num"].apply(
-        lambda x: "dwelling" if x == "unknown" else "hhd"
-    )
+    #houshold_dataset["hhd_src"] = houshold_dataset["adults"].apply(
+    #    lambda x: "dwelling" if x == "unknown" else "hhd"
+    #)
 
     num_children = list(houshold_dataset.columns)
     num_children.remove("area")
@@ -1005,7 +1071,8 @@ def household_wrapper(
 
         proc_base_pop = base_pop[base_pop["area"] == proc_area].reset_index()
 
-        proc_houshold_dataset = household_prep(houshold_dataset, proc_base_pop)
+        # proc_houshold_dataset = household_prep(houshold_dataset, proc_base_pop)
+        proc_houshold_dataset = houshold_dataset[houshold_dataset["area"] == proc_area]
 
         if len(proc_base_pop) == 0:
             continue
@@ -1031,11 +1098,10 @@ def household_wrapper(
         proc_address_data = add_random_address(
             deepcopy(base_pop),
             geo_address_data,
-            "household",
-            use_parallel=use_parallel,
-            n_cpu=n_cpu,
+            "household"
         )
         base_address = concat([base_address, proc_address_data])
+        base_address["area"] = base_address["area"].astype("int")
 
     return base_pop, base_address
 
@@ -1136,12 +1202,13 @@ def household_prep(
     proc_area = list(synpop_input["area"].unique())[0]
 
     proc_household_data = household_input[household_input["area"] == proc_area]
-    proc_base_synpop = synpop_input[synpop_input["area"] == proc_area]
+    # proc_base_synpop = synpop_input[synpop_input["area"] == proc_area]
 
-    proc_household_data = obtain_household_children_num(
-        proc_household_data, replace_unknown_num_method=2
-    )
+    #proc_household_data = obtain_household_children_num(
+    #    proc_household_data, replace_unknown_num_method=2
+    #)
 
+    """
     if scaling:
         scaling_factor = get_household_scaling_factor(
             proc_base_synpop, proc_household_data
@@ -1158,5 +1225,5 @@ def household_prep(
     # proc_household_data = proc_household_data[
     #    ["area", "adult_num", "children_num", "household_num"]
     # ]
-
+    """
     return proc_household_data

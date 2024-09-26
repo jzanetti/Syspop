@@ -4,6 +4,8 @@ from logging import getLogger
 from numpy import nan as numpy_nan
 from pandas import DataFrame, concat, merge
 
+from uuid import uuid4
+
 logger = getLogger()
 
 
@@ -13,15 +15,22 @@ def create_school_names(school_data: DataFrame) -> DataFrame:
 
     Args:
         school_data (DataFrame): _description_
+        # household_247900_5444c8
     """
-    school_data["school_name"] = school_data.groupby("area").cumcount().astype(str)
-    school_data["school_name"] = (
-        school_data["area"].astype(str)
-        + "_"
-        + school_data["sector"]
-        + "_"
-        + school_data["school_name"]
-    )
+    all_areas = list(school_data["area"].unique())
+    school_data["school_name"] = None
+    for proc_area in all_areas:
+        proc_schools = school_data[school_data["area"] == proc_area]
+        proc_schools["school_name"] = [str(uuid4())[:6] for _ in range(len(proc_schools))]
+        proc_schools["school_name"] = (
+            "school_"
+            + proc_schools["sector"]
+            + "_"
+            + proc_schools["area"].astype(str)
+            + "_"
+            + proc_schools["school_name"]
+        )
+        school_data.loc[proc_schools.index, "school_name"] = proc_schools.school_name
 
     return school_data
 
@@ -305,13 +314,15 @@ def school_and_kindergarten_wrapper(
                 break
 
     logger.info(f"Combining {data_type} dataset ...")
-    processed_school_population = concat(processed_people, ignore_index=True)
-    processed_school_population.set_index("index", inplace=True)
-    processed_school_population.index.name = None
 
-    pop_data.loc[processed_school_population.index] = processed_school_population[
-        pop_data.columns
-    ]
+    if len(processed_people) > 0:
+        processed_school_population = concat(processed_people, ignore_index=True)
+        processed_school_population.set_index("index", inplace=True)
+        processed_school_population.index.name = None
+
+        pop_data.loc[processed_school_population.index] = processed_school_population[
+            pop_data.columns
+        ]
 
     pop_data = pop_data.drop(columns=["super_area", "region"])
 

@@ -2,18 +2,17 @@ from copy import deepcopy
 from logging import getLogger
 
 from numpy import nan as numpy_nan
-from numpy import vectorize as numpy_vectorize
 from numpy.random import choice as numpy_choice
 from numpy.random import uniform as numpy_uniform
-from pandas import DataFrame, concat
+from pandas import DataFrame, concat, merge
 from process.address import add_random_address
-from process.commute import home_and_work, shared_transport
+from process.commute import travel_between_home_and_work, shared_transport
 
 logger = getLogger()
 
 
-def assign_employers_to_base_pop(
-    base_pop: DataFrame, all_employers: dict, use_for_loop: bool = False
+def assign_employees_employers_to_base_pop(
+    base_pop: DataFrame, all_employers: dict, employee_data: DataFrame, use_for_loop: bool = True
 ) -> DataFrame:
     """Assign employer/company to base population
 
@@ -25,40 +24,32 @@ def assign_employers_to_base_pop(
     Returns:
         DataFrame: Updated population
     """
-    base_pop["company"] = numpy_nan
-    total_people = len(base_pop)
 
-    if use_for_loop:
-        i = 0
-        for index, proc_row in base_pop.iterrows():
-            if i % 100000 == 0.0:
-                logger.info(f"Business processing: {i}/{total_people}")
+    def process_row(proc_row, employee_data, all_employers):
+        if proc_row["area_work"] == -9999:
+            return numpy_nan  # or any other placeholder for invalid data
 
-            if proc_row["area_work"] == -9999:
-                i += 1
+        proc_area_work = proc_row["area_work"]
+
+        tries = 0
+        while True:
+            
+            if tries > 5:
+                break
+            try:
+                possible_work_sector = employee_data[employee_data["area"] == proc_area_work].sample(
+                    weights=employee_data["employee_number_percentage"])["business_code"].values[0]
+                possible_employers = all_employers[proc_area_work]
+                output_employer = numpy_choice([item for item in possible_employers if item.startswith(possible_work_sector)])
+            except ValueError:
                 continue
 
-            proc_area_work = proc_row["area_work"]
+            return output_employer
+        return "Unknown"
 
-            possible_employers = all_employers[proc_area_work]
-
-            base_pop.at[index, "company"] = numpy_choice(possible_employers)
-
-            i += 1
-    else:
-        # Create a mask for rows where area_work is not -9999
-        mask = base_pop["area_work"] != -9999
-
-        # Apply the mask to filter relevant rows
-        valid_rows = base_pop[mask]
-
-        # Use numpy_choice to generate random choices for each row in valid_rows
-        choices = numpy_vectorize(lambda x: numpy_choice(all_employers[x]))(
-            valid_rows["area_work"]
-        )
-
-        # Assign the choices back to the "company" column in the original dataframe
-        base_pop.loc[mask, "company"] = choices
+    base_pop["company"] = numpy_nan
+    base_pop["company"] = base_pop.apply(
+        lambda row: process_row(row, employee_data, all_employers), axis=1)
 
     return base_pop
 
@@ -105,6 +96,7 @@ def align_commute_data_to_employee_data(
     commute_input = commute_input.apply(
         lambda x: x.astype(int) if x.name not in ["area_home", "area_work"] else x
     )
+    # commute_input = commute_input.fillna(0.0)
 
     if process_remained_people:
         # Step 2: add remained employee numbers randomly
@@ -193,9 +185,7 @@ def work_and_commute_wrapper(
     base_address: DataFrame,
     commute_data: DataFrame,
     geo_hirarchy_data: DataFrame,
-    geo_address_data: DataFrame or None = None,
-    use_parallel: bool = False,
-    n_cpu: int = 4,
+    geo_address_data: DataFrame or None = None
 ) -> DataFrame:
     """Create business and commute data
 
@@ -203,8 +193,7 @@ def work_and_commute_wrapper(
         business_data (dict): Business data, e.g., employer, employee, school etc.
         pop_data (DataFrame): Population dataset
         commute_data (DataFrame): Commute dataset, e.g., home_to_work etc.
-        use_parallel (bool, optional): If run jobs in parallel. Defaults to False.
-        n_cpu (int, optional): Number of CPUs to use. Defaults to 4.
+
 
     Raises:
         Exception: Not implemented yet ...
@@ -218,13 +207,12 @@ def work_and_commute_wrapper(
         business_data["employee"],
         pop_data,
         commute_data,
-        use_parallel=use_parallel,
-        n_cpu=n_cpu,
+        geo_hirarchy_data
     )
 
     if geo_address_data is not None:
         proc_address_data = add_random_address(
-            deepcopy(base_pop), geo_address_data, "company", use_parallel=use_parallel
+            deepcopy(base_pop), geo_address_data, "company"
         )
         base_address = concat([base_address, proc_address_data])
 
@@ -238,8 +226,7 @@ def work_wrapper(
     employee_data: DataFrame,
     pop_data: DataFrame,
     commute_data: DataFrame,
-    use_parallel: bool = False,
-    n_cpu: int = 4,
+    geo_hirarchy_data: DataFrame
 ):
     """Assign individuals to different companies:
 
@@ -249,32 +236,36 @@ def work_wrapper(
         pop_data (DataFrame): _description_
         commute_data (DataFrame): _description_
     """
-    all_work_areas = list(pop_data["area"].unique())
+    all_areas = list(pop_data["area"].unique())
 
     all_commute_data = []
     all_employers = {}
-    for proc_area in all_work_areas:
+    all_employees = {}
+    for proc_area in all_areas:
         proc_commute_data = commute_data[commute_data["area_work"] == proc_area]
         proc_employee_data = employee_data[employee_data["area"] == proc_area]
         proc_employer_data = employer_data[employer_data["area"] == proc_area]
 
-        proc_commute_data = align_commute_data_to_employee_data(
-            proc_employee_data, proc_commute_data
-        )
-
         all_commute_data.append(proc_commute_data)
 
         all_employers[proc_area] = create_employers(proc_employer_data)
+        all_employees[proc_area] = proc_employee_data["employee_number"].sum()
 
     all_commute_data = concat(all_commute_data, ignore_index=True)
+    all_commute_data = merge(
+        all_commute_data, 
+        geo_hirarchy_data, 
+        left_on="area_home", 
+        right_on="area", 
+        how="inner").drop(columns=["region", "area"]).rename(
+            columns={"super_area": "super_area_home"})
 
     logger.info("Assign home and work locations ...")
-
-    base_pop = home_and_work(
-        all_commute_data, pop_data, use_parallel=use_parallel, n_cpu=n_cpu
+    base_pop = travel_between_home_and_work(
+        all_commute_data, pop_data, all_employees
     )
 
     logger.info("Assign employers ...")
-    base_pop = assign_employers_to_base_pop(base_pop, all_employers)
+    base_pop = assign_employees_employers_to_base_pop(base_pop, all_employers, employee_data)
 
     return base_pop

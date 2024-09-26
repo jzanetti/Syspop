@@ -9,9 +9,12 @@ from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
-proj_year = 2028  # can be None or an actual year, e.g., None or 2028
+from warnings import filterwarnings
+filterwarnings("ignore")
 
-output_dir = "/tmp/syspop_test16/Wellington_test"
+proj_year = None  # can be None or an actual year, e.g., None or 2028
+
+output_dir = "/tmp/syspop_test17/Wellington_test"
 input_dir = "etc/data/test_data_wellington_latest"
 if proj_year is None:
     output_dir = join(output_dir, "base")
@@ -27,13 +30,14 @@ syn_areas = list(
     ]["area"]
 )
 
-# syn_areas = [247900]
+syn_areas = [241300, 241200, 243000, 247700, 242400]
 # syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
+# syn_areas = [242400]
 
 if_run_syspop_create = True
-if_run_diary = True
+if_run_diary = False
 if_run_validation = True
-if_run_vis = True
+if_run_vis = False
 
 if if_run_syspop_create:
     syspop_create(
@@ -45,9 +49,9 @@ if if_run_syspop_create:
         geo_location=test_data["geog_data"]["location"],
         geo_address=test_data["geog_data"]["address"],
         household=test_data["household_data"]["household"],
-        socialeconomic=test_data["geog_data"]["socialeconomic"],
+        socialeconomic=test_data["pop_data"]["deprivation"],
         work_data=test_data["work_data"],
-        home_to_work=test_data["commute_data"]["home_to_work"],
+        home_to_work=test_data["commute_data"]["travel_to_work"],
         school_data=test_data["school_data"]["school"],
         kindergarten_data=test_data["kindergarten_data"]["kindergarten"],
         hospital_data=test_data["hospital_data"]["hospital"],
@@ -63,8 +67,6 @@ if if_run_syspop_create:
         birthplace_data=test_data["others"]["birthplace"],
         assign_address_flag=True,
         rewrite_base_pop=True,
-        use_parallel=False,
-        ncpu=8,
         data_years={"vaccine": 2023},
     )
 
@@ -82,7 +84,7 @@ if if_run_validation:
         pop_ethnicity=test_data["pop_data"]["ethnicity"],
         household=test_data["household_data"]["household"],
         work_data=test_data["work_data"],
-        home_to_work=test_data["commute_data"]["home_to_work"],
+        home_to_work=test_data["commute_data"]["travel_to_work"],
         mmr_data=test_data["others"]["mmr"],
         data_years={"vaccine": 2023},
     )

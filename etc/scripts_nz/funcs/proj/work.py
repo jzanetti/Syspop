@@ -9,7 +9,8 @@ from pandas import read_csv
 
 
 def project_work_data(
-    workdir,
+    workdir: str,
+    input_cfg: dict,
     scenario="median",
     all_years: None or list = [2023, 2028, 2033, 2038, 2043],
 ):
@@ -34,7 +35,7 @@ def project_work_data(
     """
     raw_work_data = pickle_load(open(join(workdir, "work.pickle"), "rb"))
     proj_data = read_csv(
-        join(RAW_DATA["projection"]["business"]["labours"]),
+        join(input_cfg["projection"]["business"]["labours"]),
         usecols=[
             "SCENARIO_POPPR_LAB_001: Scenario",
             "YEAR_POPPR_LAB_001: Year at 30 June",

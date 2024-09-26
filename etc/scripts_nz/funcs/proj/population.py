@@ -4,7 +4,6 @@ from os.path import exists, join
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 
-from funcs import RAW_DATA
 from funcs.proj.utils import (
     get_geo_codes,
     process_ethnicity_data,
@@ -12,6 +11,7 @@ from funcs.proj.utils import (
 )
 from pandas import DataFrame
 from pandas import merge as pandas_merge
+from pandas import concat as pandas_concat
 
 
 def obtain_ref_scaler(
@@ -97,6 +97,7 @@ def _eu_melaa_ratio(workdir: str):
 
 def project_pop_data(
     workdir: str,
+    input_cfg: dict, 
     all_years: None or list = [2023, 2028, 2033, 2038, 2043],
 ):
     """
@@ -119,14 +120,14 @@ def project_pop_data(
     Returns:
         None
     """
-    geocode = get_geo_codes(RAW_DATA["geography"]["geography_hierarchy"])
+    geocode = get_geo_codes(input_cfg["geography"]["geography_hierarchy"])
 
     proj_data_ethnicity = process_ethnicity_data(
-        RAW_DATA["projection"]["population"]["population_by_ethnicity"]
+        input_cfg["projection"]["population"]["population_by_ethnicity"]
     )
 
     proj_data_age_and_gender = process_gender_age_data(
-        RAW_DATA["projection"]["population"]["population_by_age_by_gender"]
+        input_cfg["projection"]["population"]["population_by_age_by_gender"]
     )
     proj_data_age_and_gender = proj_data_age_and_gender.rename(columns={"sa2": "area"})
 
@@ -266,9 +267,6 @@ def project_pop_data(
         # percentages = {"European": 98.611111, "others": 1.388889}
         # Create new rows based on the percentages
         new_rows = []
-        import pandas as pd
-
-        new_rows = []
         for _, row in rows_to_split.iterrows():
             area = row["area"]
             for _, perc_row in eu_melaa_ratio[
@@ -280,11 +278,11 @@ def project_pop_data(
                     new_row[col] = row[col] * (perc_row[col] / 100)
                 new_rows.append(new_row)
 
-        new_rows_df = pd.DataFrame(new_rows)
+        new_rows_df = DataFrame(new_rows)
 
         new_rows_df.fillna(0.0, inplace=True)
 
-        proc_proj_data_ethnicity = pd.concat(
+        proc_proj_data_ethnicity = pandas_concat(
             [proc_proj_data_ethnicity, new_rows_df], ignore_index=True
         )
         proc_proj_data_ethnicity = proc_proj_data_ethnicity[
