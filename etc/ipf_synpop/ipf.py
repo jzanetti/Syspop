@@ -2,17 +2,19 @@ from copy import deepcopy
 
 from ipfn.ipfn import ipfn
 from pandas import DataFrame, melt, merge
+from scipy.optimize import minimize
 
 
 def pop_pivot(
     base_pop: DataFrame,
     pivot_cfg: dict = {"index": ["sex", "ethnicity"], "columns": ["age"]},
+    values_name: str = "count",
 ):
 
     base_pop_pivot = base_pop.pivot_table(
         index=pivot_cfg["index"],
         columns=pivot_cfg["columns"],
-        values="count",
+        values=values_name,
         aggfunc="sum",
         fill_value=0,
     )
@@ -46,7 +48,7 @@ def ipf_adjustment(base_pop_input: DataFrame, constrains: dict):
 
         if proc_constrain_key == "index":
             proc_index = 0
-        elif proc_constrain_key == "col":
+        elif proc_constrain_key == "columns":
             proc_index = 1
 
         constrain_indices.append([proc_index])
@@ -71,7 +73,11 @@ def postproc(
     pop_orig: DataFrame,
     pop_updated: DataFrame,
     colnames: list = ["sex", "ethnicity", "age"],
+    apply_scaler: bool = True,
 ):
+
+    def _objective(df: DataFrame, scaling_factor: float):
+        return abs(df["count"].sum() - (df["count_adjusted"] * scaling_factor).sum())
 
     pop_updated = pop_updated.stack().reset_index()
     pop_updated.columns = colnames + ["count"]
@@ -80,10 +86,21 @@ def postproc(
     # Reset the index of the final DataFrame
     pop_updated = pop_updated.reset_index(drop=True)
 
-    return merge(
+    merged_data = merge(
         pop_orig,
         pop_updated,
         on=colnames,
         suffixes=("", "_adjusted"),
         how="outer",
     )
+
+    if apply_scaler:
+        result = minimize(lambda x: _objective(merged_data, x), x0=1.0)
+        optimal_scaling_factor = result.x[0]
+        merged_data["count_adjusted"] *= optimal_scaling_factor
+
+    merged_data = merged_data[colnames + ["count_adjusted"]]
+
+    merged_data = merged_data.rename(columns={"count_adjusted": "count"})
+
+    return merged_data
