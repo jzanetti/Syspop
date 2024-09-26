@@ -1,5 +1,7 @@
 # export PYTHONPATH=/home/zhangs/Github/Syspop
 
+from os.path import join
+
 from process.utils import _get_data_for_test
 
 from syspop import create as syspop_create
@@ -7,17 +9,20 @@ from syspop import diary as syspop_diary
 from syspop import validate as syspop_validate
 from syspop import vis as syspop_vis
 
-data_year = 2023  # can be None or an actual year
-data_percentile = "median"
-output_dir = f"/tmp/syspop_test16/Wellington_test"
-# output_dir = "/DSC/digital_twin/abm/PHA_report_202405/syspop/NZ"
-if data_year is not None:
-    output_dir = f"{output_dir}/{data_year}"
+from warnings import filterwarnings
+filterwarnings("ignore")
 
-if data_percentile is not None:
-    output_dir += f"/{data_percentile}"
+proj_year = None  # can be None or an actual year, e.g., None or 2028
 
-test_data = _get_data_for_test("etc/data/test_data_wellington_latest")
+output_dir = "/tmp/syspop_test17/Wellington_test"
+input_dir = "etc/data/test_data_wellington_latest"
+if proj_year is None:
+    output_dir = join(output_dir, "base")
+else:
+    input_dir = join(input_dir, "proj", str(proj_year))
+    output_dir = join(output_dir, str(proj_year))
+
+test_data = _get_data_for_test(input_dir)
 
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
@@ -25,13 +30,14 @@ syn_areas = list(
     ]["area"]
 )
 
-# syn_areas = [247900]
+syn_areas = [241300, 241200, 243000, 247700, 242400]
 # syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
+# syn_areas = [242400]
 
 if_run_syspop_create = True
-if_run_diary = True
+if_run_diary = False
 if_run_validation = True
-if_run_vis = True
+if_run_vis = False
 
 if if_run_syspop_create:
     syspop_create(
@@ -43,9 +49,9 @@ if if_run_syspop_create:
         geo_location=test_data["geog_data"]["location"],
         geo_address=test_data["geog_data"]["address"],
         household=test_data["household_data"]["household"],
-        socialeconomic=test_data["geog_data"]["socialeconomic"],
+        socialeconomic=test_data["pop_data"]["deprivation"],
         work_data=test_data["work_data"],
-        home_to_work=test_data["commute_data"]["home_to_work"],
+        home_to_work=test_data["commute_data"]["travel_to_work"],
         school_data=test_data["school_data"]["school"],
         kindergarten_data=test_data["kindergarten_data"]["kindergarten"],
         hospital_data=test_data["hospital_data"]["hospital"],
@@ -61,10 +67,7 @@ if if_run_syspop_create:
         birthplace_data=test_data["others"]["birthplace"],
         assign_address_flag=True,
         rewrite_base_pop=True,
-        use_parallel=True,
-        ncpu=8,
-        data_year=data_year,
-        data_percentile=data_percentile,
+        data_years={"vaccine": 2023},
     )
 
 if if_run_diary:
@@ -81,10 +84,9 @@ if if_run_validation:
         pop_ethnicity=test_data["pop_data"]["ethnicity"],
         household=test_data["household_data"]["household"],
         work_data=test_data["work_data"],
-        home_to_work=test_data["commute_data"]["home_to_work"],
+        home_to_work=test_data["commute_data"]["travel_to_work"],
         mmr_data=test_data["others"]["mmr"],
-        data_year=data_year,
-        data_percentile=data_percentile,
+        data_years={"vaccine": 2023},
     )
 
 if if_run_vis:

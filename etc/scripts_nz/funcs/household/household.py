@@ -6,32 +6,20 @@ from funcs import DEPENDENT_CHILDREN_COUNT_CODE, RAW_DATA
 from pandas import isnull as pandas_isnull
 from pandas import read_csv
 
+from funcs.preproc import _read_raw_household
 
-def create_household_and_dwelling_number():
+
+def create_household_and_dwelling_number(raw_household_path):
     """Create household number
 
     Args:
-        workdir (str): Household and dwelling number
+        raw_household_path (str): Raw household data path
     """
-    data = read_csv(RAW_DATA["household"]["household_number"])
+    return _read_raw_household(raw_household_path)
 
-    return data.rename(
-        columns={
-            "SA2 Code": "area",
-            "Number of people": "people_num",
-            "Number of adults": "adults_num",
-            "Dwelling type": "dwelling_type",
-            "Count": "household_num",
-        }
-    )
-
-
+"""
 def create_household_number(workdir):
-    """Create household number
 
-    Args:
-        workdir (str): _description_
-    """
     data = read_csv(RAW_DATA["household"]["household_number"])
 
     data = data[
@@ -70,3 +58,4 @@ def create_household_number(workdir):
     ].sum()
 
     return data
+"""

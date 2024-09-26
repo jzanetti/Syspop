@@ -9,16 +9,17 @@ from geopy.geocoders import Nominatim
 from numpy import argmin
 from pandas import DataFrame, merge, read_csv
 from scipy.spatial.distance import cdist
+from funcs.preproc import _read_raw_schools, _read_raw_kindergarten, _read_raw_hospital, _read_original_csv
 
 
-def create_shared_space(space_name: str, geography_location: DataFrame):
-    """Write shared space
+def create_osm_space(data_path: str, geography_location: DataFrame):
+    """Write shared space from OSM
 
     Args:
         workdir (str): Working directory
         space_name (str), name such as supermakrts
     """
-    data = read_csv(RAW_DATA["venue"][space_name])
+    data = _read_original_csv(data_path)
     distances = cdist(
         data[["lat", "lon"]],
         geography_location[["latitude", "longitude"]],
@@ -35,162 +36,24 @@ def create_shared_space(space_name: str, geography_location: DataFrame):
     return data
 
 
-def write_leisures(workdir: str):
-    """Write cinema information
+def create_kindergarten(kindergarten_data_path: str) -> DataFrame:
+    """
+    Reads and processes raw New Zealand kindergarten data from a CSV file.
+
+    This function reads a CSV file containing kindergarten data and processes it using the
+    `_read_raw_nz_kindergarten` function.
 
     Args:
-        workdir (str): Working directory
+        kindergarten_data_path (str): The file path to the CSV file containing the raw kindergarten data.
+
+    Returns:
+        DataFrame: A pandas DataFrame containing the processed kindergarten data.
     """
-
-    def _get_data_from_osm(
-        name: str,
-        super_area_id: str,
-        geo_name: str,
-        output: dict,
-        osm_query_key: dict,
-        api,
-        radius: int = 500.0,
-        domain_range: dict = {"lat": [-50.0, -30.0], "lon": [160.0, 180.0]},
-    ) -> list:
-        """Query data from OSM
-
-        Args:
-            name (str): the amenity type, e.g., cinema
-            geo_name (str): city or region name, e.g., Wellington
-            radius (float, default: 500): Query radius in km
-
-        Returns:
-            list: the queried results from OSM
-        """
-        geolocator = Nominatim(user_agent="{name}_extraction")
-
-        retry = 0
-
-        location = None
-        while retry < 5:
-            try:
-                location = geolocator.geocode(f"{geo_name}, New Zealand", timeout=15)
-                break
-            except:
-                sleep(15 * (retry + 1))
-                retry += 1
-
-        if location is None:
-            raise Exception(f"Not able to get geolocator with retries = {retry} ...")
-
-        lat = location.latitude
-        lon = location.longitude
-
-        radius *= 1000.0
-
-        proc_query_key = osm_query_key[name]
-
-        query = "("
-        for query_key in proc_query_key:
-            proc_data_list = proc_query_key[query_key]
-
-            for proc_data_name in proc_data_list:
-                query += f'node["{query_key}"="{proc_data_name}"](around:{radius},{lat},{lon});'
-
-        query = query + "); \nout;"
-
-        tried = 0
-        while True:
-            try:
-                result = api.query(query)
-                break
-            except:
-                if tried > 3:
-                    raise Exception("Tried too many times, give up ...")
-                sleep(10)
-                tried += 1
-
-        for node in result.nodes:
-            node_lat = float(node.lat)
-            node_lon = float(node.lon)
-
-            if (
-                node_lat > domain_range["lat"][1]
-                or node_lat < domain_range["lat"][0]
-                or node_lon < domain_range["lon"][0]
-                or node_lat > domain_range["lon"][1]
-            ):
-                raise Exception(
-                    f"Seems there is an issue for locating {name} in {geo_name}"
-                )
-
-            output["lat"].append(float(node.lat))
-            output["lon"].append(float(node.lon))
-            output["super_area"].append(super_area_id)
-
-        return output
-
-    api = overpy.Overpass()
-
-    for proc_leisure in ["gym", "grocery", "cinema", "pub"]:
-        output = {"lat": [], "lon": [], "super_area": []}
-        for super_area_id in REGION_NAMES_CONVERSIONS:
-            if super_area_id == 99:
-                continue
-
-            output = _get_data_from_osm(
-                proc_leisure,
-                super_area_id,
-                REGION_NAMES_CONVERSIONS[super_area_id],
-                output,
-                RAW_DATA_INFO["base"]["venue"]["leisures"]["osm_query_key"],
-                api,
-            )
-
-        output = DataFrame.from_dict(output)[["super_area", "lat", "lon"]]
-
-        output.to_csv(join(workdir, f"leisure_{proc_leisure}.csv"), index=False)
-
-
-def create_kindergarten() -> DataFrame:
-
-    df = read_csv(RAW_DATA["venue"]["kindergarten"])
-
-    # df = df[
-    #    df["Service Type"].isin(
-    #        ["Free Kindergarten", "Education and Care Service", "Playcentre"]
-    #    )
-    #    & df["Definition"].isin(["Not Applicable"])
-    # ]
-    df = df[df["Max. Licenced Positions"] > 15.0]
-
-    # df = df[df["Total"] / df["Max. Licenced Positions"] > 0.75]
-
-    df = df[
-        [
-            "Statistical Area 2 Code",
-            "Max. Licenced Positions",
-            "Latitude",
-            "Longitude",
-        ]
-    ]
-
-    df = df.rename(
-        columns={
-            "Statistical Area 2 Code": "area",
-            "Max. Licenced Positions": "max_students",
-            "Latitude": "latitude",
-            "Longitude": "longitude",
-        }
-    )
-    df = df.dropna()
-
-    df["area"] = df["area"].astype(int)
-    df["max_students"] = df["max_students"].astype(int)
-
-    df["sector"] = "kindergarten"
-    df["age_min"] = 0
-    df["age_max"] = 5
-
-    return df
+    return _read_raw_kindergarten(kindergarten_data_path)
 
 
 def create_school(
+    school_data_path: str,
     sa2_loc: DataFrame,
     max_to_cur_occupancy_ratio=1.2,
 ) -> dict:
@@ -202,38 +65,19 @@ def create_school(
         max_to_cur_occupancy_ratio (float, optional): In the data, we have the estimated occupancy
             for a school, while in JUNE we need the max possible occupancy. Defaults to 1.2.
 
+    The output is sth like:
+                    area  max_students             sector   latitude   longitude  age_min  age_max
+        0     133400             0          secondary -36.851138  174.760643       14       19
+        1     167100          1087  primary_secondary -36.841742  175.696738        5       19
+        3     358500            28            primary -46.207408  168.541883        5       13
+        8     101100           296  primary_secondary -34.994245  173.463766        5       19
+        9     106600          1728          secondary -35.713358  174.318881       14       19
+        .....
+
     Returns:
         dict: The dict contains the school information
     """
-    data = read_csv(RAW_DATA["venue"]["school"])
-
-    data = data[data["use"] == "School"]
-
-    data = data[
-        ~data["use_type"].isin(
-            [
-                "Teen Parent Unit",
-                "Correspondence School",
-            ]
-        )
-    ]
-
-    data["use_type"] = data["use_type"].map(
-        RAW_DATA_INFO["base"]["venue"]["school"]["school_age_table"]
-    )
-
-    data[["sector", "age_range"]] = data["use_type"].str.split(" ", n=1, expand=True)
-    data["age_range"] = data["age_range"].str.strip("()")
-    data[["age_min", "age_max"]] = data["age_range"].str.split("-", expand=True)
-
-    # data[["sector", "age_min", "age_max"]] = data["use_type"].str.extract(
-    #    r"([A-Za-z\s]+)\s\((\d+)-(\d+)\)"
-    # )
-
-    data["Central Point"] = data["WKT"].apply(get_central_point)
-
-    data["latitude"] = data["Central Point"].apply(lambda point: point.y)
-    data["longitude"] = data["Central Point"].apply(lambda point: point.x)
+    data = _read_raw_schools(school_data_path)
 
     distances = cdist(
         data[["latitude", "longitude"]],
@@ -273,24 +117,25 @@ def create_school(
 
 
 def create_hospital(
+    hospital_data_path: str,
     sa2_loc: DataFrame,
 ) -> DataFrame:
     """Write hospital locations
+
+    The output looks like:
+            area   latitude   longitude  beds
+    2     100800 -35.119186  173.260926    32
+    4     350400 -45.858787  170.473064    90
+    5     229800 -40.337130  175.616683    11
+    6     233300 -40.211906  176.098154    11
+    7     125500 -36.779884  174.756511    35
+    ...      ...        ...         ...   ...
 
     Args:
         workdir (str): Working directory
         hospital_locations_cfg (dict): Hospital location configuration
     """
-    data = read_csv(RAW_DATA["venue"]["hospital"])
-
-    data = data[data["use"] == "Hospital"]
-
-    data["Central Point"] = data["WKT"].apply(get_central_point)
-
-    data["latitude"] = data["Central Point"].apply(lambda point: point.y)
-    data["longitude"] = data["Central Point"].apply(lambda point: point.x)
-
-    data = data[["latitude", "longitude", "estimated_occupancy", "source_facility_id"]]
+    data = _read_raw_hospital(hospital_data_path)
 
     distances = cdist(
         data[["latitude", "longitude"]],
@@ -312,4 +157,4 @@ def create_hospital(
     data.dropna(inplace=True)
     data[["beds", "area"]] = data[["beds", "area"]].astype(int)
 
-    return data
+    return data[["area", "latitude", "longitude", "beds"]]

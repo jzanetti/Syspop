@@ -4,7 +4,6 @@ from os import makedirs
 from os.path import exists, join
 from pickle import load as pickle_load
 
-import ray
 from numpy import nan as numpy_nan
 from numpy import unique as numpy_unique
 from numpy import zeros as numpy_zeros
@@ -15,7 +14,6 @@ from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
 from process.diary import (
     create_diary,
-    create_diary_remote,
     map_loc_to_diary,
     quality_check_diary,
 )
@@ -36,7 +34,7 @@ from process.vis import (
     plot_pie_charts,
     plot_travel_html,
 )
-from wrapper_pop import (
+from process.create_pop_wrapper import (
     create_base_pop,
     create_birthplace,
     create_hospital,
@@ -273,8 +271,7 @@ def validate(
     work_data: DataFrame or None = None,  # census
     home_to_work: DataFrame or None = None,  # census
     mmr_data: DataFrame or None = None,  # imms data
-    data_year: int or None = None,  # data year if it is used
-    data_percentile: str or None = None,  # lower, upper, and median
+    data_years: dict = {"vaccine": 2023},
 ):
     """Doding the validation of synthetic population
 
@@ -294,8 +291,7 @@ def validate(
         val_dir,
         merge_syspop_data(output_dir, ["base", "healthcare"]),
         mmr_data,
-        data_year,
-        data_percentile,
+        data_years["vaccine"],
     )
 
     logger.info("Valdating commute (area) ...")
@@ -366,37 +362,19 @@ def diary(
         df for _, df in syspop_data.groupby(pandas_cut(syspop_data.index, n_cpu))
     ]
 
-    logger.info(f"Diary: initiating Ray [cpu: {n_cpu}]...")
-    if n_cpu > 1:
-        ray.init(num_cpus=n_cpu, include_dashboard=False)
-
     logger.info("Diary: start processing diary ...")
     outputs = []
     for i, proc_syspop_data in enumerate(syspop_data_partitions):
-        if n_cpu == 1:
-            outputs.append(
-                create_diary(
-                    proc_syspop_data,
-                    n_cpu,
-                    print_log=True,
-                    activities_cfg=activities_cfg,
-                    llm_diary_data=llm_diary_data,
-                )
-            )
-        else:
-            outputs.append(
-                create_diary_remote.remote(
-                    proc_syspop_data,
-                    n_cpu,
-                    print_log=i == 0,
-                    activities_cfg=activities_cfg,
-                    llm_diary_data=llm_diary_data,
-                )
-            )
 
-    if n_cpu > 1:
-        outputs = ray.get(outputs)
-        ray.shutdown()
+        outputs.append(
+            create_diary(
+                proc_syspop_data,
+                n_cpu,
+                print_log=True,
+                activities_cfg=activities_cfg,
+                llm_diary_data=llm_diary_data,
+            )
+        )
 
     outputs = pandas_concat(outputs, axis=0, ignore_index=True)
 
@@ -444,9 +422,7 @@ def create(
     birthplace_data: DataFrame = None,
     assign_address_flag: bool = False,
     rewrite_base_pop: bool = False,
-    use_parallel: bool = False,
-    ncpu: int = 8,
-    data_year: int = None,
+    data_years: dict = {"vaccine": 2023},
     data_percentile: str = "median",
 ):
     """Create synthetic population
@@ -470,8 +446,6 @@ def create(
         pharmacy_data (DataFrame, optional): pharmacy data. Defaults to None.
         assign_address_flag (bool, optional): if assign lat/lon to different venues. Defaults to False.
         rewrite_base_pop (bool, optional): if re-write base population. Defaults to False.
-        use_parallel (bool, optional): use parallel processing. Defaults to False.
-        ncpu (int, optional): number of CPUs. Defaults to 8.
         data_year (int, optional): the Year that data to be used (if available). Defaults to None
 
     Raises:
@@ -513,13 +487,13 @@ def create(
             "base_pop", deps_list=["pop_gender", "pop_ethnicity", "syn_areas"]
         )
         create_base_pop(
-            tmp_data_path, pop_gender, pop_ethnicity, syn_areas, use_parallel, ncpu
+            tmp_data_path, pop_gender, pop_ethnicity, syn_areas, ref_population = "gender"
         )
 
     if household is not None:
         logger.info("Adding household ...")
         _check_dependancies("household", address_deps=["geo_address"])
-        create_household(tmp_data_path, household, geo_address, use_parallel, ncpu)
+        create_household(tmp_data_path, household, geo_address)
 
     if socialeconomic is not None:
         create_socialeconomics(tmp_data_path, socialeconomic)
@@ -536,9 +510,7 @@ def create(
             work_data,
             home_to_work,
             geo_hierarchy,
-            geo_address,
-            use_parallel,
-            ncpu,
+            geo_address
         )
 
     if school_data is not None:
@@ -684,7 +656,7 @@ def create(
 
     if mmr_data is not None:
         logger.info("Adding MMR data ...")
-        create_vaccine(tmp_data_path, mmr_data, data_year, data_percentile)
+        create_vaccine(tmp_data_path, mmr_data, data_years["vaccine"])
 
     if birthplace_data is not None:
         logger.info("Adding birthplace data ...")

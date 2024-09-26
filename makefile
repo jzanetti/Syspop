@@ -14,7 +14,7 @@ clear_all:
 	rm -rf $(CONDA_BASE)/conda-bld/$(PKG)*
 	rm -rf $(CONDA_BASE)/conda-bld/linux-64/.cache/paths/$(PKG)*
 	rm -rf $(CONDA_BASE)/conda-bld/linux-64/.cache/recipe/$(PKG)*
-	$(MAMBA) index $(CONDA_BASE)/conda-bld
+	# $(MAMBA) index $(CONDA_BASE)/conda-bld
 
 env: clear_all
 	$(MAMBA) env create -f env.yml
@@ -67,3 +67,9 @@ check_port:
 # -----------------------
 create_nz_data:
 	etc/scripts_nz/create_nz_data.bash
+
+# -----------------------
+# Run NZ syspop
+# -----------------------
+run_syspop_nz:
+	nohup python syspop/run_nz.py >& log.syspop &

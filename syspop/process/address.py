@@ -2,31 +2,10 @@ from copy import deepcopy
 from datetime import datetime
 from logging import getLogger
 
-import ray
 from pandas import DataFrame
 
 logger = getLogger()
 
-
-@ray.remote
-def assign_place_to_address_remote(
-    address_type: str,
-    pop_data_input: DataFrame,
-    address_data_input: DataFrame,
-    proc_area: int,
-):
-    """Randomly assign each household to an address (for parallel processing)
-
-    Args:
-        pop_data_input (DataFrame): population data for an area
-        address_data_input (DataFrame): address data for an area
-
-    Returns:
-        DataFrame: Processed population data
-    """
-    return assign_place_to_address(
-        address_type, deepcopy(pop_data_input), address_data_input, proc_area
-    )
 
 
 def assign_place_to_address(
@@ -62,9 +41,7 @@ def assign_place_to_address(
 def add_random_address(
     base_pop: DataFrame,
     address_data: DataFrame,
-    address_type: str,
-    use_parallel: bool = False,
-    n_cpu: int = 16,
+    address_type: str
 ) -> DataFrame:
     """Add address (lat and lon) to each household
 
@@ -82,9 +59,6 @@ def add_random_address(
 
     all_areas = list(base_pop["area"].unique())
 
-    if use_parallel:
-        ray.init(num_cpus=n_cpu, include_dashboard=False)
-
     results = []
 
     for i, proc_area in enumerate(all_areas):
@@ -98,20 +72,11 @@ def add_random_address(
 
         proc_pop_data = base_pop[base_pop[area_type] == proc_area]
 
-        if use_parallel:
-            processed_address = assign_place_to_address_remote.remote(
-                address_type, proc_pop_data, proc_address_data, proc_area
-            )
-        else:
-            processed_address = assign_place_to_address(
-                address_type, proc_pop_data, proc_address_data, proc_area
-            )
+        processed_address = assign_place_to_address(
+            address_type, proc_pop_data, proc_address_data, proc_area
+        )
 
         results.append(processed_address)
-
-    if use_parallel:
-        results = ray.get(results)
-        ray.shutdown()
 
     flattened_results = [item for sublist in results for item in sublist]
     results_dict = {"name": [], "latitude": [], "longitude": [], "area": []}

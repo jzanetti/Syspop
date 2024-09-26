@@ -2,9 +2,8 @@ from collections import Counter as collections_counter
 from copy import deepcopy
 from datetime import datetime, timedelta
 from logging import getLogger
-from os.path import exists, join
+from os.path import join
 
-import ray
 from numpy import array as numpy_array
 from numpy.random import choice as numpy_choice
 from numpy.random import normal as numpy_normal
@@ -130,31 +129,6 @@ def create_diary_single_person(
     return output
 
 
-@ray.remote
-def create_diary_remote(
-    syspop_data: DataFrame,
-    ncpu: int,
-    print_log: bool,
-    activities: dict or None = None,
-    llm_diary_data: dict or None = None,
-) -> DataFrame:
-    """Create diaries in parallel processing
-
-    Args:
-        workdir (str): Working directory
-        syspop_data (DataFrame): Synthetic population
-        ncpu (int): Number of CPUs in total
-            (this is just for displaying the progress)
-    """
-    return create_diary(
-        syspop_data,
-        ncpu,
-        print_log,
-        activities_cfg=activities,
-        llm_diary_data=llm_diary_data,
-    )
-
-
 def update_weight_by_age(activities_input: dict, age: int) -> dict:
     """Update the activity weight
 
@@ -206,9 +180,10 @@ def create_diary(
 
         proc_people = syspop_data.iloc[i]
         if print_log:
-            logger.info(
-                f"Processing [{i}/{total_people}]x{ncpu}: {100.0 * round(i/total_people, 2)}x{ncpu} %"
-            )
+            if i % 5000 == 0:
+                logger.info(
+                    f"Processing [{i}/{total_people}]x{ncpu}: {100.0 * round(i/total_people, 2)}x{ncpu} %"
+                )
 
         if llm_diary_data is None:
             proc_activities = activities_cfg.get(

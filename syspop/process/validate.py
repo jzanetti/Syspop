@@ -1,6 +1,6 @@
 from numpy import nan as numpy_nan
-from pandas import DataFrame, merge
-from process.vis import validate_vis_barh, validate_vis_movement, validate_vis_plot
+from pandas import DataFrame
+from process.vis import validate_vis_barh, validate_vis_movement
 
 
 def get_overlapped_areas(area1: DataFrame, area2: DataFrame) -> list:
@@ -25,7 +25,7 @@ def validate_mmr(
     synpop_data: DataFrame,
     mmr_census_data: DataFrame,
     data_year: int or None,
-    data_percentile: str or None,
+    data_percentile: str or None = "median",
 ):
     """Validating MMR coverage
 
@@ -305,6 +305,10 @@ def validate_commute_mode(
     ]
 
     all_travel_methods = list(model_data["travel_mode_work"].unique())
+    try:
+        all_travel_methods.remove("Unknown")
+    except ValueError:
+        pass
 
     err_ratio = {}
     err = {"model": {}, "truth": {}}
@@ -420,7 +424,7 @@ def validate_household(
     val_dir: str,
     synpop_data: DataFrame,
     household_census_data: DataFrame,
-    valid_thres: int = 1000,
+    valid_thres: int = 1,
 ):
     """Validate household (e.g., The number of household based on
     the number of children)
@@ -433,29 +437,27 @@ def validate_household(
     overlapping_areas = get_overlapped_areas(
         synpop_data["area"], household_census_data["area"]
     )
-    synpop_data = synpop_data[synpop_data["hhd_src"] == "hhd"]
 
     # get model:
     data_model = synpop_data[["area", "household"]]
     data_model = data_model[data_model["area"].isin(overlapping_areas)]
     data_model["household_composition"] = (
-        data_model["household"].str.split("_").apply(lambda x: "_".join(x[1:-1]))
+        data_model["household"].str.split("_").apply(lambda x: "_".join(x[2:-1]))
     )
     # get truth:
     data_truth = household_census_data[
         household_census_data["area"].isin(overlapping_areas)
     ]
 
-    data_truth = data_truth[data_truth["adults_num"] != "unknown"]
+    data_truth = data_truth[data_truth["adults"] != "unknown"]
 
-    data_truth["adults_num"] = data_truth["adults_num"].astype(int)
+    data_truth["adults"] = data_truth["adults"].astype(int)
 
-    data_truth["children_num"] = data_truth["people_num"] - data_truth["adults_num"]
-    data_truth["adults_num"] = data_truth["adults_num"].clip(lower=0)
+    data_truth["adults"] = data_truth["adults"].clip(lower=0)
     data_truth["household_composition"] = (
-        data_truth["adults_num"].astype(str)
-        + "_"
-        + data_truth["children_num"].astype(str)
+        data_truth["adults"].astype(str)
+        + "-"
+        + data_truth["children"].astype(str)
     )
 
     # Convert the extracted values to numeric if needed
@@ -469,7 +471,7 @@ def validate_household(
     for proc_household_composition in all_household_composition:
         proc_truth = data_truth[
             data_truth["household_composition"] == proc_household_composition
-        ]["household_num"].sum()
+        ]["num"].sum()
         proc_model = len(
             data_model[
                 data_model["household_composition"] == proc_household_composition
@@ -477,7 +479,7 @@ def validate_household(
         )
 
         if proc_model > valid_thres or proc_truth > valid_thres:
-            adult_num, children_num = proc_household_composition.split("_")
+            adult_num, children_num = proc_household_composition.split("-")
             proc_household_composition_updated = (
                 f"Adult: {adult_num}; Children: {children_num}"
             )

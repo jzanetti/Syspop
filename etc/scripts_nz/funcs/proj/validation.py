@@ -23,7 +23,7 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
     Returns:
         None
     """
-    vis_dir = join(workdir, "vis")
+    vis_dir = join(workdir, "proj", "vis")
 
     if not exists(vis_dir):
         makedirs(vis_dir)
@@ -34,31 +34,37 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
             "Maori": {},
             "Pacific": {},
             "Asian": {},
-            "European and others": {},
+            "European": {},
+            "MELAA": {},
         },
+        "employee": {},
+        "employer": {},
     }
     for proc_year in range(year_range[0], year_range[1]):
         try:
             proc_pop = pickle_load(
                 open(join(workdir, "proj", str(proc_year), "population.pickle"), "rb")
             )
+            proc_work = pickle_load(
+                open(join(workdir, "proj", str(proc_year), "work.pickle"), "rb")
+            )
         except FileNotFoundError:
             continue
 
         all_data["age"][proc_year] = proc_pop["age"].loc[:, 0:100].sum().sum()
         all_data["gender"]["male"][proc_year] = (
-            proc_pop["gender"][proc_pop["gender"]["sex"] == "Male"]
+            proc_pop["gender"][proc_pop["gender"]["gender"] == "Male"]
             .loc[:, 0:100]
             .sum()
             .sum()
         )
         all_data["gender"]["female"][proc_year] = (
-            proc_pop["gender"][proc_pop["gender"]["sex"] == "Female"]
+            proc_pop["gender"][proc_pop["gender"]["gender"] == "Female"]
             .loc[:, 0:100]
             .sum()
             .sum()
         )
-        for proc_eth in ["Maori", "Pacific", "Asian", "European and others"]:
+        for proc_eth in ["Maori", "Pacific", "Asian", "European", "MELAA"]:
             try:
                 all_data["ethnicity"][proc_eth][proc_year] = (
                     proc_pop["ethnicity"][
@@ -70,6 +76,11 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
                 )
             except TypeError:
                 all_data["ethnicity"][proc_eth][proc_year] = numpy_nan
+
+        for proc_work_type in ["employee", "employer"]:
+            all_data[proc_work_type][proc_year] = proc_work[proc_work_type][
+                f"{proc_work_type}_number"
+            ].sum()
 
     all_years = list(all_data["age"].keys())
     plt.figure(figsize=(10, 6))
@@ -114,7 +125,7 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
 
     plt.figure(figsize=(10, 6))
     prev_value = 0
-    for i, proc_eth in enumerate(["Maori", "Pacific", "Asian", "European and others"]):
+    for i, proc_eth in enumerate(["Maori", "Pacific", "Asian", "European", "MELAA"]):
 
         plt.bar(
             all_years,
@@ -136,3 +147,20 @@ def pop_validation(workdir: str, year_range: list = [2018, 2070]):
     plt.legend()
     plt.savefig(join(vis_dir, "ethnicity.png"))
     plt.close()
+
+    for i, proc_work_type in enumerate(["employer", "employee"]):
+        plt.figure(figsize=(10, 6))
+        plt.bar(
+            all_years,
+            list(all_data[proc_work_type].values()),
+            label=proc_work_type,
+        )
+        plt.xlabel("Year")
+        plt.ylabel(proc_work_type)
+        plt.title(f"{proc_work_type} by Year")
+        plt.xticks(all_years)  # Ensure all years are shown on the x-axis
+        plt.grid(axis="y", linestyle="--", alpha=0.7)
+        plt.tight_layout()
+        plt.legend()
+        plt.savefig(join(vis_dir, f"{proc_work_type}.png"))
+        plt.close()

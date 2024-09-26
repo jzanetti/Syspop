@@ -13,8 +13,9 @@ formatted_time=$(date -u +'%Y%m%dT%H%M')
 
 raw_data_dir=$1
 conf_data_dir=$2
-nz_data_dir=$3
-llm_diary_path=$4
+input_cfg=$3
+nz_data_dir=$4
+llm_diary_path=$5
 
 # extracted=$(echo "$path" | awk -F_ '{sub(/_[^_]*$/,"")}1')
 
@@ -30,6 +31,11 @@ then
   read conf_data_dir
 fi
 
+if [ -z "$input_cfg" ]
+then
+  echo "Please enter the raw input configuration file (e.g., etc/scripts_nz/input.yml):"
+  read input_cfg
+fi
 
 if [ -z "$nz_data_dir" ]
 then
@@ -74,7 +80,7 @@ cp -rf ${conf_data_dir}/processed/*.csv ${raw_data_dir}
 # Step 4: Create NZ data (write NZ data from the raw data directory)
 # --------------------------------
 echo "Running create_nz_data ..."
-python etc/scripts_nz/create_nz_data.py --workdir ${nz_data_dir}
+python etc/scripts_nz/create_nz_data.py --workdir ${nz_data_dir} --input ${input_cfg} --add_proj
 
 # --------------------------------
 # Step 5: Copy the latest diary data from LLM

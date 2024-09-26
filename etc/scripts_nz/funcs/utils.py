@@ -6,7 +6,7 @@ from re import match as re_match
 from numpy import arctan2, argmin, cos, inf, nan, radians, sin, sqrt, unique
 from pandas import DataFrame, concat, melt, merge, read_csv, read_excel, to_numeric
 from shapely.wkt import loads as wkt_loads
-
+from yaml import safe_load
 
 def sort_column_by_names(data_input: DataFrame, columns_to_exclude: list):
     cols = list(data_input.columns)
@@ -188,3 +188,11 @@ def read_leed(
         df_rate[column] = df[column] / total
 
     return df_rate
+
+
+def read_cfg(cfg_path: str) -> dict:
+
+    with open(cfg_path) as fid:
+        cfg = safe_load(fid)
+
+    return cfg
