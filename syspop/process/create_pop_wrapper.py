@@ -96,7 +96,7 @@ def create_work(
     tmp_data_path: str,
     work_data: DataFrame,
     home_to_work_commute_data: DataFrame,
-    geo_hierarchy_data: DataFrame,
+    geo_hierarchy: DataFrame,
     geo_address_data: DataFrame
 ):
     """Create work/company and if required, create the company address as well
@@ -116,7 +116,7 @@ def create_work(
         base_pop["synpop"],
         base_pop["synadd"],
         home_to_work_commute_data,
-        geo_hierarchy_data,
+        geo_hierarchy,
         geo_address_data=geo_address_data
     )
 

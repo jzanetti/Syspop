@@ -30,9 +30,11 @@ syn_areas = list(
     ]["area"]
 )
 
-syn_areas = [241300, 241200, 243000, 247700, 242400]
+# syn_areas = [241300, 241200, 243000, 247700, 242400]
+#from random import sample as random_sample
+#syn_areas = random_sample(syn_areas, 50)
 # syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
-# syn_areas = [242400]
+# syn_areas = [241200]
 
 if_run_syspop_create = True
 if_run_diary = False
@@ -63,11 +65,11 @@ if if_run_syspop_create:
         pub_data=test_data["pub_data"]["pub"],
         park_data=test_data["park_data"]["park"],
         cafe_data=test_data["cafe_data"]["cafe"],
-        mmr_data=test_data["others"]["mmr"],
+        #mmr_data=test_data["others"]["mmr"],
         birthplace_data=test_data["others"]["birthplace"],
         assign_address_flag=True,
         rewrite_base_pop=True,
-        data_years={"vaccine": 2023},
+        # data_years={"vaccine": 2023},
     )
 
 if if_run_diary:
@@ -85,8 +87,8 @@ if if_run_validation:
         household=test_data["household_data"]["household"],
         work_data=test_data["work_data"],
         home_to_work=test_data["commute_data"]["travel_to_work"],
-        mmr_data=test_data["others"]["mmr"],
-        data_years={"vaccine": 2023},
+        # mmr_data=test_data["others"]["mmr"],
+        # data_years={"vaccine": 2023},
     )
 
 if if_run_vis:

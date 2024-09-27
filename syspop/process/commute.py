@@ -39,7 +39,7 @@ def travel_between_home_and_work(
     ]
 
     travel_methods = [item for item in list(commute_dataset.columns) if not item.endswith("_percentage")]
-    travel_methods = [item for item in travel_methods if item not in ["area_home", "area_work", "super_area_home"]]
+    travel_methods = [item for item in travel_methods if item not in ["area_home", "area_work"]]
 
     all_areas_home = list(base_pop["area"].unique())
 
@@ -75,8 +75,7 @@ def assign_people_between_home_and_work(
     proc_working_age_people: DataFrame,
     commute_dataset: DataFrame,
     proc_home_area: int,
-    travel_methods: list,
-    use_super_area: bool = True
+    travel_methods: list
 ) -> DataFrame:
     """Assign/sample people between home and work
 
@@ -90,34 +89,66 @@ def assign_people_between_home_and_work(
         DataFrame: Updated working age people
     """ 
 
-    if use_super_area:
-        proc_home_super_area = commute_dataset[
-            commute_dataset["area_home"] == proc_home_area]["super_area_home"].values[0]
-        proc_commute_dataset_super_area = commute_dataset[
-            commute_dataset["super_area_home"] == proc_home_super_area
-        ]
-    else:
-        proc_commute_dataset_super_area = None
+    def _split_people(df: DataFrame, df_commute: DataFrame, travel_methods: list) -> list:
+        """
+            Splits a DataFrame into multiple DataFrames based on commuting 
+                methods and their respective fractions.
+
+            Parameters:
+                df (DataFrame): The original DataFrame containing people data.
+                df_commute (DataFrame): DataFrame containing commuting data 
+                    with methods and areas of work.
+                commute_methods (list): List of commuting methods to consider.
+    
+            Returns:
+                list: A list of DataFrames, each representing a split of the 
+                original DataFrame based on the given fractions.
+        """
+
+        proc_commute_datasets_total_people = df_commute[travel_methods].values.sum()
+
+        fractions = []
+
+        for i in range(len(list(df_commute["area_work"].unique()))):
+            fractions.append(
+                df_commute[travel_methods].iloc[i].values.sum() / 
+                    proc_commute_datasets_total_people)
+
+        split_dfs = []
+        remaining_df = df
+
+        for frac in fractions[:-1]:  # Exclude the last fraction
+            sample_df = remaining_df.sample(frac=frac)
+            split_dfs.append(sample_df)
+            remaining_df = remaining_df.drop(sample_df.index)
+
+        # Add the remaining rows to the last split
+        split_dfs.append(remaining_df)
+
+        return split_dfs
 
     proc_commute_dataset = commute_dataset[
         commute_dataset["area_home"] == proc_home_area
     ]
 
-    for proc_work_area in list(proc_commute_dataset["area_work"].unique()):
+    proc_commute_dataset_work_areas = list(proc_commute_dataset["area_work"].unique())
+
+    proc_working_age_people_in_work_area = _split_people(
+        proc_working_age_people, 
+        proc_commute_dataset, 
+        travel_methods)
+
+    for i, proc_work_area in enumerate(proc_commute_dataset_work_areas):
 
         proc_commute = proc_commute_dataset[
                 proc_commute_dataset["area_work"] == proc_work_area
             ]
         
-        for index, proc_people in proc_working_age_people.iterrows():
+        for index, proc_people in proc_working_age_people_in_work_area[i].iterrows():
             
             proc_people["area_work"] = proc_work_area
-            if proc_commute_dataset_super_area is None:
-                travel_methods_prob = proc_commute[[item + "_percentage" for item in travel_methods]].values[0]
-            else:
-                travel_methods_prob = numpy_mean(
-                    proc_commute_dataset_super_area[
-                        [item + "_percentage" for item in travel_methods]].values, 0)
+
+            travel_methods_prob = proc_commute[[item + "_percentage" for item in travel_methods]].values[0]
 
             try:
                 proc_people["travel_mode_work"] = numpy_choice(travel_methods, p=travel_methods_prob)
