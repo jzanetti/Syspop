@@ -134,7 +134,7 @@ def _get_data_for_test(test_data_dir: str) -> dict:
         with open(f"{test_data_dir}/commute.pickle", "rb") as fid:
             test_data["commute_data"] = pickle_load(fid)
     except FileNotFoundError:
-        test_data["commute_data"] = {"home_to_work": None}
+        test_data["commute_data"] = {"travel_to_work": None}
 
     try:
         with open(f"{test_data_dir}/work.pickle", "rb") as fid:

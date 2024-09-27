@@ -15,7 +15,7 @@ filterwarnings("ignore")
 proj_year = None  # can be None or an actual year, e.g., None or 2028
 
 output_dir = "/tmp/syspop_test17/Wellington_test"
-input_dir = "etc/data/test_data_wellington_latest"
+input_dir = "etc/data/test_data_latest"
 if proj_year is None:
     output_dir = join(output_dir, "base")
 else:
