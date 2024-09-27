@@ -286,13 +286,14 @@ def validate(
     if not exists(val_dir):
         makedirs(val_dir)
 
-    logger.info("Validating MMR ...")
-    validate_mmr(
-        val_dir,
-        merge_syspop_data(output_dir, ["base", "healthcare"]),
-        mmr_data,
-        data_years["vaccine"],
-    )
+    if mmr_data is not None:
+        logger.info("Validating MMR ...")
+        validate_mmr(
+            val_dir,
+            merge_syspop_data(output_dir, ["base", "healthcare"]),
+            mmr_data,
+            data_years["vaccine"],
+        )
 
     logger.info("Valdating commute (area) ...")
     validate_commute_area(

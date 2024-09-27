@@ -36,8 +36,8 @@ def validate_vis_movement(
     apply_factor: bool = False,
 ):
 
-    x = model_data[model_data["total"] > 50]
-    y = truth_data[truth_data["total"] > 50]
+    x = model_data[model_data["total"] > 10]
+    y = truth_data[truth_data["total"] > 10]
     x = x[x["area_home"] != x["area_work"]]
     y = y[y["area_home"] != y["area_work"]]
 

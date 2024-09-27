@@ -12,7 +12,7 @@ logger = getLogger()
 
 
 def assign_employees_employers_to_base_pop(
-    base_pop: DataFrame, all_employers: dict, employee_data: DataFrame, use_for_loop: bool = True
+    base_pop: DataFrame, all_employers: dict, employee_data: DataFrame
 ) -> DataFrame:
     """Assign employer/company to base population
 
@@ -30,6 +30,7 @@ def assign_employees_employers_to_base_pop(
             return numpy_nan  # or any other placeholder for invalid data
 
         proc_area_work = proc_row["area_work"]
+        proc_employee_data = employee_data[employee_data["area"] == proc_area_work]
 
         tries = 0
         while True:
@@ -37,10 +38,12 @@ def assign_employees_employers_to_base_pop(
             if tries > 5:
                 break
             try:
-                possible_work_sector = employee_data[employee_data["area"] == proc_area_work].sample(
-                    weights=employee_data["employee_number_percentage"])["business_code"].values[0]
+                possible_work_sector = proc_employee_data.sample(
+                    weights=proc_employee_data["employee_number_percentage"])["business_code"].values[0]
                 possible_employers = all_employers[proc_area_work]
-                output_employer = numpy_choice([item for item in possible_employers if item.startswith(possible_work_sector)])
+                output_employer = numpy_choice(
+                    [item for item in possible_employers if 
+                     item.startswith(possible_work_sector)])
             except ValueError:
                 continue
 
@@ -202,12 +205,11 @@ def work_and_commute_wrapper(
         DataFrame: Updated population data
     """
 
-    base_pop = work_wrapper(
+    base_pop = create_work_and_commute(
         business_data["employer"],
         business_data["employee"],
         pop_data,
-        commute_data,
-        geo_hirarchy_data
+        commute_data
     )
 
     if geo_address_data is not None:
@@ -221,12 +223,11 @@ def work_and_commute_wrapper(
     return base_pop, base_address
 
 
-def work_wrapper(
+def create_work_and_commute(
     employer_data: DataFrame,
     employee_data: DataFrame,
     pop_data: DataFrame,
-    commute_data: DataFrame,
-    geo_hirarchy_data: DataFrame
+    commute_data: DataFrame
 ):
     """Assign individuals to different companies:
 
@@ -252,13 +253,6 @@ def work_wrapper(
         all_employees[proc_area] = proc_employee_data["employee_number"].sum()
 
     all_commute_data = concat(all_commute_data, ignore_index=True)
-    all_commute_data = merge(
-        all_commute_data, 
-        geo_hirarchy_data, 
-        left_on="area_home", 
-        right_on="area", 
-        how="inner").drop(columns=["region", "area"]).rename(
-            columns={"super_area": "super_area_home"})
 
     logger.info("Assign home and work locations ...")
     base_pop = travel_between_home_and_work(
