@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="syspop",
-    version="0.2",
+    version="0.2.1",
     setup_requires=["setuptools-git-versioning"],
     packages=find_packages(),
     install_requires=[
@@ -20,6 +20,7 @@ setup(
         "OSMPythonTools",
         "folium",
         "seaborn",
+        "geopandas"
     ],
     entry_points={
         "console_scripts": [
