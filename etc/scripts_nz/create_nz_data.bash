@@ -17,11 +17,11 @@ input_cfg=$3
 nz_data_dir=$4
 llm_diary_path=$5
 
-# extracted=$(echo "$path" | awk -F_ '{sub(/_[^_]*$/,"")}1')
+read -p "If re-run OSM (Enter true or false, if false, raw_data directory must contain pre-downloaded OSM data): " flag
 
 if [ -z "$raw_data_dir" ]
 then
-  echo "Please enter the raw_data directory (e.g., etc/data/raw_nz_latest):"
+  echo "Please enter the raw_data directory (e.g., etc/data/raw_data):"
   read raw_data_dir
 fi
 
@@ -66,9 +66,12 @@ cp -rf ${nz_data_dir} ${directory}/archive/${extracted_filename}_${formatted_tim
 
 # --------------------------------
 # Step 2: Get OSM data (e.g., add latest OSM data to the raw data directory)
+# This is a very slow process ...
 # --------------------------------
-echo "Running get_osm_data ..."
-python etc/scripts_nz/get_osm_data.py
+if [ "${flag,,}" = "true" ]; then
+  echo "Running get_osm_data ..."
+  python etc/scripts_nz/get_osm_data.py
+fi
 
 # --------------------------------
 # Step 3: Copy confidential data

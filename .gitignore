@@ -7,6 +7,7 @@ etc/data/confidential_data
 etc/data/projection_data
 etc/data/raw_nz*
 etc/data/raw_wellington*
+etc/data/raw_data*
 etc/data/raw_tonga*
 etc/data/test_data*
 !etc/data/test_data_latest

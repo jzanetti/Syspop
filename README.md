@@ -31,7 +31,20 @@ The package can be installed via:
 pip install syspop
 ```
 
+Alternatively, an local conda environmental can be created by (this is suggested for development):
+```
+make env
+```
+
 ## Usage
+
+### Prepare New Zealand input data
+
+The New Zealand input data can be created by running:
+
+```
+make create_nz_data
+```
 
 ### syspop.create 
 
