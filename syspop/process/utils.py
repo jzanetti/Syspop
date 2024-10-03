@@ -3,6 +3,7 @@ from functools import reduce as functools_reduce
 from logging import INFO, Formatter, StreamHandler, basicConfig, getLogger
 from os.path import exists, join
 from pickle import load as pickle_load
+from os import makedirs
 
 from numpy import all as numpy_all
 from numpy import array as numpy_array
@@ -13,6 +14,7 @@ from pandas import DataFrame
 from pandas import concat as pandas_concat
 from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
+
 from yaml import safe_load as yaml_load
 
 logger = getLogger()
@@ -96,24 +98,18 @@ def merge_syspop_data(data_dir: str, data_types: list) -> DataFrame:
         proc_data_list,
     )
 
+
+def _get_data_for_test(test_data_dir: str, write_out_file: bool = False) -> dict:
+    """Get data to create synthentic population
+
+    Args:
+        test_data_dir (str): where the test data located
+        write_out_file (bool, optional): If write out the 
+            pickle in dataframe (e.g., can be used in R). Defaults to False.
+
+    Returns:
+        dict: test data to be used
     """
-
-
-        work_data=test_data["work_data"],
-
-
-
-
-
-        park_data=test_data["park_data"]["park"],
-        cafe_data=test_data["cafe_data"]["cafe"],
-        mmr_data=test_data["others"]["mmr"],
-        birthplace_data=test_data["others"]["birthplace"],
-
-    """
-
-
-def _get_data_for_test(test_data_dir: str) -> dict:
     test_data = {}
     with open(f"{test_data_dir}/population.pickle", "rb") as fid:
         test_data["pop_data"] = pickle_load(fid)
@@ -221,6 +217,29 @@ def _get_data_for_test(test_data_dir: str) -> dict:
             test_data["others"] = pickle_load(fid)
     except FileNotFoundError:
         test_data["others"] = {"birthplace": None, "mmr": None}
+
+    if write_out_file:
+        data_catalog_lines = []
+        test_data_input_dir = join(test_data_dir, "input")
+        if not exists(test_data_input_dir):
+            makedirs(test_data_input_dir)
+
+    for data_type1 in test_data:
+        if data_type1 == "llm_diary_data":
+            for data_type0 in ["percentage", "data"]:
+                for data_type2 in test_data[data_type1][data_type0]:
+                    data_path = join(test_data_input_dir, f"{data_type1}_{data_type0}_{data_type2}.parquet")
+                    test_data[data_type1][data_type0][data_type2].to_parquet(data_path)
+                    data_catalog_lines.append(f"{data_type1},{data_type0},{data_type2},{data_path}")
+        else:
+            for data_type2 in test_data[data_type1]:
+                data_path = join(test_data_input_dir, f"{data_type1}_{data_type2}.parquet")
+                test_data[data_type1][data_type2].to_parquet(join(test_data_input_dir, f"{data_type1}_{data_type2}.parquet"))
+                data_catalog_lines.append(f"{data_type1},{data_type2},{data_path}")
+    
+    with open(join(test_data_input_dir, "data_catalog.txt"), "w") as file:
+        for line in data_catalog_lines:
+            file.write(line + "\n")
 
     return test_data
 
