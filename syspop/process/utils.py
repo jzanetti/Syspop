@@ -235,7 +235,7 @@ def _get_data_for_test(test_data_dir: str, write_out_file: bool = False) -> dict
             for data_type2 in test_data[data_type1]:
                 data_path = join(test_data_input_dir, f"{data_type1}_{data_type2}.parquet")
                 test_data[data_type1][data_type2].to_parquet(join(test_data_input_dir, f"{data_type1}_{data_type2}.parquet"))
-                data_catalog_lines.append(f"{data_type1},{data_type2},{data_path}")
+                data_catalog_lines.append(f"{data_type1},,{data_type2},{data_path}")
     
     with open(join(test_data_input_dir, "data_catalog.txt"), "w") as file:
         for line in data_catalog_lines:

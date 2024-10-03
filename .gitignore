@@ -25,4 +25,6 @@ test*
 !test_data_latest
 !test_data_latest/input/*
 /Users/sijinzhang/Github/Syspop/etc/data/projection_data
-
+renv
+renv.lock
+.Rproj.user
