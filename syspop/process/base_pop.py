@@ -7,7 +7,7 @@ from pandas import DataFrame
 logger = getLogger()
 
 
-def create_base_pop(output_area, age, df_gender_melt, df_ethnicity_melt, ref_population: str = "gender"):
+def create_pop(output_area, age, df_gender_melt, df_ethnicity_melt, ref_population: str = "gender"):
     population = []
     # Get the gender and ethnicity probabilities for the current output_area and age
     gender_probs = df_gender_melt.loc[
@@ -98,7 +98,7 @@ def base_pop_wrapper(
         logger.info(f"Base population: {i}/{total_output_area} ({int(i * 100.0/total_output_area)}%)")
         for age in df_gender_melt["age"].unique():
 
-            result = create_base_pop(
+            result = create_pop(
                 output_area, age, df_gender_melt, df_ethnicity_melt, ref_population=ref_population
             )
 
