@@ -19,13 +19,15 @@
 #' create_pop("Area1", 25, df_gender_melt, df_ethnicity_melt)
 #' 
 create_pop <- function(output_area, output_age, df_gender_melt, df_ethnicity_melt, ref_population = "gender") {
-
+  
   gender_probs <- df_gender_melt %>% 
     filter(area == output_area, age == output_age) %>% 
+    ungroup() %>% 
     select(gender, prob, count)
   
   ethnicity_probs <- df_ethnicity_melt %>% 
     filter(area == output_area, age == output_age) %>% 
+    ungroup() %>% 
     select(ethnicity, prob, count)
   
   # Determine the number of individuals for the current output_area and age
@@ -42,9 +44,11 @@ create_pop <- function(output_area, output_age, df_gender_melt, df_ethnicity_mel
   }
   
   # Randomly assign gender and ethnicity to each individual
-  genders <- sample(gender_probs$gender, size = n_individuals, prob = gender_probs$prob, replace = TRUE)
+  genders <- sample(
+    gender_probs$gender, size = n_individuals, prob = gender_probs$prob, replace = TRUE)
   
-  ethnicities <- sample(ethnicity_probs$ethnicity, size = n_individuals, prob = ethnicity_probs$prob, replace = TRUE)
+  ethnicities <- sample(
+    ethnicity_probs$ethnicity, size = n_individuals, prob = ethnicity_probs$prob, replace = TRUE)
   
   # Create population data frame
   population <- data.frame(

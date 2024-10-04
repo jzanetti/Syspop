@@ -10,7 +10,11 @@ library(purrr)
 test_data <- get_data_for_test()
 
 output_dir <- "/tmp"
-syn_areas <- c(241200)
+#syn_areas <- c(236800, 237200)
+syn_areas <- test_data$`geog_data//hierarchy` %>%
+  filter(region == "Wellington") %>%
+  pull(area)
+# syn_areas <- unique(test_data$`geog_data//hierarchy`$area)
 create_synthetic_population(
     syn_areas,
     output_dir,
