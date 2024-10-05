@@ -18,16 +18,17 @@ source("syspop/r/create_pop_wrapper.R")
 #' check_dependencies("base_pop", c("pop_gender", "pop_ethnicity"), c("geo_address", "geo_location"))
 #' 
 check_dependencies <- function(key_item, deps_list, assign_address_flag, address_deps) {
+
   for (item_to_check in deps_list) {
     if (is.null(item_to_check)) {
-      stop(paste0(key_item, " is presented/required, but its dependency ", item_to_check, " is not provided."))
+      stop(paste0(key_item, " is presented/required, but some of the dependencies are missing"))
     }
   }
   
   if (assign_address_flag) {
     for (item_to_check in address_deps) {
       if (is.null(item_to_check)) {
-        stop(paste0("Address data is required for ", key_item, ", but its address dependency ", item_to_check, " is not provided."))
+        stop(paste0("Address data is required, but some of the dependencies are missing"))
       }
     }
   }
@@ -38,19 +39,24 @@ create_synthetic_population <- function(
     output_dir = "",
     pop_gender = NULL,
     pop_ethnicity = NULL,
+    household = NULL,
     geo_hierarchy = NULL,
     geo_location = NULL,
     geo_address = NULL,
+    x = NULL,
     assign_address_flag = FALSE
 ) {
   
   # Create temporary directory
   tmp_dir <- file.path(output_dir, "tmp")
   dir.create(tmp_dir, showWarnings = FALSE)
-  
-  check_dependencies("base_pop", c(pop_gender, pop_ethnicity, syn_areas), assign_address_flag, c())
-  create_base_pop(file.path(tmp_dir, "syspop.parquet"), pop_gender, pop_ethnicity, syn_areas, ref_population = "gender")
 
+  print("Creating base population ...")
+  check_dependencies("base_pop", list(pop_gender, pop_ethnicity, syn_areas), assign_address_flag, list(geo_address))
+  create_base_pop(tmp_dir, pop_gender, pop_ethnicity, syn_areas, ref_population = "gender")
   
+  print("Creating household ...")
+  check_dependencies("household", list(geo_address), assign_address_flag, list(geo_address))
+  create_household(tmp_dir, household, geo_address)
 
 }

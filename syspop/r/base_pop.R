@@ -132,5 +132,7 @@ base_pop_wrapper <- function(
 
   population$age <- as.integer(population$age)
   
+  population$index <- seq_len(nrow(population))
+  
   return(population)
 }

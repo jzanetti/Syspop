@@ -1059,8 +1059,8 @@ def household_wrapper(
     #    lambda x: "dwelling" if x == "unknown" else "hhd"
     #)
 
-    num_children = list(houshold_dataset.columns)
-    num_children.remove("area")
+    # num_children = list(houshold_dataset.columns)
+    # num_children.remove("area")
 
     all_areas = list(base_pop["area"].unique())
     total_areas = len(all_areas)
