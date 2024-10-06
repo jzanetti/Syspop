@@ -45,6 +45,8 @@ create_synthetic_population <- function(
     geo_address = NULL,
     employer = NULL,
     employee = NULL,
+    school = NULL,
+    kindergarten = NULL,
     travel_to_work = NULL,
     assign_address_flag = FALSE
 ) {
@@ -79,4 +81,26 @@ create_synthetic_population <- function(
     geo_hierarchy, 
     geo_address
   )
+  
+  print("Creating school ...")
+  check_dependencies("school", list(school, geo_hierarchy), assign_address_flag, list(geo_address))
+  create_school_and_kindergarten(
+    "school", 
+    tmp_dir, 
+    school, 
+    geo_hierarchy,
+    possible_area_levels = c("area", "super_area", "region")
+  )
+  
+  
+  print("Creating kindergarten ...")
+  check_dependencies("kindergarten", list(kindergarten, geo_hierarchy), assign_address_flag, list(geo_address))
+  create_school_and_kindergarten(
+    "kindergarten",
+    tmp_dir,
+    kindergarten,
+    geo_hierarchy,
+    possible_area_levels = c("area")
+  )
+  
 }

@@ -2,6 +2,7 @@
 source("syspop/r/base_pop.R")
 source("syspop/r/household.R")
 source("syspop/r/work.R")
+source("syspop/r/school.R")
 
 #' Create Base Population
 #' 
@@ -143,4 +144,64 @@ create_work <- function(
   write_parquet(output$base_pop, file.path(tmp_dir, "syspop_base.parquet"))
   write_parquet(output$base_address, file.path(tmp_dir, "syspop_location.parquet"))
 }
+
+
+#' Create School and Kindergarten Information
+#'
+#' This function reads base population and location data, then processes school and kindergarten information 
+#' for individuals based on the provided geographic hierarchy. The results are saved back to the respective 
+#' parquet files for base population and location data.
+#'
+#' @param data_type Character. Specifies the type of data to process (e.g., "school" or "kindergarten").
+#' @param tmp_dir Character. The directory path where the population and location parquet files are stored.
+#' @param school_data DataFrame. Contains school-related data such as school location and capacity.
+#' @param geo_hierarchy_data DataFrame. Provides geographic hierarchy information (e.g., region, super_area, area).
+#' @param possible_area_levels Character vector. A list of possible area levels to consider when processing 
+#'     the geographic hierarchy (default: c("area", "super_area", "region")).
+#'
+#' @details This function reads parquet files from the specified directory (`tmp_dir`), processes school 
+#' and kindergarten information using the \code{school_and_kindergarten_wrapper} function, and then saves 
+#' the updated population and address information back to the directory.
+#'
+#' @return This function does not return a value. It modifies and writes the parquet files for base population
+#' and location data in the specified directory.
+#'
+#' @examples
+#' \dontrun{
+#' create_school_and_kindergarten(
+#'   data_type = "school",
+#'   tmp_dir = "data/tmp",
+#'   school_data = school_data_frame,
+#'   geo_hierarchy_data = geo_hierarchy_frame
+#' )
+#' }
+#' 
+create_school_and_kindergarten <- function(
+    data_type, 
+    tmp_dir, 
+    school_data, 
+    geo_hierarchy_data,
+    possible_area_levels = c("area", "super_area", "region")
+) {
+  
+  # Read base population
+  base_pop <- read_parquet(file.path(tmp_dir, "syspop_base.parquet"))
+  
+  # Read location data
+  base_address <- read_parquet(file.path(tmp_dir, "syspop_location.parquet"))
+  
+  # Call wrapper function for school and kindergarten information
+  output <- school_and_kindergarten_wrapper(
+    data_type,
+    school_data,
+    base_pop,
+    base_address,
+    geo_hierarchy_data,
+    possible_area_levels = possible_area_levels
+  )
+
+  write_parquet(output$pop_data, file.path(tmp_dir, "syspop_base.parquet"))
+  write_parquet(output$address_data, file.path(tmp_dir, "syspop_location.parquet"))
+}
+
 

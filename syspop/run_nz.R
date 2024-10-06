@@ -7,6 +7,11 @@ library(tidyr)
 library(lubridate)
 library(purrr)
 library(arrow)
+library(dplyr)
+library(lubridate)
+library(dplyr)
+library(uuid)
+library(tibble)
 
 test_data <- get_data_for_test()
 
@@ -29,6 +34,8 @@ create_synthetic_population(
     employer = test_data$`work_data//employer`,
     employee = test_data$`work_data//employee`,
     travel_to_work = test_data$`commute_data//travel_to_work`,
+    school = test_data$`school_data//school`,
+    kindergarten = test_data$`kindergarten_data//kindergarten`,
     assign_address_flag = TRUE
 )
 
