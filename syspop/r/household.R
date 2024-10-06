@@ -401,7 +401,7 @@ household_wrapper <- function(
   end_time <- Sys.time()
   
   total_mins <- round(difftime(end_time, start_time, units = "mins"), 3)
-  message(sprintf("Processing time (household): %f", total_mins))
+  print(sprintf("Processing time (household): %f", total_mins))
   
   if (!is.null(geo_address_data)) {
     proc_address_data <- add_random_address(

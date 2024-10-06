@@ -1,6 +1,7 @@
 
 source("syspop/r/base_pop.R")
 source("syspop/r/household.R")
+source("syspop/r/work.R")
 
 #' Create Base Population
 #' 
@@ -85,3 +86,61 @@ create_household <- function(
   write_parquet(output$base_pop, file.path(tmp_dir, "syspop_base.parquet"))
   write_parquet(output$base_address, file.path(tmp_dir, "syspop_location.parquet"))
 }
+
+
+#' Create Work Data for Population
+#'
+#' This function orchestrates the reading of population and location data,
+#' updates them by assigning employers and addresses, and then writes the
+#' updated datasets back to parquet files.
+#'
+#' @param tmp_dir A string representing the temporary directory path where
+#'        input and output files are stored.
+#' @param employer_data A DataFrame containing data about employers,
+#'        including their business codes and area information.
+#' @param employee_data A DataFrame containing data about employees,
+#'        including business codes and employee numbers per area.
+#' @param travel_to_work_data A DataFrame with data about commuting patterns
+#'        and travel methods between home and work.
+#' @param geo_hierarchy A DataFrame representing the geographical hierarchy
+#'        data for the population.
+#' @param geo_address A DataFrame containing address data, used for assigning
+#'        random addresses to the population if provided.
+#'
+#' @return None. This function writes the updated base population and address
+#'         data to parquet files in the specified temporary directory.
+#'
+#' @examples
+#' create_work(tmp_dir = "path/to/tmp", employer_data, employee_data,
+#'              travel_to_work_data, geo_hierarchy, geo_address)
+#'
+create_work <- function(
+    tmp_dir, 
+    employer_data,
+    employee_data,
+    travel_to_work_data, 
+    geo_hierarchy, 
+    geo_address
+) {
+
+  # Read base population
+  base_pop <- read_parquet(file.path(tmp_dir, "syspop_base.parquet"))
+  
+  # Read location data
+  base_address <- read_parquet(file.path(tmp_dir, "syspop_location.parquet"))
+
+  # Call work_and_commute_wrapper to update base_pop and base_address
+  output <- work_and_commute_wrapper(
+    employer_data,
+    employee_data,
+    base_pop,
+    base_address,
+    travel_to_work_data,
+    geo_hierarchy,
+    geo_address_data = geo_address
+  )
+
+  write_parquet(output$base_pop, file.path(tmp_dir, "syspop_base.parquet"))
+  write_parquet(output$base_address, file.path(tmp_dir, "syspop_location.parquet"))
+}
+
