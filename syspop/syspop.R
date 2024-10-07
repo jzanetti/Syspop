@@ -47,13 +47,22 @@ create_synthetic_population <- function(
     employee = NULL,
     school = NULL,
     kindergarten = NULL,
+    supermarket = NULL,
+    restaurant = NULL,
+    cafe = NULL,
+    department_store = NULL,
+    wholesale = NULL,
+    fast_food = NULL,
+    pub = NULL,
+    park = NULL,
+    birthplace = NULL,
     travel_to_work = NULL,
     assign_address_flag = FALSE
 ) {
   
   # Create temporary directory
   tmp_dir <- file.path(output_dir, "tmp")
-  dir.create(tmp_dir, showWarnings = FALSE)
+  dir.create(tmp_dir, showWarnings = FALSE, recursive=TRUE)
 
   print("Creating base population ...")
   check_dependencies("base_pop", list(pop_gender, pop_ethnicity, syn_areas), assign_address_flag, list(geo_address))
@@ -85,9 +94,9 @@ create_synthetic_population <- function(
   print("Creating school ...")
   check_dependencies("school", list(school, geo_hierarchy), assign_address_flag, list(geo_address))
   create_school_and_kindergarten(
-    "school", 
     tmp_dir, 
     school, 
+    "school", 
     geo_hierarchy,
     possible_area_levels = c("area", "super_area", "region")
   )
@@ -96,11 +105,116 @@ create_synthetic_population <- function(
   print("Creating kindergarten ...")
   check_dependencies("kindergarten", list(kindergarten, geo_hierarchy), assign_address_flag, list(geo_address))
   create_school_and_kindergarten(
-    "kindergarten",
     tmp_dir,
     kindergarten,
+    "kindergarten",
     geo_hierarchy,
     possible_area_levels = c("area")
   )
   
+  print("Creating supermarket ...")
+  check_dependencies("supermarket", list(supermarket, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    supermarket,
+    "supermarket",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 2)
+  )
+  
+  print("Creating restaurant ...")
+  check_dependencies("restaurant", list(restaurant, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    restaurant,
+    "restaurant",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 2)
+  )
+
+  print("Creating cafe ...")
+  check_dependencies("cafe", list(cafe, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    cafe,
+    "cafe",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 2)
+  )
+  
+  print("Creating department_store ...")
+  check_dependencies("department_store", list(department_store, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    department_store,
+    "department_store",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 2)
+  )
+  
+  print("Creating wholesale ...")
+  check_dependencies("wholesale", list(wholesale, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    wholesale,
+    "wholesale",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 2)
+  )
+  
+  print("Creating fast_food ...")
+  check_dependencies("fast_food", list(fast_food, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    fast_food,
+    "fast_food",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 1)
+  )
+  
+  print("Creating pub ...")
+  check_dependencies("pub", list(pub, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    pub,
+    "pub",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 1)
+  )
+  
+  print("Creating park ...")
+  check_dependencies("park", list(park, geo_location), assign_address_flag, list(geo_address))
+  create_shared_space(
+    tmp_dir,
+    park,
+    "park",
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 1)
+  )
+
+  print("Creating birthplace ...")
+  check_dependencies("birthplace", list(birthplace), FALSE, list())
+  create_birthplace(tmp_dir, birthplace)
+  
+  print("Creating output ...")
+  base_pop <- read_parquet(file.path(tmp_dir, "syspop_base.parquet"))
+  base_address <- read_parquet(file.path(tmp_dir, "syspop_location.parquet"))
+
+  output_files <- list(
+    syspop_base = c("area", "age", "gender", "ethnicity"),
+    syspop_household = c("household"),
+    syspop_travel = c("travel_mode_work"),
+    syspop_work_and_school = c("area_work", "company", "school", "kindergarten"),
+    syspop_lifechoice = c("supermarket", "restaurant", "cafe", "department_store", "wholesale", "fast_food", "pub", "park"),
+    syspop_immigration = c("birthplace")
+  )
+
+  # Add an 'id' column to synpop_data$synpop using row numbers
+  base_pop$id <- seq_len(nrow(base_pop))
+  for (name in names(output_files)) {
+    cols <- output_files[[name]]
+    selected_data <- base_pop[, c("id", cols), drop = FALSE]
+    write_parquet(selected_data, file.path(output_dir, paste0(name, ".parquet")))
+  }
+  write_parquet(base_address, file.path(output_dir, "syspop_location.parquet"))
 }

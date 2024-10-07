@@ -15,8 +15,9 @@ library(tibble)
 
 test_data <- get_data_for_test()
 
-output_dir <- "/tmp"
-syn_areas <- c(236800, 237200)
+output_dir <- "/tmp/syspop"
+# syn_areas <- c(236800, 237200)
+syn_areas <- c(241800, 242800, 241400, 242000)
 # syn_areas <- test_data$`geog_data//hierarchy` %>%
 #  filter(region == "Wellington") %>%
 #  pull(area)
@@ -35,7 +36,16 @@ create_synthetic_population(
     employee = test_data$`work_data//employee`,
     travel_to_work = test_data$`commute_data//travel_to_work`,
     school = test_data$`school_data//school`,
+    supermarket = test_data$`supermarket_data//supermarket`,
     kindergarten = test_data$`kindergarten_data//kindergarten`,
+    restaurant = test_data$`restaurant_data//restaurant`,
+    cafe = test_data$`cafe_data//cafe`,
+    department_store = test_data$`department_store_data//department_store`,
+    wholesale =test_data$`wholesale_data//wholesale`,
+    fast_food = test_data$`fast_food_data//fast_food`,
+    pub = test_data$`pub_data//pub`,
+    park = test_data$`park_data//park`,
+    birthplace = test_data$`others//birthplace`,
     assign_address_flag = TRUE
 )
 

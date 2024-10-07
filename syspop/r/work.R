@@ -217,7 +217,7 @@ assign_employees_employers_to_base_pop <- function(base_pop, all_employers, empl
     
     proc_area_work <- proc_row$area_work
     proc_employee_data <- employee_data[employee_data$area == proc_area_work, ]
-    
+  
     tries <- 0
     while (TRUE) {
       if (tries > 5) {
@@ -240,7 +240,6 @@ assign_employees_employers_to_base_pop <- function(base_pop, all_employers, empl
         return(as.character(output_employer))
       }, error = function(e) {
         tries <- tries + 1
-        next
       })
     }
     return("Unknown")

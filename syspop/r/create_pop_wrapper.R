@@ -3,6 +3,7 @@ source("syspop/r/base_pop.R")
 source("syspop/r/household.R")
 source("syspop/r/work.R")
 source("syspop/r/school.R")
+source("syspop/r/shared_space.R")
 
 #' Create Base Population
 #' 
@@ -177,9 +178,9 @@ create_work <- function(
 #' }
 #' 
 create_school_and_kindergarten <- function(
-    data_type, 
     tmp_dir, 
     school_data, 
+    data_type,
     geo_hierarchy_data,
     possible_area_levels = c("area", "super_area", "region")
 ) {
@@ -202,6 +203,171 @@ create_school_and_kindergarten <- function(
 
   write_parquet(output$pop_data, file.path(tmp_dir, "syspop_base.parquet"))
   write_parquet(output$address_data, file.path(tmp_dir, "syspop_location.parquet"))
+}
+
+
+#' Create Shared Space
+#'
+#' This function creates shared space data by reading the base population
+#' and location data, merging household address data, and processing
+#' shared space information based on the specified parameters.
+#'
+#' @param tmp_dir A character string specifying the temporary directory 
+#'        where input and output files are stored.
+#' @param shared_space_data A data frame containing the shared space 
+#'        information to be processed.
+#' @param shared_space_type A character string indicating the type of 
+#'        shared space to be created.
+#' @param geo_location A geographic location parameter that may be used 
+#'        in the processing of shared space.
+#' @param assign_address_flag A logical flag indicating whether to 
+#'        assign addresses in the shared space.
+#' @param area_name_keys_and_selected_nums A named list where each 
+#'        element represents a key for an area and the corresponding 
+#'        number of nearest locations to be selected. Default is 
+#'        list(area = 2).
+#'
+#' @return This function writes the updated population data and address 
+#'         data back to parquet files in the specified temporary 
+#'         directory.
+#'
+#' @examples
+#' tmp_dir <- "path/to/tmp_dir"
+#' shared_space_data <- data.frame(...)  # Provide shared space data
+#' shared_space_type <- "example_type"
+#' geo_location <- "example_location"
+#' assign_address_flag <- TRUE
+#' create_shared_space(tmp_dir, shared_space_data, shared_space_type, 
+#'                     geo_location, assign_address_flag)
+create_shared_space <- function(
+    tmp_dir,
+    shared_space_data,
+    shared_space_type,
+    geo_location,
+    area_name_keys_and_selected_nums = list(area = 2)
+) {
+  
+  # Read base population
+  base_pop <- read_parquet(file.path(tmp_dir, "syspop_base.parquet"))
+  
+  # Read location data
+  base_address <- read_parquet(file.path(tmp_dir, "syspop_location.parquet"))
+  
+  # Merge household address data
+  household_address <- merge(
+    base_pop[, "household", drop = FALSE],
+    base_address[, c("name", "latitude", "longitude")],
+    by.x = "household",
+    by.y = "name",
+    all.x = TRUE
+  )
+  
+  household_address <- unique(household_address[, c("household", "latitude", "longitude")])
+  
+  index = 0
+  for (area_name_key in names(area_name_keys_and_selected_nums)) {
+    
+    if (index == 0) {
+      proc_base_pop <- base_pop
+      proc_base_address <- base_address
+    }
+    else {
+      proc_base_pop <- output$pop_data
+      proc_base_address <- output$address_data
+    }
+    
+    output <- shared_space_wrapper(
+      shared_space_type,
+      shared_space_data,
+      proc_base_pop,
+      proc_base_address,
+      household_address,
+      geo_location,
+      num_nearest = area_name_keys_and_selected_nums[[area_name_key]],
+      area_name_key = area_name_key
+    )
+    
+    index <- index + 1
+  }
+  
+  write_parquet(output$pop_data, file.path(tmp_dir, "syspop_base.parquet"))
+  write_parquet(output$address_data, file.path(tmp_dir, "syspop_location.parquet"))
+}
+
+
+
+create_birthplace <- function(tmp_dir, birthplace_data) {
+  
+  # Load the base population data from the file
+  base_pop <- read_parquet(file.path(tmp_dir, "syspop_base.parquet"))
+  
+  # browser()
+  # Initialize birthplace column as NA
+  base_pop$birthplace <- NA
+  
+  # Get the unique areas in the population data
+  all_areas <- unique(base_pop$area)
+  
+  data_list <- list()
+  
+  # Loop through each area
+  for (proc_area in all_areas) {
+    
+    proc_birthplace_data <- birthplace_data %>% filter(area == proc_area)
+    proc_base_pop_data <- base_pop %>% filter(area == proc_area)
+    
+    # If there's no birthplace data for the area, assign default value 9999
+    if (nrow(proc_birthplace_data) == 0) {
+      proc_base_pop_data$birthplace <- 9999
+    } else {
+      
+      # Calculate number of people from each birthplace
+      proc_birthplace_data$num <- round(proc_birthplace_data$percentage * nrow(proc_base_pop_data))
+      
+      # Replicate the birthplace rows based on the calculated number
+      proc_birthplace_data_processed <- proc_birthplace_data %>% 
+        slice(rep(1:n(), num)) %>% 
+        select(birthplace) %>% 
+        sample_frac(1)  # Randomly shuffle rows
+      
+      # Get the lengths for further checks
+      proc_birthplace_data_processed_length <- nrow(proc_birthplace_data_processed)
+      proc_base_pop_data_length <- nrow(proc_base_pop_data)
+      
+      # Assign birthplace data if processed data is enough
+      if (proc_birthplace_data_processed_length >= proc_base_pop_data_length) {
+        
+        if (proc_birthplace_data_processed_length > proc_base_pop_data_length) {
+          proc_birthplace_data_processed <- proc_birthplace_data_processed %>% 
+            slice_sample(n = proc_base_pop_data_length)
+        }
+        
+        proc_base_pop_data$birthplace <- proc_birthplace_data_processed$birthplace
+      } else {
+        # Randomly assign birthplace data to part of the base population
+        random_indices <- sample(1:nrow(proc_base_pop_data), proc_birthplace_data_processed_length, replace = FALSE)
+        proc_base_pop_data$birthplace[random_indices] <- proc_birthplace_data_processed$birthplace
+        
+        # Assign remaining birthplace values randomly
+        proc_base_pop_data$birthplace[is.na(proc_base_pop_data$birthplace)] <- sample(
+          proc_birthplace_data_processed$birthplace,
+          sum(is.na(proc_base_pop_data$birthplace)),
+          replace = TRUE
+        )
+      }
+    }
+    
+    data_list[[length(data_list) + 1]] <- proc_base_pop_data
+  }
+  
+  # Combine all areas back into a single data frame
+  pop_data <- bind_rows(data_list)
+  
+  # Ensure birthplace is stored as an integer
+  pop_data$birthplace <- as.integer(pop_data$birthplace)
+  
+  # Save the modified data back to the file
+  write_parquet(pop_data, file.path(tmp_dir, "syspop_base.parquet"))
 }
 
 

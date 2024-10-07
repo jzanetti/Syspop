@@ -355,3 +355,57 @@ get_a_school <- function(schools_to_choose, school_assigned_people, use_random =
   # Return the selected school
   return(schools_to_choose[schools_to_choose$school_name == selected_school_name, ])
 }
+
+
+#' Create Unique School Names
+#'
+#' This function generates unique school names based on specified attributes 
+#' from a given dataset. The names are constructed by combining a prefix, 
+#' sector, area, and a shortened unique identifier for each school in the 
+#' dataset. The function handles multiple areas and ensures that each school 
+#' name is unique within its respective area.
+#'
+#' @param school_data A data frame containing school information. It must 
+#' include at least the columns: 'area' and 'sector'.
+#'
+#' @return A data frame that includes an additional column, 'school_name', 
+#' with the generated unique names for each school.
+#'
+#' @examples
+#' # Example of using the function
+#' school_df <- data.frame(area = c("Area1", "Area1", "Area2"),
+#'                         sector = c("Public", "Private", "Public"))
+#' result_df <- create_school_names(school_df)
+#' print(result_df)
+#' 
+create_school_names <- function(school_data) {
+  # Create an empty column for school names
+  school_data$school_name <- NA
+  
+  # Get unique areas
+  all_areas <- unique(school_data$area)
+  
+  for (proc_area in all_areas) {
+    # Filter schools for the current area
+    proc_schools <- school_data[school_data$area == proc_area, ]
+    
+    # Generate unique IDs (shortened)
+    proc_schools$school_name <- substr(as.character(uuid::UUIDgenerate(n = nrow(proc_schools))), 1, 6)
+    
+    # Create school names based on the given pattern
+    proc_schools$school_name <- paste0(
+      "school_",
+      proc_schools$sector,
+      "_",
+      as.character(proc_schools$area),
+      "_",
+      proc_schools$school_name
+    )
+    
+    # Update the main data frame with the generated school names
+    school_data[school_data$area == proc_area, "school_name"] <- proc_schools$school_name
+  }
+  
+  return(school_data)
+}
+
