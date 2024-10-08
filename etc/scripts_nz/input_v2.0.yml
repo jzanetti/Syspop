@@ -1,0 +1,53 @@
+
+
+version: 2.0
+population:
+  population_structure: etc/data/open_data/population_structure_2023.csv
+  nzdep: etc/data/raw_data/socialeconomics-2018.csv
+
+household:
+  household_composition: etc/data/raw_data/household_dwelling_composition.csv
+
+geography:
+  geography_hierarchy: etc/data/raw_data/geography_hierarchy-2023.csv
+  geography_location: etc/data/raw_data/geography_location-2018.csv
+  address_data: etc/data/raw_data/address_dataset/nz-addresses/nz-addresses.shp
+  sa2_area_data: etc/data/raw_data/address_dataset/statistical-area-2-2022-generalised/statistical-area-2-2022-generalised.shp
+
+commute:
+  travel_to_work: etc/data/raw_data/travel-to-work-info-2018.csv
+
+employment:
+  employer_employee_num: etc/data/raw_data/employee_by_area-2022.csv
+
+venue:
+  hospital: etc/data/raw_data/nz-facilities-2022.csv
+  school: etc/data/raw_data/nz-facilities-2022.csv
+  kindergarten: etc/data/raw_data/kindergarten_data.csv
+  supermarket: etc/data/raw_data/shop_supermarket.csv
+  restaurant: etc/data/raw_data/amenity_restaurant.csv
+  pharmacy: etc/data/raw_data/amenity_pharmacy.csv
+  cafe: etc/data/raw_data/amenity_cafe.csv
+  pub: etc/data/raw_data/amenity_pub.csv
+  fast_food: etc/data/raw_data/amenity_fast_food.csv
+  museum: etc/data/raw_data/tourism_museum.csv
+  events_venue": etc/data/raw_data/amenity_events_venue.csv
+  wholesale: etc/data/raw_data/shop_wholesale.csv
+  department_store: etc/data/raw_data/shop_department_store.csv
+  park: etc/data/raw_data/leisure_park.csv
+  childcare: etc/data/raw_data/amenity_childcare.csv
+  bakery: etc/data/raw_data/shop_bakery.csv
+
+others:
+  mmr_vaccine: etc/data/raw_data/mmr_immunity.csv
+  birthplace: etc/data/raw_data/birthplace-2024.csv
+
+projection:
+  population:
+    population_by_age_by_gender: etc/data/projection_data/nz/POPPR_SUB_007.csv
+    population_by_ethnicity: etc/data/projection_data/nz/POPPR_ETH_010.csv
+  business:
+    labours: etc/data/projection_data/nz/POPPR_LAB_001.csv
+
+
+

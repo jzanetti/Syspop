@@ -150,6 +150,18 @@ def create_female_ratio(raw_gender_path: str) -> DataFrame:
     return df
 
 
+def read_population_structure(population_structure_data_path: str):
+    """Read population structure data (usually for v2.0)
+
+    Args:
+        population_structure_data_path (str): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    return read_csv(population_structure_data_path)[["sa2", "ethnicity", "age", "gender", "value"]]
+
+
 def create_base_population(raw_population_path: str):
     """Read population
     """

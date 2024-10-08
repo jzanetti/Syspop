@@ -29,6 +29,7 @@ from funcs.population.population import (
     create_base_population,
     create_nzdep,
     map_feature_percentage_data_with_age_population_data,
+    read_population_structure
 )
 from funcs.postproc import postproc
 from funcs.utils import sort_column_by_names
@@ -299,6 +300,15 @@ def create_population_wrapper(workdir: str, input_cfg: dict):
         4      100100     MELAA  0.100012  0.100012  0.100012  0.100012  0.100012   0.137517  ...
         ......
 
+    Or if it is for the version 2.0, the population structure data looks like:
+                sa2  ethnicity  age  gender  value
+        0       100100          1    0       1    6.0
+        1       100100          1    1       1    9.0
+        2       100100          1    2       1    9.0
+        3       100100          1    2       2    9.0
+        4       100100          1    3       1    9.0
+        ...        ...        ...  ...     ...    ...
+
     Depreviation data:
                 area  deprivation
         0     100100         10.0
@@ -311,52 +321,69 @@ def create_population_wrapper(workdir: str, input_cfg: dict):
     Returns:
         None
     """
-
-    base_population = create_base_population(
-        input_cfg["population"]["total_population"])
-
-    # ----------------------------
-    # get age data
-    # ----------------------------
-    age_data = create_age_based_on_scaler(
-        base_population, input_cfg["population"]["population_by_age"])
-
-    # ----------------------------
-    # get ethnicity data
-    # ----------------------------
-    ethnicity_ratio_data = create_ethnicity_ratio(input_cfg["population"]["population_by_age_by_ethnicity"])
-    ethnicity_data_percentage = create_ethnicity_percentage_for_each_age(
-        age_data, ethnicity_ratio_data
-    )
-    ethnicity_data = map_feature_percentage_data_with_age_population_data(
-        age_data, ethnicity_data_percentage, check_consistency=True
-    )
-
-    # ----------------------------
-    # get gender data
-    # ----------------------------
-    female_ratio_data = create_female_ratio(
-        input_cfg["population"]["population_by_age_by_gender"])
-    gender_data_percentage = create_gender_percentage_for_each_age(
-        age_data, female_ratio_data
-    )
-    gender_data = map_feature_percentage_data_with_age_population_data(
-        age_data, gender_data_percentage, check_consistency=True
-    )
-
     # ----------------------------
     # get index of deprivation
     # ----------------------------
     nzdep_data = create_nzdep(input_cfg["population"]["nzdep"])
 
-    with open(join(workdir, "population.pickle"), "wb") as fid:
-        pickle_dump(
-            {
-                "gender": gender_data, 
-                "ethnicity": ethnicity_data,
-                "deprivation": nzdep_data}, fid
+
+    # ----------------------------
+    # get population data (v1.0)
+    # ----------------------------
+    if input_cfg["version"] == 1.0:
+        base_population = create_base_population(
+            input_cfg["population"]["total_population"])
+
+        # ----------------------------
+        # get age data
+        # ----------------------------
+        age_data = create_age_based_on_scaler(
+            base_population, input_cfg["population"]["population_by_age"])
+
+        # ----------------------------
+        # get ethnicity data
+        # ----------------------------
+        ethnicity_ratio_data = create_ethnicity_ratio(input_cfg["population"]["population_by_age_by_ethnicity"])
+        ethnicity_data_percentage = create_ethnicity_percentage_for_each_age(
+            age_data, ethnicity_ratio_data
+        )
+        ethnicity_data = map_feature_percentage_data_with_age_population_data(
+            age_data, ethnicity_data_percentage, check_consistency=True
         )
 
+        # ----------------------------
+        # get gender data
+        # ----------------------------
+        female_ratio_data = create_female_ratio(
+            input_cfg["population"]["population_by_age_by_gender"])
+        gender_data_percentage = create_gender_percentage_for_each_age(
+            age_data, female_ratio_data
+        )
+        gender_data = map_feature_percentage_data_with_age_population_data(
+            age_data, gender_data_percentage, check_consistency=True
+        )
+
+
+        with open(join(workdir, "population.pickle"), "wb") as fid:
+            pickle_dump(
+                {
+                    "gender": gender_data, 
+                    "ethnicity": ethnicity_data,
+                    "deprivation": nzdep_data}, fid
+            )
+    
+    # ----------------------------
+    # get population data (v2.0)
+    # ----------------------------
+    if input_cfg["version"] == 2.0:
+        population_structure = read_population_structure(
+            input_cfg["population"]["population_structure"])
+        with open(join(workdir, "population.pickle"), "wb") as fid:
+            pickle_dump(
+                {
+                    "population_structure": population_structure, 
+                    "deprivation": nzdep_data}, fid
+            )
 
 def create_geography_wrapper(workdir: str, input_cfg: dict, include_address: bool = True):
     """
