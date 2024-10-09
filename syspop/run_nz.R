@@ -23,6 +23,9 @@ syn_areas <- c(241800, 242800, 241400, 242000)
 #  pull(area)
 # syn_areas <- unique(test_data$`geog_data//hierarchy`$area)
 
+validate_synthetic_population(
+  output_dir = output_dir, population_structure = test_data$`pop_data//population_structure`)
+
 create_synthetic_population(
   syn_areas = syn_areas,
     output_dir = output_dir,

@@ -129,3 +129,5 @@ SHARED_SPACE_NEAREST_DISTANCE_KM = {
     "wholesale": 10.0,
     "park": 3.0,
 }
+
+NZ_DATA_DEFAULT = "etc/data/test_data_latest_v2.0"

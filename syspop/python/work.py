@@ -5,8 +5,8 @@ from numpy import nan as numpy_nan
 from numpy.random import choice as numpy_choice
 from numpy.random import uniform as numpy_uniform
 from pandas import DataFrame, concat, merge
-from python.address import add_random_address
-from python.commute import travel_between_home_and_work, shared_transport
+from syspop.python.address import add_random_address
+from syspop.python.commute import travel_between_home_and_work, shared_transport
 
 logger = getLogger()
 
