@@ -83,8 +83,8 @@ if if_run_diary:
 if if_run_validation:
     syspop_validate(
         output_dir=output_dir,
-        pop_gender=test_data["pop_data"]["gender"],
-        pop_ethnicity=test_data["pop_data"]["ethnicity"],
+        # pop_gender=test_data["pop_data"]["gender"], # only avaliable for v1.0 data
+        # pop_ethnicity=test_data["pop_data"]["ethnicity"], # only avaliable for v1.0 data
         household=test_data["household_data"]["household"],
         work_data=test_data["work_data"],
         home_to_work=test_data["commute_data"]["travel_to_work"],

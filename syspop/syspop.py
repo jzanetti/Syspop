@@ -322,23 +322,25 @@ def validate(
         household,
     )
 
-    logger.info("Validating base population (gender) ...")
-    validate_base_pop_and_age(
-        val_dir,
-        merge_syspop_data(output_dir, ["base"]),
-        pop_gender,
-        "gender",
-        ["male", "female"],
-    )
+    if pop_gender is not None:
+        logger.info("Validating base population (gender) ...")
+        validate_base_pop_and_age(
+            val_dir,
+            merge_syspop_data(output_dir, ["base"]),
+            pop_gender,
+            "gender",
+            ["male", "female"],
+        )
 
-    logger.info("Validating base population (ethnicity) ...")
-    validate_base_pop_and_age(
-        val_dir,
-        merge_syspop_data(output_dir, ["base"]),
-        pop_ethnicity,
-        "ethnicity",
-        ["European", "Maori", "Pacific", "Asian", "MELAA"],
-    )
+    if pop_ethnicity is not None:
+        logger.info("Validating base population (ethnicity) ...")
+        validate_base_pop_and_age(
+            val_dir,
+            merge_syspop_data(output_dir, ["base"]),
+            pop_ethnicity,
+            "ethnicity",
+            ["European", "Maori", "Pacific", "Asian", "MELAA"],
+        )
 
 
 def diary(
