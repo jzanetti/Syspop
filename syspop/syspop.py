@@ -12,13 +12,13 @@ from pandas import concat as pandas_concat
 from pandas import cut as pandas_cut
 from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
-from process.diary import (
+from python.diary import (
     create_diary,
     map_loc_to_diary,
     quality_check_diary,
 )
-from process.utils import merge_syspop_data, setup_logging
-from process.validate import (
+from python.utils import merge_syspop_data, setup_logging
+from python.validate import (
     validate_base_pop_and_age,
     validate_commute_area,
     validate_commute_mode,
@@ -26,7 +26,7 @@ from process.validate import (
     validate_mmr,
     validate_work,
 )
-from process.vis import (
+from python.vis import (
     plot_average_occurence_charts,
     plot_location_occurence_charts_by_hour,
     plot_location_timeseries_charts,
@@ -34,7 +34,7 @@ from process.vis import (
     plot_pie_charts,
     plot_travel_html,
 )
-from process.create_pop_wrapper import (
+from python.create_pop_wrapper import (
     create_base_pop,
     create_birthplace,
     create_hospital,
@@ -322,23 +322,25 @@ def validate(
         household,
     )
 
-    logger.info("Validating base population (gender) ...")
-    validate_base_pop_and_age(
-        val_dir,
-        merge_syspop_data(output_dir, ["base"]),
-        pop_gender,
-        "gender",
-        ["male", "female"],
-    )
+    if pop_gender is not None:
+        logger.info("Validating base population (gender) ...")
+        validate_base_pop_and_age(
+            val_dir,
+            merge_syspop_data(output_dir, ["base"]),
+            pop_gender,
+            "gender",
+            ["male", "female"],
+        )
 
-    logger.info("Validating base population (ethnicity) ...")
-    validate_base_pop_and_age(
-        val_dir,
-        merge_syspop_data(output_dir, ["base"]),
-        pop_ethnicity,
-        "ethnicity",
-        ["European", "Maori", "Pacific", "Asian", "MELAA"],
-    )
+    if pop_ethnicity is not None:
+        logger.info("Validating base population (ethnicity) ...")
+        validate_base_pop_and_age(
+            val_dir,
+            merge_syspop_data(output_dir, ["base"]),
+            pop_ethnicity,
+            "ethnicity",
+            ["European", "Maori", "Pacific", "Asian", "MELAA"],
+        )
 
 
 def diary(
@@ -400,6 +402,7 @@ def create(
     output_dir: str = "",
     pop_gender: DataFrame = None,
     pop_ethnicity: DataFrame = None,
+    pop_structure: DataFrame = None,
     geo_hierarchy: DataFrame = None,
     geo_location: DataFrame = None,
     geo_address: DataFrame = None,
@@ -484,11 +487,17 @@ def create(
 
     if (not exists(tmp_data_path)) or rewrite_base_pop:
         logger.info("Creating base population ...")
-        _check_dependancies(
-            "base_pop", deps_list=["pop_gender", "pop_ethnicity", "syn_areas"]
-        )
+        if pop_structure is None:
+            _check_dependancies(
+                "base_pop", deps_list=["pop_gender", "pop_ethnicity", "syn_areas"]
+            )
+        else:
+            _check_dependancies(
+                "base_pop", deps_list=["pop_structure", "syn_areas"]
+            )
+
         create_base_pop(
-            tmp_data_path, pop_gender, pop_ethnicity, syn_areas, ref_population = "gender"
+            tmp_data_path, pop_structure, pop_gender, pop_ethnicity, syn_areas, ref_population = "gender"
         )
 
     if household is not None:

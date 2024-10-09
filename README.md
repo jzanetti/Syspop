@@ -144,3 +144,10 @@ make publish
 ```
 
 Note that before the release, it is suggested to check the latest version by ``make pkg_version``, and then adjust the version number in ``setup.py`` accordingly.
+
+## R Development
+This R version of this package is under development, the following shows the steps for testing the package with R:
+- Start a new R env: Run `renv::init()` to initialize renv for your project
+- Record R env: `renv::snapshot()`
+- Reload R env: Run `renv::restore()` to load the renv environment for your project
+- Install R packages: `renv::install(c("x", "y", "z"))`

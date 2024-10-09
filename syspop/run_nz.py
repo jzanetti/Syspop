@@ -2,7 +2,7 @@
 
 from os.path import join
 
-from process.utils import _get_data_for_test
+from python.input import new_zealand
 
 from syspop import create as syspop_create
 from syspop import diary as syspop_diary
@@ -14,15 +14,15 @@ filterwarnings("ignore")
 
 proj_year = None  # can be None or an actual year, e.g., None or 2028
 
-output_dir = "/tmp/syspop_test17/Wellington_test"
-input_dir = "etc/data/test_data_latest"
+output_dir = "/tmp/syspop_test17/Wellington_test_v2.0"
+input_dir = "etc/data/test_data_latest_v2.0"
 if proj_year is None:
     output_dir = join(output_dir, "base")
 else:
     input_dir = join(input_dir, "proj", str(proj_year))
     output_dir = join(output_dir, str(proj_year))
 
-test_data = _get_data_for_test(input_dir, write_out_file=True)
+test_data = new_zealand(input_dir, write_out_file=True)
 
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
@@ -30,11 +30,11 @@ syn_areas = list(
     ]["area"]
 )
 
-syn_areas = [241300, 241200, 243000, 247700, 242400]
+# syn_areas = [241300, 241200, 243000, 247700, 242400]
 #from random import sample as random_sample
 #syn_areas = random_sample(syn_areas, 50)
 # syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
-# syn_areas = [241200]
+syn_areas = [236800, 237200]
 
 if_run_syspop_create = True
 if_run_diary = False
@@ -45,8 +45,9 @@ if if_run_syspop_create:
     syspop_create(
         syn_areas=syn_areas,
         output_dir=output_dir,
-        pop_gender=test_data["pop_data"]["gender"],
-        pop_ethnicity=test_data["pop_data"]["ethnicity"],
+        pop_structure = test_data["pop_data"]["population_structure"],
+        #pop_gender=test_data["pop_data"]["gender"],
+        #pop_ethnicity=test_data["pop_data"]["ethnicity"],
         geo_hierarchy=test_data["geog_data"]["hierarchy"],
         geo_location=test_data["geog_data"]["location"],
         geo_address=test_data["geog_data"]["address"],
@@ -82,8 +83,8 @@ if if_run_diary:
 if if_run_validation:
     syspop_validate(
         output_dir=output_dir,
-        pop_gender=test_data["pop_data"]["gender"],
-        pop_ethnicity=test_data["pop_data"]["ethnicity"],
+        # pop_gender=test_data["pop_data"]["gender"], # only avaliable for v1.0 data
+        # pop_ethnicity=test_data["pop_data"]["ethnicity"], # only avaliable for v1.0 data
         household=test_data["household_data"]["household"],
         work_data=test_data["work_data"],
         home_to_work=test_data["commute_data"]["travel_to_work"],
