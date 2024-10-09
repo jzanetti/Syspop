@@ -301,7 +301,7 @@ def create_population_wrapper(workdir: str, input_cfg: dict):
         ......
 
     Or if it is for the version 2.0, the population structure data looks like:
-                sa2  ethnicity  age  gender  value
+                  area  ethnicity  age  gender  value
         0       100100          1    0       1    6.0
         1       100100          1    1       1    9.0
         2       100100          1    2       1    9.0
