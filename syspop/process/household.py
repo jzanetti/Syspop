@@ -845,6 +845,7 @@ def sort_household_v2(proc_houshold_dataset: DataFrame, exclude_row_indices: lis
 
     return proc_houshold_dataset.sample(weights=proc_houshold_dataset["percentage"])
 
+
 def sort_household(
     proc_houshold_dataset: DataFrame, use_level_flag: bool = True
 ) -> DataFrame:

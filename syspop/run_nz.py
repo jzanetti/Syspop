@@ -2,7 +2,7 @@
 
 from os.path import join
 
-from process.utils import _get_data_for_test
+from process.input import new_zealand
 
 from syspop import create as syspop_create
 from syspop import diary as syspop_diary
@@ -22,7 +22,7 @@ else:
     input_dir = join(input_dir, "proj", str(proj_year))
     output_dir = join(output_dir, str(proj_year))
 
-test_data = _get_data_for_test(input_dir, write_out_file=True)
+test_data = new_zealand(input_dir, write_out_file=True)
 
 syn_areas = list(
     test_data["geog_data"]["hierarchy"][
