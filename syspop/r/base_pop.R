@@ -76,6 +76,15 @@ create_pop <- function(output_area, output_age, df_gender_melt, df_ethnicity_mel
 #'  2. Melts data into long format.
 #'  3. Normalizes data by calculating probabilities.
 #'  4. Loops through each output area and age to create the base population.
+#'  
+#'  The output looks like:
+#'       area ethnicity   age gender index
+#'     <int> <chr>     <int> <chr>  <int>
+#'   1 241400 European      0 female     1
+#'   2 241400 European      0 female     2
+#'   3 241400 European      0 female     3
+#'   4 241400 European      0 female     4
+#'   ....
 #'
 #' @return A data frame containing the generated base population.
 #' @export
@@ -83,56 +92,67 @@ create_pop <- function(output_area, output_age, df_gender_melt, df_ethnicity_mel
 base_pop_wrapper <- function(
     gender_data,
     ethnicity_data,
+    structure_data,
     output_area_filter = NULL,
     ref_population = "gender"
 ) {
-
+  start_time <- Sys.time()
   # Filter data by output area if provided
   if (!is.null(output_area_filter)) {
-    gender_data <- gender_data %>% filter(area %in% output_area_filter)
-    ethnicity_data <- ethnicity_data %>% filter(area %in% output_area_filter)
-  }
-  
-  # Melt data
-  df_gender_melt <- gender_data %>% 
-    pivot_longer(cols = -c(area, gender), names_to = "age", values_to = "count")
-  
-  df_ethnicity_melt <- ethnicity_data %>% 
-    pivot_longer(cols = -c(area, ethnicity), names_to = "age", values_to = "count")
-  
-  # Normalize data
-  df_gender_melt <- df_gender_melt %>% 
-    group_by(area, age) %>% 
-    mutate(prob = count / sum(count))
-  
-  df_ethnicity_melt <- df_ethnicity_melt %>% 
-    group_by(area, age) %>% 
-    mutate(prob = count / sum(count))
-  
-  # Initialize variables
-  start_time <- Sys.time()
-  population <- list()
-  output_areas <- unique(df_gender_melt$area)
-  total_output_area <- length(output_areas)
-  
-  # Loop through each output area and age
-  for (i in seq_along(output_areas)) {
-    print(paste0("Base population: ", i, "/", total_output_area, " (", round(i * 100 / total_output_area, 2), "%)"))
-
-    for (age in unique(df_gender_melt$age)) {
-      result <- create_pop(output_areas[i], age, df_gender_melt, df_ethnicity_melt, ref_population = ref_population)
-      population <- rbind(population, result)
+    if(!is.null(structure_data)){
+      structure_data <- structure_data %>% filter(area %in% output_area_filter)
+    }
+    else {
+      gender_data <- gender_data %>% filter(area %in% output_area_filter)
+      ethnicity_data <- ethnicity_data %>% filter(area %in% output_area_filter)
     }
   }
   
+  if(!is.null(structure_data)){
+    population <- structure_data %>%
+      uncount(weights = as.integer(value))  # Repeat rows by "value" column
+    population = population[ , !(names(population) %in% c("value"))]
+  }
+  else{
+    # Melt data
+    df_gender_melt <- gender_data %>% 
+      pivot_longer(cols = -c(area, gender), names_to = "age", values_to = "count")
+    
+    df_ethnicity_melt <- ethnicity_data %>% 
+      pivot_longer(cols = -c(area, ethnicity), names_to = "age", values_to = "count")
+    
+    # Normalize data
+    df_gender_melt <- df_gender_melt %>% 
+      group_by(area, age) %>% 
+      mutate(prob = count / sum(count))
+    
+    df_ethnicity_melt <- df_ethnicity_melt %>% 
+      group_by(area, age) %>% 
+      mutate(prob = count / sum(count))
+    
+    # Initialize variables
+    population <- list()
+    output_areas <- unique(df_gender_melt$area)
+    total_output_area <- length(output_areas)
+    
+    # Loop through each output area and age
+    for (i in seq_along(output_areas)) {
+      print(paste0("Base population: ", i, "/", total_output_area, " (", round(i * 100 / total_output_area, 2), "%)"))
+  
+      for (age in unique(df_gender_melt$age)) {
+        result <- create_pop(output_areas[i], age, df_gender_melt, df_ethnicity_melt, ref_population = ref_population)
+        population <- rbind(population, result)
+      }
+    }
+  }
+  
+  population$age <- as.integer(population$age)
+  population$index <- seq_len(nrow(population))
+
   # Calculate processing time
   end_time <- Sys.time()
   total_mins <- as.numeric(end_time - start_time, units = "mins")
   print(paste0("Processing time (base population): ", round(total_mins, 2)))
-
-  population$age <- as.integer(population$age)
-  
-  population$index <- seq_len(nrow(population))
   
   return(population)
 }

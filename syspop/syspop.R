@@ -39,6 +39,7 @@ create_synthetic_population <- function(
     output_dir = "",
     pop_gender = NULL,
     pop_ethnicity = NULL,
+    population_structure = NULL,
     household = NULL,
     geo_hierarchy = NULL,
     geo_location = NULL,
@@ -65,11 +66,17 @@ create_synthetic_population <- function(
   dir.create(tmp_dir, showWarnings = FALSE, recursive=TRUE)
 
   print("Creating base population ...")
-  check_dependencies("base_pop", list(pop_gender, pop_ethnicity, syn_areas), assign_address_flag, list(geo_address))
+  if(is.null(population_structure)){
+    check_dependencies("base_pop", list(pop_gender, pop_ethnicity, syn_areas), assign_address_flag, list(geo_address))
+  }
+  else {
+    check_dependencies("base_pop", list(population_structure, syn_areas), assign_address_flag, list(geo_address))
+  }
   create_base_pop(
     tmp_dir, 
     pop_gender, 
-    pop_ethnicity, 
+    pop_ethnicity,
+    population_structure,
     syn_areas, 
     ref_population = "gender")
   

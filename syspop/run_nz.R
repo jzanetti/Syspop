@@ -28,6 +28,7 @@ create_synthetic_population(
     output_dir = output_dir,
     pop_gender = test_data$`pop_data//gender`,
     pop_ethnicity = test_data$`pop_data//ethnicity`,
+    population_structure = test_data$`pop_data//population_structure`,
     household = test_data$`household_data//household`,
     geo_hierarchy = test_data$`geog_data//hierarchy`,
     geo_location = test_data$`geog_data//location`,

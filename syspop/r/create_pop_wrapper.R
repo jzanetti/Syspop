@@ -23,11 +23,12 @@ create_base_pop <- function(
     tmp_dir,
     pop_gender,
     pop_ethnicity,
+    pop_structure,
     syn_areas,
     ref_population = "gender"
 ) {
   # Create base population
-  output <- base_pop_wrapper(pop_gender, pop_ethnicity, syn_areas, ref_population = ref_population)
+  output <- base_pop_wrapper(pop_gender, pop_ethnicity, pop_structure, syn_areas, ref_population = ref_population)
   write_parquet(output, file.path(tmp_dir, "syspop_base.parquet"))
   
   # Create initial address
