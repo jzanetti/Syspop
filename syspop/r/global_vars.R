@@ -1,5 +1,5 @@
 global_vars <- list(
-  test_data_catalog = "/Users/sijinzhang/Github/Syspop/etc/data/test_data_latest_v2.0/input/data_catalog.txt",
+  test_data_catalog = "etc/data/test_data_latest_v2.0/input/data_catalog.txt",
   shared_space_nearest_distance_km = list(
     supermarket = 2.5,
     restaurant = 3.0,
