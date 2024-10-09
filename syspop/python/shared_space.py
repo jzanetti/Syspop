@@ -4,7 +4,7 @@ from numpy import NaN as numpy_nan
 from numpy import arange as numpy_arrange
 from numpy import where as numpy_where
 from pandas import DataFrame, concat
-from process import SHARED_SPACE_NEAREST_DISTANCE_KM
+from python import SHARED_SPACE_NEAREST_DISTANCE_KM
 from scipy.spatial.distance import cdist
 
 logger = getLogger()

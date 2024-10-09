@@ -2,7 +2,7 @@
 
 from os.path import join
 
-from process.input import new_zealand
+from python.input import new_zealand
 
 from syspop import create as syspop_create
 from syspop import diary as syspop_diary

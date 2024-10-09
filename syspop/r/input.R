@@ -15,7 +15,7 @@ library(arrow)
 #'   The catalog file should have four columns: data_type, data_subtype1, data_subtype2, and data_path.
 #'   If data_subtype1 is missing, data will be nested directly under data_type.
 #'  
-get_data_for_test <- function() {
+new_zealand_data <- function() {
   test_data <- list()
   data_catalog <- read.csv(
     global_vars$test_data_catalog, 

@@ -1,5 +1,5 @@
 source("syspop/r/global_vars.R")
-source("syspop/r/utils.R")
+source("syspop/r/input.R")
 source("syspop/syspop.R")
 
 library(dplyr)
@@ -13,7 +13,7 @@ library(dplyr)
 library(uuid)
 library(tibble)
 
-test_data <- get_data_for_test()
+test_data <- new_zealand_data()
 
 output_dir <- "/tmp/syspop"
 # syn_areas <- c(236800, 237200)

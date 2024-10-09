@@ -8,13 +8,13 @@ from numpy import round as numpy_round
 from numpy.random import choice as numpy_choice
 from pandas import DataFrame
 from pandas import concat as pandas_concat
-from process.base_pop import base_pop_wrapper
-from process.hospital import hospital_wrapper
-from process.household import household_wrapper
-from process.school import school_and_kindergarten_wrapper
-from process.shared_space import shared_space_wrapper
-from process.social_economic import social_economic_wrapper
-from process.work import work_and_commute_wrapper
+from python.base_pop import base_pop_wrapper
+from python.hospital import hospital_wrapper
+from python.household import household_wrapper
+from python.school import school_and_kindergarten_wrapper
+from python.shared_space import shared_space_wrapper
+from python.social_economic import social_economic_wrapper
+from python.work import work_and_commute_wrapper
 
 
 def create_base_pop(
