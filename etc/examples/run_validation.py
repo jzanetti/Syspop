@@ -6,7 +6,8 @@ from warnings import filterwarnings
 filterwarnings("ignore")
 
 
-output_dir = "/tmp/syspop_test17/Wellington_test_v2.0"
+#output_dir = "/tmp/syspop_test17/Wellington_test_v2.0"
+output_dir = "/tmp/syspop"
 test_data = new_zealand()
 
 syspop_validate(
