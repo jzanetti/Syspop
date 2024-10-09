@@ -12,13 +12,13 @@ from pandas import concat as pandas_concat
 from pandas import cut as pandas_cut
 from pandas import merge as pandas_merge
 from pandas import read_parquet as pandas_read_parquet
-from python.diary import (
+from syspop.python.diary import (
     create_diary,
     map_loc_to_diary,
     quality_check_diary,
 )
-from python.utils import merge_syspop_data, setup_logging
-from python.validate import (
+from syspop.python.utils import merge_syspop_data, setup_logging
+from syspop.python.validate import (
     validate_base_pop_and_age,
     validate_commute_area,
     validate_commute_mode,
@@ -26,7 +26,7 @@ from python.validate import (
     validate_mmr,
     validate_work,
 )
-from python.vis import (
+from syspop.python.vis import (
     plot_average_occurence_charts,
     plot_location_occurence_charts_by_hour,
     plot_location_timeseries_charts,
@@ -34,7 +34,7 @@ from python.vis import (
     plot_pie_charts,
     plot_travel_html,
 )
-from python.create_pop_wrapper import (
+from syspop.python.create_pop_wrapper import (
     create_base_pop,
     create_birthplace,
     create_hospital,

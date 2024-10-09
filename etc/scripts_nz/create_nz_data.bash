@@ -33,7 +33,7 @@ fi
 
 if [ -z "$input_cfg" ]
 then
-  echo "Please enter the raw input configuration file (e.g., etc/scripts_nz/input_v1.0.yml):"
+  echo "Please enter the raw input configuration file (e.g., etc/scripts_nz/input_v2.0.yml):"
   read input_cfg
 fi
 

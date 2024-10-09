@@ -2,8 +2,9 @@ from pickle import load as pickle_load
 from os.path import join, exists
 from os import makedirs
 from pandas import concat as pandas_concat
+from syspop.python import NZ_DATA_DEFAULT
 
-def new_zealand(test_data_dir: str, write_out_file: bool = False) -> dict:
+def new_zealand(write_out_file: bool = True, test_data_dir: str = NZ_DATA_DEFAULT) -> dict:
     """Get data to create synthentic population
 
     Args:

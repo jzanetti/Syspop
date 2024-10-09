@@ -225,3 +225,16 @@ create_synthetic_population <- function(
   }
   write_parquet(base_address, file.path(output_dir, "syspop_location.parquet"))
 }
+
+
+validate_synthetic_population <- function(
+    output_dir = "",
+    population_structure = NULL){
+  
+  browser()
+  if(!is.null(population_structure)) {
+    print("Validating population structure")
+    syn_population_structure <- read_parquet(file.path(output_dir, "syspop_base.parquet"))
+    
+  }
+}
