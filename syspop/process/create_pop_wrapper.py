@@ -19,6 +19,7 @@ from process.work import work_and_commute_wrapper
 
 def create_base_pop(
     tmp_data_path: str,
+    pop_structure: DataFrame,
     pop_gender: DataFrame,
     pop_ethnicity: DataFrame,
     syn_areas: list,
@@ -41,7 +42,7 @@ def create_base_pop(
         ncpu (int): Number of CPUs
     """
     synpop, synadd = base_pop_wrapper(
-        pop_gender, pop_ethnicity, syn_areas, ref_population=ref_population
+        pop_structure, pop_gender, pop_ethnicity, syn_areas, ref_population=ref_population
     )
 
     with open(tmp_data_path, "wb") as fid:

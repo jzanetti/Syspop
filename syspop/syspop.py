@@ -400,6 +400,7 @@ def create(
     output_dir: str = "",
     pop_gender: DataFrame = None,
     pop_ethnicity: DataFrame = None,
+    pop_structure: DataFrame = None,
     geo_hierarchy: DataFrame = None,
     geo_location: DataFrame = None,
     geo_address: DataFrame = None,
@@ -484,11 +485,17 @@ def create(
 
     if (not exists(tmp_data_path)) or rewrite_base_pop:
         logger.info("Creating base population ...")
-        _check_dependancies(
-            "base_pop", deps_list=["pop_gender", "pop_ethnicity", "syn_areas"]
-        )
+        if pop_structure is None:
+            _check_dependancies(
+                "base_pop", deps_list=["pop_gender", "pop_ethnicity", "syn_areas"]
+            )
+        else:
+            _check_dependancies(
+                "base_pop", deps_list=["pop_structure", "syn_areas"]
+            )
+
         create_base_pop(
-            tmp_data_path, pop_gender, pop_ethnicity, syn_areas, ref_population = "gender"
+            tmp_data_path, pop_structure, pop_gender, pop_ethnicity, syn_areas, ref_population = "gender"
         )
 
     if household is not None:

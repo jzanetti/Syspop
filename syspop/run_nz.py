@@ -14,7 +14,7 @@ filterwarnings("ignore")
 
 proj_year = None  # can be None or an actual year, e.g., None or 2028
 
-output_dir = "/tmp/syspop_test17/Wellington_test"
+output_dir = "/tmp/syspop_test17/Wellington_test_v2.0"
 input_dir = "etc/data/test_data_latest_v2.0"
 if proj_year is None:
     output_dir = join(output_dir, "base")
@@ -45,8 +45,9 @@ if if_run_syspop_create:
     syspop_create(
         syn_areas=syn_areas,
         output_dir=output_dir,
-        pop_gender=test_data["pop_data"]["gender"],
-        pop_ethnicity=test_data["pop_data"]["ethnicity"],
+        pop_structure = test_data["pop_data"]["population_structure"],
+        #pop_gender=test_data["pop_data"]["gender"],
+        #pop_ethnicity=test_data["pop_data"]["ethnicity"],
         geo_hierarchy=test_data["geog_data"]["hierarchy"],
         geo_location=test_data["geog_data"]["location"],
         geo_address=test_data["geog_data"]["address"],

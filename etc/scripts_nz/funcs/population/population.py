@@ -6,7 +6,7 @@ from re import match as re_match
 from numpy import inf, nan
 from pandas import DataFrame, concat, melt, merge, read_csv, read_excel, to_numeric
 
-from funcs import RAW_DATA
+from funcs import POPULATION_STRUCTURE_CODE
 from funcs.utils import sort_column_by_names
 
 from funcs.preproc import _read_raw_population, _read_raw_age, _read_raw_gender, _read_raw_ethnicity, _read_raw_nzdep
@@ -150,7 +150,7 @@ def create_female_ratio(raw_gender_path: str) -> DataFrame:
     return df
 
 
-def read_population_structure(population_structure_data_path: str):
+def read_population_structure(population_structure_data_path: str) -> DataFrame:
     """Read population structure data (usually for v2.0)
 
     Args:
@@ -159,7 +159,11 @@ def read_population_structure(population_structure_data_path: str):
     Returns:
         _type_: _description_
     """
-    return read_csv(population_structure_data_path)[["sa2", "ethnicity", "age", "gender", "value"]]
+    df = read_csv(population_structure_data_path)[["sa2", "ethnicity", "age", "gender", "value"]]
+    df = df.rename(columns={"sa2": "area"})
+    df = df.replace(POPULATION_STRUCTURE_CODE).reset_index()
+    df = df.drop(columns=["index"])
+    return df
 
 
 def create_base_population(raw_population_path: str):
