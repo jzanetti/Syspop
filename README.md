@@ -25,9 +25,8 @@ _The above animations show: Top: where people travel to from 241800 (Silverstrea
 * [Installation](https://github.com/jzanetti/Syspop#installation)
 * [Usage](https://github.com/jzanetti/Syspop#usage)
 * [Output](https://github.com/jzanetti/Syspop#output)
-* [Release (for developer)](https://github.com/jzanetti/Syspop#release-for-developer)
 
-## Installation
+## 🌟 Installation
 It is recommended to install the package via a local conda environment:
 ```
 make env
@@ -39,7 +38,7 @@ Alternatively, if _R_ is is used, the working environment can be created by
 renv::restore()
 ```
 
-## Usage
+## 🛠️ Usage
 
 ### Prepare New Zealand input data
 
@@ -58,11 +57,9 @@ A synthetic population can be created using:
 
 ```
 from syspop.python.input import new_zealand
-
 from syspop.start import create as syspop_create
 
 test_data = new_zealand()
-
 syn_areas = [236800, 237200]
 
 syspop_create(
@@ -105,7 +102,7 @@ There are many example scripts located in `etc/examples`:
 - `run_vis.py`: Creating visualisation for the synthetic population
   
 
-## Output
+## 📊 Output
 The output from **Syspop** is a comprehensive table that contains the information for each synthetic individual, which can be used for any downstream analytic and modeling works. The list of attributes for each synthetic individual can be found [here](https://github.com/jzanetti/Syspop/wiki/Some-basic-attributes-for-Syspop)
 
 | area   | age | gender | ethnicity | household    | ... | school               | primary_hospital    | secondary_hospital   | supermarket                     | restaurant                                        |
@@ -116,16 +113,7 @@ The output from **Syspop** is a comprehensive table that contains the informatio
 | 236300 | 0   | male   | Maori     | 236300_3_220 | ... | NaN                  | 237800_hospital_2_0 | 235800_hospital_28_0 | supermarket_284,supermarket_283 | restaurant_1407,restaurant_2551,restaurant_287... |
 | ...    | ... | ...    | ...       | ...          | ... | ...                  | ...                 | ...                  | ...                             | ...                                               |
 
-## Release (for developer)
-The package can be released by running:
-
-```
-make publish
-```
-
-Note that before the release, it is suggested to check the latest version by ``make pkg_version``, and then adjust the version number in ``setup.py`` accordingly.
-
-## R Development
+## 🔗 R Development
 This R version of this package is under development, the following shows the steps for testing the package with R:
 - Start a new R env: Run `renv::init()` to initialize renv for your project
 - Record R env: `renv::snapshot()`
