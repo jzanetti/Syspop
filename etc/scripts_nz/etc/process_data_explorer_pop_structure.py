@@ -60,10 +60,3 @@ population_structure_data = population_structure_data.reset_index()
 population_structure_data = population_structure_data[["sa2", "ethnicity", "age", "gender", "value"]]
 
 population_structure_data.to_csv("etc/data/open_data/population_structure_2023.csv")
-
-# ---------------------
-# Household composition
-# ---------------------
-household_composition_data_path = "/Users/sijinzhang/Downloads/STATSNZ,CEN23_TBT_007,1.0+all.csv"
-
-household_composition_data = read_csv(household_composition_data_path)

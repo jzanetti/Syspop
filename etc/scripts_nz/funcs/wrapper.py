@@ -64,8 +64,14 @@ def create_household_wrapper(workdir: str, input_cfg: dict):
     1. Generates household and dwelling number data based on the household composition specified in the configuration.
     2. Saves the generated household data to a pickle file in the specified working directory.
 
-    The generated household data includes:
-    - Household composition and dwelling numbers
+    The generated household data looks like:
+                area  adults  children   num
+        0      100100       0         1    3
+        1      100100       0         2    4
+        2      100100       1         0  142
+        3      100100       1         1   14
+        4      100100       1         2   15
+        ...       ...     ...       ...  ...
 
     Returns:
         None
@@ -73,8 +79,8 @@ def create_household_wrapper(workdir: str, input_cfg: dict):
 
     hhd_data = create_household_and_dwelling_number(
         input_cfg["household"]["household_composition"])
-    hhd_data['percentage'] = hhd_data.groupby("area")["num"].transform(
-        lambda x: x / x.sum())
+    # hhd_data['percentage'] = hhd_data.groupby("area")["num"].transform(
+    #    lambda x: x / x.sum())
 
     with open(join(workdir, "household.pickle"), "wb") as fid:
         pickle_dump({"household": hhd_data}, fid)
@@ -404,6 +410,35 @@ def create_geography_wrapper(workdir: str, input_cfg: dict, include_address: boo
         - 'hierarchy': Processed geography hierarchy data.
         - 'location': Processed geography location area data.
         - 'address': Processed address data.
+    
+    The output looks like:
+
+    - hierarchy:
+                    region  super_area    area
+        0        Northland       50010  100100
+        3        Northland       50010  100200
+        6        Northland       50010  100600
+        8        Northland       50030  100400
+        10       Northland       50030  101000
+        ...            ...         ...     ...
+    
+    - location:
+                area   latitude   longitude
+        0     100100 -34.505453  172.775550
+        1     100200 -34.916277  173.137443
+        2     100300 -35.218501  174.158249
+        3     100400 -34.995278  173.378738
+        4     100500 -35.123147  173.218604
+        ...      ...        ...         ...
+    
+    - address:
+                   area   latitude   longitude
+        0        136000 -36.865148  174.755962
+        1        136000 -36.865394  174.756203
+        2        354700 -45.896419  170.506439
+        3        331400 -43.569101  172.682428
+        4        331400 -43.568808  172.682646
+        ...         ...        ...         ...
     """
     output= {
                 "hierarchy": _read_raw_geography_hierarchy(input_cfg["geography"]["geography_hierarchy"]),

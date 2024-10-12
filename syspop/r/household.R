@@ -372,6 +372,11 @@ household_wrapper <- function(
   all_areas <- unique(base_pop$area)
   total_areas <- length(all_areas)
   results <- list()
+
+  household_dataset <- household_dataset %>%
+    group_by(area) %>%
+    mutate(percentage = num / sum(num)) %>%
+    ungroup()
   
   for (i in seq_along(all_areas)) {
     proc_area <- all_areas[i]

@@ -1,5 +1,6 @@
 library(shiny)
 library(stringr)
+library(arrow)
 
 # Define UI
 ui <- fluidPage(
