@@ -1056,7 +1056,7 @@ def household_wrapper(
     base_pop["dwelling_type"] = numpy_nan
     base_pop["hhd_src"] = numpy_nan
 
-    houshold_dataset["percentage"] = houshold_dataset.groupby("area")["num"].transform(
+    houshold_dataset["percentage"] = houshold_dataset.groupby("area")["value"].transform(
         lambda x: x / x.sum())
 
     all_areas = list(base_pop["area"].unique())
