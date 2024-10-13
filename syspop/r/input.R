@@ -15,23 +15,42 @@ library(arrow)
 #'   The catalog file should have four columns: data_type, data_subtype1, data_subtype2, and data_path.
 #'   If data_subtype1 is missing, data will be nested directly under data_type.
 #'  
-new_zealand_data <- function() {
-  test_data <- list()
-  data_catalog <- read.csv(
-    global_vars$test_data_catalog, 
-    header = FALSE, 
-    col.names = c("data_type", "data_subtype1", "data_subtype2", "data_path"))
+new_zealand <- function(data_dir = global_vars$nz_data_default) {
+  # Get data to create synthetic population
   
-  for (i in 1:nrow(data_catalog)) {
-    row <- data_catalog[i, ]
-    file_path <- row$data_path
-    data <- read_parquet(file_path)
-    if (!is.null(row$data_subtype1)) {
-      test_data[[paste0(row$data_type, "/", row$data_subtype1, "/", row$data_subtype2)]] <- data
-    } else {
-      test_data[[paste0(row$data_type, "/", row$data_subtype2)]] <- data
+  nz_data <- list()
+  nz_data$geography <- list()
+  
+  items <- c(
+    "population_structure", 
+    "geography_hierarchy", 
+    "geography_location", 
+    "geography_address",
+    "household_composition",
+    "commute_travel_to_work",
+    "work_employee",
+    "work_employer",
+    "school",
+    "kindergarten",
+    "hospital",
+    "shared_space_bakery",
+    "shared_space_cafe",
+    "shared_space_department_store",
+    "shared_space_fast_food",
+    "shared_space_park",
+    "shared_space_pub",
+    "shared_space_restaurant",
+    "shared_space_supermarket",
+    "shared_space_wholesale"
+  )
+  
+  for (item in items) {
+    proc_path <- file.path(data_dir, paste0(item, ".parquet"))
+    if (file.exists(proc_path)) {
+      nz_data[[item]] <- arrow::read_parquet(proc_path)
     }
   }
   
-  return(test_data)
+  return(nz_data)
 }
+

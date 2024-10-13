@@ -201,6 +201,10 @@ shared_space_wrapper <- function(
     area_name_key = "area"
 ) {
   
+  if(num_nearest == 0){
+    return(list(pop_data = pop_data, address_data = address_data))
+  }
+  
   # Rename columns in shared_space_data
   names(shared_space_data)[names(shared_space_data) == "latitude"] <- paste0("latitude_", shared_space_name)
   names(shared_space_data)[names(shared_space_data) == "longitude"] <- paste0("longitude_", shared_space_name)
@@ -228,10 +232,10 @@ shared_space_wrapper <- function(
       all.x = TRUE
     )
     
-    names(pop_data)[names(pop_data) == paste0("area_work_", area_name_key, "_latitude")] <- "src_latitude"
-    names(pop_data)[names(pop_data) == paste0("area_work_", area_name_key, "_longitude")] <- "src_longitude"
+    names(pop_data)[names(pop_data) == paste0("area_work_latitude")] <- "src_latitude"
+    names(pop_data)[names(pop_data) == paste0("area_work_longitude")] <- "src_longitude"
   }
- 
+  
   for (i in 0:(num_nearest - 1)) {
     if (i == 0) {
       distance_matrix <- get_dis(pop_data,
@@ -240,7 +244,7 @@ shared_space_wrapper <- function(
     } else {
       distance_matrix[cbind(seq_along(nearest_indices), nearest_indices)] <- Inf
     }
-
+    
     nearest_indices <- apply(distance_matrix, 1, which.min)
     
     nearest_rows <- shared_space_data[nearest_indices, , drop = FALSE]

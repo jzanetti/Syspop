@@ -21,14 +21,11 @@ source("syspop/r/shared_space.R")
 #' 
 create_base_pop <- function(
     tmp_dir,
-    pop_gender,
-    pop_ethnicity,
     pop_structure,
-    syn_areas,
-    ref_population = "gender"
+    syn_areas
 ) {
   # Create base population
-  output <- base_pop_wrapper(pop_gender, pop_ethnicity, pop_structure, syn_areas, ref_population = ref_population)
+  output <- base_pop_wrapper(pop_structure, syn_areas)
   write_parquet(output, file.path(tmp_dir, "syspop_base.parquet"))
   
   # Create initial address
@@ -67,7 +64,7 @@ create_base_pop <- function(
 #'
 #' @importFrom arrow read_parquet write_parquet
 #' @export
-create_household <- function(
+create_household_composition <- function(
     tmp_dir,
     household_data,
     geo_address_data) {

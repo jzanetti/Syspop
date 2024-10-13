@@ -12,11 +12,11 @@ proj_year = None  # can be None or an actual year, e.g., None or 2028
 
 output_dir = "/tmp/syspop_test17/Wellington_test_v2.0"
 
-test_data = new_zealand()
+nz_data = new_zealand()
 
 syn_areas = list(
-    test_data["geog_data"]["hierarchy"][
-        test_data["geog_data"]["hierarchy"]["region"].isin(["Wellington"])
+    nz_data["geography_hierarchy"][
+        nz_data["geography_hierarchy"]["region"].isin(["Wellington"])
     ]["area"]
 )
 
@@ -27,32 +27,36 @@ syn_areas = list(
 syn_areas = [236800, 237200]
 
 syspop_create(
-    syn_areas=syn_areas,
-    output_dir=output_dir,
-    pop_structure = test_data["pop_data"]["population_structure"],
-    #pop_gender=test_data["pop_data"]["gender"],
-    #pop_ethnicity=test_data["pop_data"]["ethnicity"],
-    geo_hierarchy=test_data["geog_data"]["hierarchy"],
-    geo_location=test_data["geog_data"]["location"],
-    geo_address=test_data["geog_data"]["address"],
-    household=test_data["household_data"]["household"],
-    socialeconomic=test_data["pop_data"]["deprivation"],
-    work_data=test_data["work_data"],
-    home_to_work=test_data["commute_data"]["travel_to_work"],
-    school_data=test_data["school_data"]["school"],
-    kindergarten_data=test_data["kindergarten_data"]["kindergarten"],
-    hospital_data=test_data["hospital_data"]["hospital"],
-    supermarket_data=test_data["supermarket_data"]["supermarket"],
-    restaurant_data=test_data["restaurant_data"]["restaurant"],
-    department_store_data=test_data["department_store_data"]["department_store"],
-    wholesale_data=test_data["wholesale_data"]["wholesale"],
-    fast_food_data=test_data["fast_food_data"]["fast_food"],
-    pub_data=test_data["pub_data"]["pub"],
-    park_data=test_data["park_data"]["park"],
-    cafe_data=test_data["cafe_data"]["cafe"],
-    #mmr_data=test_data["others"]["mmr"],
-    birthplace_data=test_data["others"]["birthplace"],
-    assign_address_flag=True,
-    rewrite_base_pop=True,
-    # data_years={"vaccine": 2023},
+    syn_areas,
+    output_dir,
+    population = {
+        "structure": nz_data["population_structure"]
+    },
+    geography = {
+        "hierarchy": nz_data["geography_hierarchy"],
+        "location": nz_data["geography_location"],
+        "address": nz_data["geography_address"]
+    },
+    household={"composition": nz_data["household_composition"]},
+    work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"]},
+    commute={"travel_to_work": nz_data["commute_travel_to_work"]},
+    education={
+        "school": nz_data["school"],
+        "kindergarten": nz_data["kindergarten"]
+    },
+    healthcare={
+        "hospital": nz_data["hospital"]
+    },
+    shared_space={
+        "bakery": nz_data["shared_space_bakery"],
+        "cafe": nz_data["shared_space_cafe"],
+        "department_store": nz_data["shared_space_department_store"],
+        "fast_food": nz_data["shared_space_fast_food"],
+        "park": nz_data["shared_space_park"],
+        "pub": nz_data["shared_space_pub"],
+        "restaurant": nz_data["shared_space_restaurant"],
+        "supermarket": nz_data["shared_space_supermarket"],
+        "wholesale": nz_data["shared_space_wholesale"],
+
+    }
 )

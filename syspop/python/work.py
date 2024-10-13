@@ -183,7 +183,8 @@ def create_employers(
 
 
 def work_and_commute_wrapper(
-    business_data: dict,
+    employer_data: DataFrame,
+    employee_data: DataFrame,
     pop_data: DataFrame,
     base_address: DataFrame,
     commute_data: DataFrame,
@@ -206,8 +207,8 @@ def work_and_commute_wrapper(
     """
 
     base_pop = create_work_and_commute(
-        business_data["employer"],
-        business_data["employee"],
+        employer_data,
+        employee_data,
         pop_data,
         commute_data
     )

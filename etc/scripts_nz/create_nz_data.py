@@ -150,7 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("--add_proj", action=BooleanOptionalAction)
 
     args = parser.parse_args(
-        # ["--workdir", "etc/data/test_data_latest_v2.0", "--input", "etc/scripts_nz/input_v2.0.yml"]
+        # ["--workdir", "etc/data/test_data", "--input", "etc/scripts_nz/input_v2.0.yml"]
     )  # ["--workdir", "etc/data/test_data_wellington_latest"]
     import_raw_data(args.workdir, args.input)
 

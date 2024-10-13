@@ -13,36 +13,22 @@ from syspop.python.hospital import hospital_wrapper
 from syspop.python.household import household_wrapper
 from syspop.python.school import school_and_kindergarten_wrapper
 from syspop.python.shared_space import shared_space_wrapper
-from syspop.python.social_economic import social_economic_wrapper
 from syspop.python.work import work_and_commute_wrapper
 
 
 def create_base_pop(
     tmp_data_path: str,
     pop_structure: DataFrame,
-    pop_gender: DataFrame,
-    pop_ethnicity: DataFrame,
-    syn_areas: list,
-    ref_population: str = "gender"
+    syn_areas: list
 ):
-    """Creating base population, e.g., the population only contains
-        - id
-        - area
-        - age
-        - gender
-        - ethnicity
+    """Creating base population
 
     Args:
         tmp_data_path (str): where to save the population data
-        rewrite_base_pop (bool): if the base population exists, if we rewrite it
-        pop_gender (DataFrame): gender census
-        pop_ethnicity (DataFrame): ethnicity census
         syn_areas (list): area to be processed
-        use_parallel (bool): If use parallel processing
-        ncpu (int): Number of CPUs
     """
     synpop, synadd = base_pop_wrapper(
-        pop_structure, pop_gender, pop_ethnicity, syn_areas, ref_population=ref_population
+        pop_structure, syn_areas
     )
 
     with open(tmp_data_path, "wb") as fid:
@@ -75,27 +61,10 @@ def create_household(
         pickle_dump({"synpop": base_pop, "synadd": base_address}, fid)
 
 
-def create_socialeconomics(tmp_data_path: str, socialeconomic_data: DataFrame):
-    """Create social ecnomics for each area
-
-    Args:
-        tmp_data_path (str): where to save the population data
-        socialeconomic_data (DataFrame): social economics data to be used
-    """
-    with open(tmp_data_path, "rb") as fid:
-        base_pop = pickle_load(fid)
-
-    base_pop_out = social_economic_wrapper(
-        deepcopy(base_pop["synpop"]), socialeconomic_data
-    )
-
-    with open(tmp_data_path, "wb") as fid:
-        pickle_dump({"synpop": base_pop_out, "synadd": base_pop["synadd"]}, fid)
-
-
 def create_work(
     tmp_data_path: str,
-    work_data: DataFrame,
+    employer_data: DataFrame,
+    employee_data: DataFrame,
     home_to_work_commute_data: DataFrame,
     geo_hierarchy: DataFrame,
     geo_address_data: DataFrame
@@ -113,7 +82,8 @@ def create_work(
         base_pop = pickle_load(fid)
 
     base_pop, base_address = work_and_commute_wrapper(
-        work_data,
+        employer_data,
+        employee_data,
         base_pop["synpop"],
         base_pop["synadd"],
         home_to_work_commute_data,
@@ -126,8 +96,8 @@ def create_work(
 
 
 def create_school_and_kindergarten(
-    data_type: str,
     tmp_data_path: str,
+    data_type: str,
     school_data: DataFrame,
     geo_hierarchy_data: DataFrame,
     assign_address_flag: bool,
@@ -323,7 +293,6 @@ def create_birthplace(tmp_data_path: str, birthplace_data: DataFrame):
 def create_vaccine(
     tmp_data_path: str,
     vaccine_data: DataFrame,
-    data_year: int or None,
     data_percentile: str or None = "median",
     fill_missing_adults_data_flag: bool = False,
     full_imms_age: int or None = 60,
@@ -343,12 +312,9 @@ def create_vaccine(
     else:
         vaccine_data = vaccine_data[vaccine_data["percentile"] == "median"]
 
-    if data_year is not None:
-        vaccine_data = vaccine_data[vaccine_data["year"] == data_year]
-    else:
-        vaccine_data = vaccine_data[
-            vaccine_data["year"] == max(vaccine_data["year"].unique())
-        ]
+    vaccine_data = vaccine_data[
+        vaccine_data["year"] == max(vaccine_data["year"].unique())
+    ]
 
     with open(tmp_data_path, "rb") as fid:
         base_pop = pickle_load(fid)

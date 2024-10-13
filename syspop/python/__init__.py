@@ -130,4 +130,18 @@ SHARED_SPACE_NEAREST_DISTANCE_KM = {
     "park": 3.0,
 }
 
-NZ_DATA_DEFAULT = "etc/data/test_data_latest_v2.0"
+SHARED_PLACE_AREA_NUMS = {
+    "supermarket": {"area": 2},
+    "restaurant": {"area": 3, "area_work": 0},
+    "pharmacy": {"area": 2},
+    "cafe": {"area": 2},
+    "department_store": {"area": 2},
+    "wholesale": {"area": 2},
+    "fast_food": {"area": 1, "area_work": 0},
+    "pub": {"area": 1},
+    "park": {"area": 1}
+}
+
+
+
+NZ_DATA_DEFAULT = "etc/data/test_data"
