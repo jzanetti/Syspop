@@ -2,11 +2,46 @@ from logging import getLogger
 from math import ceil
 
 from numpy import nan as numpy_nan
-from numpy import mean as numpy_mean
 from numpy.random import choice as numpy_choice
 from pandas import DataFrame, merge
 
 logger = getLogger()
+
+
+def get_commute_agents_percentage(commute_dataset: DataFrame, travel_methods: list) -> DataFrame:
+    """
+    Calculate the percentage of people using each specified travel method in a commute dataset.
+
+    This function takes a dataset of commute data where each column represents the number of people 
+    using a particular travel method. It computes the percentage of people using each travel method 
+    relative to the total number of people for the given methods, adds these percentages as new columns, 
+    and returns the modified dataset.
+
+    Args:
+        commute_dataset (DataFrame): The input dataframe containing commute data. Each row corresponds 
+                                     to a different geographic area or time period, and columns represent 
+                                     the number of people using various travel methods.
+        travel_methods (list): A list of column names that represent different travel methods in the dataset.
+
+    Returns:
+        DataFrame: The modified dataset with additional columns showing the percentage of people using 
+                   each travel method. The total number of people column is dropped after calculating the percentages.
+
+    Example:
+        If the `commute_dataset` has columns for 'car', 'bike', and 'walk', and those are passed in the 
+        `travel_methods` list, new columns such as 'car_percentage', 'bike_percentage', and 'walk_percentage' 
+        will be added to the dataset representing the percentage of people using each method.
+    """
+    commute_dataset["total_people"] = commute_dataset[
+        travel_methods].sum(axis=1)
+
+    for method in travel_methods:
+        commute_dataset[f"{method}_percentage"] = commute_dataset[
+            method] / commute_dataset['total_people']
+
+    commute_dataset.drop(columns=["total_people"], inplace=True)
+
+    return commute_dataset
 
 
 def travel_between_home_and_work(
@@ -38,8 +73,10 @@ def travel_between_home_and_work(
         (base_pop["age"] >= work_age["min"]) & (base_pop["age"] <= work_age["max"])
     ]
 
-    travel_methods = [item for item in list(commute_dataset.columns) if not item.endswith("_percentage")]
-    travel_methods = [item for item in travel_methods if item not in ["area_home", "area_work"]]
+    travel_methods = [item for item in list(
+        commute_dataset.columns) if item not in ["area_home", "area_work"]]
+
+    commute_dataset = get_commute_agents_percentage(commute_dataset, travel_methods)
 
     all_areas_home = list(base_pop["area"].unique())
 

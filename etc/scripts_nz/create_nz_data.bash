@@ -11,13 +11,24 @@ source $CONDA_BASE/bin/activate syspop
 
 formatted_time=$(date -u +'%Y%m%dT%H%M')
 
-raw_data_dir=$1
-conf_data_dir=$2
-input_cfg=$3
-nz_data_dir=$4
+input_cfg=$1
+nz_data_dir=$2
+raw_data_dir=$3
+conf_data_dir=$4
 llm_diary_path=$5
+osm_download=$6
 
-read -p "If re-run OSM (Enter true or false, if false, raw_data directory must contain pre-downloaded OSM data): " flag
+if [ -z "$input_cfg" ]
+then
+  echo "Please enter the raw input configuration file (e.g., etc/scripts_nz/input_cfg.yml):"
+  read input_cfg
+fi
+
+if [ -z "$nz_data_dir" ]
+then
+  echo "Please enter the output directory (e.g., etc/data/test_data):"
+  read nz_data_dir
+fi
 
 if [ -z "$raw_data_dir" ]
 then
@@ -31,23 +42,19 @@ then
   read conf_data_dir
 fi
 
-if [ -z "$input_cfg" ]
-then
-  echo "Please enter the raw input configuration file (e.g., etc/scripts_nz/input_v2.0.yml):"
-  read input_cfg
-fi
-
-if [ -z "$nz_data_dir" ]
-then
-  echo "Please enter the nz_data directory (e.g., etc/data/test_data_latest):"
-  read nz_data_dir
-fi
-
 if [ -z "$llm_diary_path" ]
 then
   echo "Please enter the LLM diary output (e.g., etc/data/confidential_data/processed/llm/llm_diary.pickle):"
   read llm_diary_path
 fi
+
+if [ -z "$osm_download" ]
+then
+  echo "If re-run OSM (Enter true or false, if false, raw_data directory must contain pre-downloaded OSM data):"
+  read osm_download
+fi
+
+mkdir -p $nz_data_dir
 
 # --------------------------------
 # Step 1: Data backup
@@ -68,9 +75,9 @@ cp -rf ${nz_data_dir} ${directory}/archive/${extracted_filename}_${formatted_tim
 # Step 2: Get OSM data (e.g., add latest OSM data to the raw data directory)
 # This is a very slow process ...
 # --------------------------------
-if [ "${flag,,}" = "true" ]; then
+if [ $osm_download = "true" ]; then
   echo "Running get_osm_data ..."
-  python etc/scripts_nz/get_osm_data.py
+  # python etc/scripts_nz/get_osm_data.py
 fi
 
 # --------------------------------

@@ -41,10 +41,11 @@ from syspop.python.create_pop_wrapper import (
     create_household,
     create_school_and_kindergarten,
     create_shared_space,
-    create_socialeconomics,
     create_vaccine,
     create_work,
 )
+
+from syspop.python import SHARED_PLACE_AREA_NUMS
 
 logger = setup_logging(workdir="")
 
@@ -398,37 +399,19 @@ def diary(
 
 
 def create(
-    syn_areas: list or None = None,
-    output_dir: str = "",
-    pop_gender: DataFrame = None,
-    pop_ethnicity: DataFrame = None,
-    pop_structure: DataFrame = None,
-    geo_hierarchy: DataFrame = None,
-    geo_location: DataFrame = None,
-    geo_address: DataFrame = None,
-    household: DataFrame = None,
-    socialeconomic: DataFrame = None,
-    work_data: DataFrame = None,
-    home_to_work: DataFrame = None,
-    school_data: DataFrame = None,
-    hospital_data: DataFrame = None,
-    supermarket_data: DataFrame = None,
-    restaurant_data: DataFrame = None,
-    pharmacy_data: DataFrame = None,
-    department_store_data: DataFrame = None,
-    wholesale_data: DataFrame = None,
-    fast_food_data: DataFrame = None,
-    pub_data: DataFrame = None,
-    park_data: DataFrame = None,
-    cafe_data: DataFrame = None,
-    kindergarten_data: DataFrame = None,
-    mmr_data: DataFrame = None,
-    birthplace_data: DataFrame = None,
-    assign_address_flag: bool = False,
-    rewrite_base_pop: bool = False,
-    data_years: dict = {"vaccine": 2023},
-    data_percentile: str = "median",
-):
+    syn_areas,
+    output_dir,
+    population: dict = None,
+    geography: dict = None,
+    household: dict = None,
+    work: dict = None,
+    commute: dict = None,
+    education: dict = None,
+    healthcare: dict = None,
+    shared_space: dict = None,
+    others: dict = None,
+    assign_address_flag=True
+    ):
     """Create synthetic population
 
     Args:
@@ -456,221 +439,105 @@ def create(
         Exception: missing depedancies
     """
 
-    args_dict = locals()
-
-    def _check_dependancies(
-        key_item: str, deps_list: list = [], address_deps: list = []
-    ):
-        """Check if all dependancies are met
-
-        Args:
-            dependcancies_list (list, optional): a list of items to be checked. Defaults to [].
-        """
-        for item_to_check in deps_list:
-            if args_dict[item_to_check] is None:
-                raise Exception(
-                    f"{key_item} is presented/required, but its dependancy {item_to_check} is not here ..."
-                )
-
-        if assign_address_flag:
-            for item_to_check in address_deps:
-                if args_dict[item_to_check] is None:
-                    raise Exception(
-                        f"address data is required for {key_item}, but its address dep {item_to_check} is not here ..."
-                    )
-
     tmp_dir = join(output_dir, "tmp")
     if not exists(tmp_dir):
         makedirs(tmp_dir)
 
     tmp_data_path = join(tmp_dir, "synpop.pickle")
 
-    if (not exists(tmp_data_path)) or rewrite_base_pop:
-        logger.info("Creating base population ...")
-        if pop_structure is None:
-            _check_dependancies(
-                "base_pop", deps_list=["pop_gender", "pop_ethnicity", "syn_areas"]
-            )
-        else:
-            _check_dependancies(
-                "base_pop", deps_list=["pop_structure", "syn_areas"]
-            )
+    # -------------------------------
+    # Create base population
+    # -------------------------------
+    logger.info("Creating base population ...")
+    create_base_pop(
+        tmp_data_path, population["structure"], syn_areas
+    )
 
-        create_base_pop(
-            tmp_data_path, pop_structure, pop_gender, pop_ethnicity, syn_areas, ref_population = "gender"
-        )
-
+    # -------------------------------
+    # Create household
+    # -------------------------------
     if household is not None:
         logger.info("Adding household ...")
-        _check_dependancies("household", address_deps=["geo_address"])
-        create_household(tmp_data_path, household, geo_address)
+        create_household(tmp_data_path, household["composition"], geography["address"])
 
-    if socialeconomic is not None:
-        create_socialeconomics(tmp_data_path, socialeconomic)
-
-    if work_data is not None:
-        _check_dependancies(
-            "work",
-            deps_list=["home_to_work", "geo_hierarchy"],
-            address_deps=["geo_address"],
-        )
+    # -------------------------------
+    # Create work
+    # -------------------------------
+    if (work is not None) and (commute is not None):
         logger.info("Adding work ...")
         create_work(
             tmp_data_path,
-            work_data,
-            home_to_work,
-            geo_hierarchy,
-            geo_address
+            work["employer"],
+            work["employee"],
+            commute["travel_to_work"],
+            geography["hierarchy"],
+            geography["address"]
         )
 
-    if school_data is not None:
-        _check_dependancies("school", deps_list=["geo_hierarchy"], address_deps=[])
+    # -------------------------------
+    # Create school and kindergarten
+    # -------------------------------
+    if education["school"] is not None:
         logger.info("Adding school ...")
         create_school_and_kindergarten(
-            "school",
             tmp_data_path,
-            school_data,
-            geo_hierarchy,
+            "school",
+            education["school"],
+            geography["hierarchy"],
             assign_address_flag,
             possile_area_levels=["area", "super_area", "region"],
         )
 
-    if kindergarten_data is not None:
-        _check_dependancies(
-            "kindergarten", deps_list=["geo_hierarchy"], address_deps=[]
-        )
+    if education["kindergarten"] is not None:
         logger.info("Adding kindergarten ...")
         create_school_and_kindergarten(
-            "kindergarten",
             tmp_data_path,
-            kindergarten_data,
-            geo_hierarchy,
+            "kindergarten",
+            education["kindergarten"],
+            geography["hierarchy"],
             assign_address_flag,
             possile_area_levels=["area"],
         )
 
-    if hospital_data is not None:
-        _check_dependancies("hospital", deps_list=["geo_hierarchy"], address_deps=[])
-        logger.info("Adding hospital ...")
-        create_hospital(tmp_data_path, hospital_data, geo_location, assign_address_flag)
+    # -------------------------------
+    # Create healthcare:
+    # -------------------------------
+    if healthcare is not None:
+        if "hospital" in healthcare:
+            logger.info("Adding hospital ...")
+            create_hospital(tmp_data_path, healthcare["hospital"], geography["location"], assign_address_flag)
+        if "vaccine" in healthcare:
+            logger.info("Adding vaccine ...")
+            for vaccine_name in healthcare["vaccine"]:
+                create_vaccine(tmp_data_path, healthcare["vaccine"][vaccine_name])
 
-    if supermarket_data is not None:
-        _check_dependancies("supermarket", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding supermarket ...")
-        create_shared_space(
-            tmp_data_path,
-            supermarket_data,
-            "supermarket",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 2},
-        )
+    # -------------------------------
+    # Create shared space
+    # -------------------------------
+    if shared_space is not None:
+        for shared_place_name in ["supermarket", "department_store", "wholesale", "restaurant", "cafe", "fast_food", "pub", "park"]:
+            if shared_place_name not in shared_space:
+                continue
+            logger.info(f"Adding {shared_place_name} ...")
+            create_shared_space(
+                tmp_data_path,
+                shared_space[shared_place_name],
+                shared_place_name,
+                geography["location"],
+                assign_address_flag,
+                area_name_keys_and_selected_nums=SHARED_PLACE_AREA_NUMS[shared_place_name],
+            )
 
-    if restaurant_data is not None:
-        _check_dependancies("restaurant", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding restaurant ...")
-        create_shared_space(
-            tmp_data_path,
-            restaurant_data,
-            "restaurant",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 3, "area_work": 0},
-        )
+    # -------------------------------
+    # Create others
+    # -------------------------------
+    if others is not None:
+        for other_name in ["birthplace"]:
+            if other_name not in others:
+                continue
 
-    if pharmacy_data is not None:
-        _check_dependancies("pharmacy", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding pharmacy ...")
-        create_shared_space(
-            tmp_data_path,
-            pharmacy_data,
-            "pharmacy",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 2},
-        )
-
-    if cafe_data is not None:
-        _check_dependancies("cafe", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding cafe_data ...")
-        create_shared_space(
-            tmp_data_path,
-            cafe_data,
-            "cafe",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 2},
-        )
-
-    if department_store_data is not None:
-        _check_dependancies(
-            "department_store", deps_list=["geo_location"], address_deps=[]
-        )
-        logger.info("Adding department_store ...")
-        create_shared_space(
-            tmp_data_path,
-            department_store_data,
-            "department_store",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 2},
-        )
-
-    if wholesale_data is not None:
-        _check_dependancies("wholesale", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding wholesale ...")
-        create_shared_space(
-            tmp_data_path,
-            wholesale_data,
-            "wholesale",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 2},
-        )
-
-    if fast_food_data is not None:
-        _check_dependancies("fast_food", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding fast_food ...")
-        create_shared_space(
-            tmp_data_path,
-            fast_food_data,
-            "fast_food",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 1, "area_work": 0},
-        )
-
-    if pub_data is not None:
-        _check_dependancies("pub", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding pub ...")
-        create_shared_space(
-            tmp_data_path,
-            pub_data,
-            "pub",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 1},
-        )
-
-    if park_data is not None:
-        _check_dependancies("park", deps_list=["geo_location"], address_deps=[])
-        logger.info("Adding park ...")
-        create_shared_space(
-            tmp_data_path,
-            park_data,
-            "park",
-            geo_location,
-            assign_address_flag,
-            area_name_keys_and_selected_nums={"area": 1},
-        )
-
-    if mmr_data is not None:
-        logger.info("Adding MMR data ...")
-        create_vaccine(tmp_data_path, mmr_data, data_years["vaccine"])
-
-    if birthplace_data is not None:
-        logger.info("Adding birthplace data ...")
-        create_birthplace(tmp_data_path, birthplace_data)
+            if other_name == "birthplace":
+                create_birthplace(tmp_data_path, healthcare["hospital"]["birthplace"])
 
     # ---------------------------
     # Export output
