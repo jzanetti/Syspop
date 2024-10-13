@@ -1,3 +1,46 @@
+
+
+#' Calculate the percentage of people using each specified travel method in a commute dataset.
+#'
+#' This function takes a dataset of commute data where each column represents the number of people 
+#' using a particular travel method. It computes the percentage of people using each travel method 
+#' relative to the total number of people for the given methods, adds these percentages as new columns, 
+#' and returns the modified dataset.
+#'
+#' @param commute_dataset A data.frame containing commute data, where each row represents a different 
+#'                        geographic area or time period, and columns represent the number of people 
+#'                        using various travel methods.
+#' @param travel_methods A character vector of column names representing different travel methods in 
+#'                       the dataset.
+#'
+#' @return A modified data.frame with additional columns showing the percentage of people using 
+#'         each travel method. The total number of people column is calculated and then dropped 
+#'         after computing the percentages.
+#'
+#' @examples
+#' # Example of usage:
+#' # Assume df is a data.frame with columns 'car', 'bike', and 'walk', and those are passed in 
+#' # the travel_methods vector. The function will return a dataset with new columns like 
+#' # 'car_percentage', 'bike_percentage', and 'walk_percentage'.
+#' 
+#' # commute_dataset <- get_commute_agents_percentage(df, c('car', 'bike', 'walk'))
+#'
+get_commute_agents_percentage <- function(commute_dataset, travel_methods) {
+  commute_dataset$total_people <- rowSums(commute_dataset[, travel_methods])
+  
+  # Calculate the percentage for each travel method and add new columns
+  for (method in travel_methods) {
+    commute_dataset[[paste0(method, "_percentage")]] <- commute_dataset[[
+      method]] / commute_dataset$total_people
+  }
+  
+  # Drop the total_people column
+  commute_dataset$total_people <- NULL
+  
+  return(commute_dataset)
+}
+
+
 #' Assign commute data (home to work) to the base population
 #'
 #' This function assigns individuals from the base population to work areas based on commute data, 
@@ -44,12 +87,10 @@ travel_between_home_and_work <- function(
   working_age_people <- base_pop[
     base_pop$age >= work_age$min & base_pop$age <= work_age$max, 
   ]
-  
-  travel_methods <- setdiff(
-    names(commute_dataset)[!grepl("_percentage$", names(commute_dataset))], 
-    c("area_home", "area_work")
-  )
-  
+
+  travel_methods <- setdiff(colnames(commute_dataset), c("area_home", "area_work"))
+  commute_dataset <- get_commute_agents_percentage(commute_dataset, travel_methods)
+
   all_areas_home <- unique(base_pop$area)
   
   results <- list()
