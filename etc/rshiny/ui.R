@@ -1,6 +1,7 @@
 library(shiny)
 library(stringr)
 library(arrow)
+library(gridExtra)
 
 # Define UI
 ui <- fluidPage(
