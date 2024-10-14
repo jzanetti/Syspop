@@ -18,6 +18,9 @@ server <- function(input, output) {
     else if (input$file_choice == "Household"){
       df <- data$sim$df_household
     }
+    else if (input$file_choice == "Employment"){
+      df <- data$sim$df_employee
+    }
     df
   })
   
@@ -26,8 +29,11 @@ server <- function(input, output) {
     if (input$file_choice == "Base population"){
       df <- data$truth$df_pop
     }
-    if (input$file_choice == "Household"){
+    else if (input$file_choice == "Household"){
       df <- data$truth$df_household
+    }
+    else if (input$file_choice == "Employment"){
+      df <- data$truth$df_employee
     }
     df
   })
@@ -66,6 +72,9 @@ server <- function(input, output) {
     }
     else if (input$file_choice == "Household") {
       selectInput("x", "X-axis variable", choices = c("composition"), selected = "composition")
+    }
+    else if (input$file_choice == "Employment") {
+      selectInput("x", "X-axis variable", choices = c("business_code"), selected = "composition")
     }
   })
   

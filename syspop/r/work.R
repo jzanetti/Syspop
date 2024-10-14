@@ -224,11 +224,11 @@ assign_employees_employers_to_base_pop <- function(base_pop, all_employers, empl
         break
       }
       tryCatch({
-        # Sample a business code based on employee_number_percentage
+        # Sample a business code based on employee_percentage
         possible_work_sector <- sample(
           proc_employee_data$business_code, 
           1, 
-          prob = proc_employee_data$employee_number_percentage
+          prob = proc_employee_data$employee_percentage
         )
         
         possible_employers <- all_employers[[proc_area_work]]
@@ -245,6 +245,12 @@ assign_employees_employers_to_base_pop <- function(base_pop, all_employers, empl
     return("Unknown")
   }
 
+  employee_data <- employee_data %>%
+    group_by(area) %>%
+    mutate(total_employees_per_area = sum(employee),
+           employee_percentage = employee / total_employees_per_area) %>%
+    ungroup()
+  
   base_pop$company <- NA
   for (i in seq_len(nrow(base_pop))) {
     proc_row <- base_pop[i, ]
