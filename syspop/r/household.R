@@ -125,86 +125,42 @@ assign_household_and_dwelling_id <- function(
 }
 
 
-#' Obtain Adult Index Based on Ethnicity
-#'
-#' This function selects an adult index from a dataset of unassigned adults 
-#' based on specified ethnicities and a defined reference ethnicity weight. 
-#' It generates probabilities for selecting additional adults of different 
-#' ethnicities to form a household composition.
-#'
-#' @param unassigned_adults A data frame containing information about unassigned 
-#'                          adults, including their indices and ethnicities.
-#' @param proc_household_composition A data frame or list containing information 
-#'                                    about the desired household composition, 
-#'                                    specifically the number of adults.
-#' @param unique_base_pop_ethnicity A character vector of unique ethnicities 
-#'                                   present in the base population.
-#' @param ref_ethnicity_weight A numeric value representing the weight of the 
-#'                             reference ethnicity when sampling additional adults. 
-#'                             Defaults to 0.9.
-#'
-#' @return A list containing:
-#' \item{adult_ids}{A numeric vector of adult indices selected for the household.}
-#' \item{ref_adult_ethnicity}{A character string representing the ethnicity of 
-#'                            the reference adult selected.}
-#'
-#' @examples
-#' # Assuming unassigned_adults is a defined data frame, 
-#' # proc_household_composition is defined, and unique_base_pop_ethnicity is set
-#' result <- obtain_adult_index_based_on_ethnicity(unassigned_adults, 
-#'                                                 proc_household_composition, 
-#'                                                 unique_base_pop_ethnicity)
-#'
-#' @export
-#' 
 obtain_adult_index_based_on_ethnicity <- function(
-    unassigned_adults,
-    proc_household_composition,
-    unique_base_pop_ethnicity,
-    ref_ethnicity_weight = 0.9
-) {
+    unassigned_adults, 
+    proc_household_composition, 
+    ref_ethnicity_prob = 0.7) {
   # Obtain adult index based on ethnicity
   
-  ref_adult <- unassigned_adults[sample(nrow(unassigned_adults), 1), ]
-  adult_ids <- ref_adult$index
-  ref_adult_ethnicity <- ref_adult$ethnicity
-  ref_ethnicity_weight2 <- (1.0 - ref_ethnicity_weight) / (length(unique_base_pop_ethnicity) - 1)
+  # Sample a reference adult
+  ref_adult <- unassigned_adults[sample(1:nrow(unassigned_adults), 1), ]
+  remained_adults <- unassigned_adults[unassigned_adults$index != ref_adult$index, ]
   
-  if (proc_household_composition$adults > 1) {
-    
-    probabilities <- numeric(length(unique_base_pop_ethnicity))
-    
-    for (i in seq_along(unique_base_pop_ethnicity)) {
-      if (unique_base_pop_ethnicity[i] == ref_adult_ethnicity) {
-        probabilities[i] <- ref_ethnicity_weight
-      } else {
-        probabilities[i] <- ref_ethnicity_weight2
-      }
-    }
-    
-    probabilities <- probabilities / sum(probabilities)
-    
-    other_adults_ethnicities <- character(proc_household_composition$adults[1] - 1)
-    
-    for (i in seq_along(other_adults_ethnicities)) {
-      other_adults_ethnicities[i] <- sample(unique_base_pop_ethnicity, 1, prob = probabilities)
-    }
-    
-    for (proc_adult_ethnicity in other_adults_ethnicities) {
-      sampled_adult <- unassigned_adults[unassigned_adults$ethnicity == proc_adult_ethnicity, ]
-      
-      if (nrow(sampled_adult) > 0) {
-        adult_ids <- c(adult_ids, sampled_adult[sample(nrow(sampled_adult), 1), "index"])
-      } else {
-        adult_ids <- c(adult_ids, unassigned_adults[sample(nrow(unassigned_adults), 1), "index"])
-      }
-    }
-  }
+  # Initialize list of adult ids
+  adult_ids <- as.list(ref_adult$index)
   
-  return(list(adult_ids = adult_ids, ref_adult_ethnicity = ref_adult_ethnicity))
+  # Define probabilities for sampling based on ethnicity
+  probabilities <- ifelse(
+    remained_adults$ethnicity == ref_adult$ethnicity, 
+    ref_ethnicity_prob, 
+    1 - ref_ethnicity_prob)
+  probabilities <- probabilities / sum(probabilities)
+  
+  # Try to sample more adults, if possible
+  tryCatch({
+    selected_adults <- remained_adults[sample(
+      1:nrow(remained_adults), 
+      proc_household_composition$adults[1] - 1, 
+      prob = probabilities, 
+      replace = FALSE
+    ), ]
+    adult_ids <- c(adult_ids, selected_adults$index)
+  }, error = function(e) {
+    # Handle case where there aren't enough adults to sample
+  })
+  
+  # Return adult ids and ethnicity of the reference adult
+  return(list(adult_ids = adult_ids, ref_ethnicity = ref_adult$ethnicity))
 }
-
-
 
 #' Sort Household Dataset by Percentage
 #'
@@ -220,11 +176,11 @@ obtain_adult_index_based_on_ethnicity <- function(
 #'
 #' @examples
 #' # Assuming proc_household_dataset is a defined data frame with a 'percentage' column
-#' selected_row <- sort_household_v2(proc_household_dataset, exclude_row_indices = c(1, 3))
+#' selected_row <- get_current_household_composition(proc_household_dataset, exclude_row_indices = c(1, 3))
 #'
 #' @export
 #' 
-sort_household_v2 <- function(proc_household_dataset, exclude_row_indices) {
+get_current_household_composition <- function(proc_household_dataset, exclude_row_indices) {
   # Sorts the household dataset by randomly selecting a row based on the 'percentage' column,
   # after excluding specified rows.
   
@@ -263,14 +219,13 @@ sort_household_v2 <- function(proc_household_dataset, exclude_row_indices) {
 #' selected_row <- sort_household_v2(proc_household_dataset, exclude_row_indices = c(1, 3))
 #'
 #' @export
-create_household_composition_v3 <- function(
+#' 
+create_household_composition <- function(
     proc_household_dataset,
     proc_base_pop,
     proc_area,
     only_households_with_adults = TRUE
 ) {
-  # Create household composition (V3)
-  
   if (only_households_with_adults) {
     proc_household_dataset <- proc_household_dataset[proc_household_dataset$adults > 0, ]
   }
@@ -282,9 +237,9 @@ create_household_composition_v3 <- function(
   
   household_id <- 0
   exclude_hhd_composition_indices <- c()
-  
   while (TRUE) {
-    proc_household_composition <- sort_household_v2(
+
+    proc_household_composition <- get_current_household_composition(
       proc_household_dataset, exclude_hhd_composition_indices)
     
     household_id <- substr(uuid::UUIDgenerate(), 1, 6)
@@ -295,14 +250,14 @@ create_household_composition_v3 <- function(
     
     if (nrow(unassigned_adults) < proc_household_composition$adults ||
         nrow(unassigned_children) < proc_household_composition$children) {
-      exclude_hhd_composition_indices <- c(exclude_hhd_composition_indices, proc_household_composition$index)
+      exclude_hhd_composition_indices <- c(
+        exclude_hhd_composition_indices, proc_household_composition$index)
       next
     }
     
     proc_adult <- obtain_adult_index_based_on_ethnicity(
       unassigned_adults,
-      proc_household_composition,
-      unique_base_pop_ethnicity
+      proc_household_composition
     )
     
     children_ids <- tryCatch({
@@ -375,23 +330,24 @@ household_wrapper <- function(
 
   household_dataset <- household_dataset %>%
     group_by(area) %>%
-    mutate(percentage = num / sum(num)) %>%
+    mutate(percentage = value / sum(value)) %>%
     ungroup()
   
   for (i in seq_along(all_areas)) {
+
     proc_area <- all_areas[i]
-    message(sprintf("%d/%d: Processing %s", i, total_areas, proc_area))
+    print(sprintf("%d/%d: Processing %s", i, total_areas, proc_area))
     
     proc_base_pop <- base_pop[base_pop$area == proc_area, , drop = FALSE]
     
     # proc_household_dataset <- household_prep(household_dataset, proc_base_pop)
-    proc_household_dataset <- household_dataset[household_dataset$area == proc_area, , drop = FALSE]
+    proc_household_dataset <- household_dataset[
+      household_dataset$area == proc_area, , drop = FALSE]
     
     if (nrow(proc_base_pop) == 0) {
       next
     }
-    
-    proc_base_pop <- create_household_composition_v3(
+    proc_base_pop <- create_household_composition(
       proc_household_dataset, proc_base_pop, proc_area
     )
     

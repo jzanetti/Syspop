@@ -118,7 +118,7 @@ create_work_and_commute <- function(
     
     all_commute_data <- append(all_commute_data, list(proc_commute_data))
     all_employers[[proc_area]] <- create_employers(proc_employer_data)
-    all_employees[[proc_area]] <- sum(proc_employee_data$employee_number)
+    all_employees[[proc_area]] <- sum(proc_employee_data$employee)
   }
 
   all_commute_data <- do.call(rbind, all_commute_data)
@@ -166,7 +166,7 @@ create_employers <- function(employer_input, employer_num_factor = 1.0) {
   
   for (i in seq_len(nrow(employer_input))) {
     proc_row <- employer_input[i, ]
-    proc_employer_num <- as.integer(proc_row$employer_number / employer_num_factor)
+    proc_employer_num <- as.integer(proc_row$employer / employer_num_factor)
     proc_employer_code <- proc_row$business_code
     proc_employer_area <- proc_row$area
     

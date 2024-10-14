@@ -30,7 +30,7 @@ create_synthetic_population <- function(
   if(!is.null(household)){
     if(!is.null(household$composition)){
       print("Creating household - composition ...")
-      create_household_composition(
+      create_household(
         tmp_dir, 
         household$composition, 
         geography$address)}
