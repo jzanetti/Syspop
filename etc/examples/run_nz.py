@@ -25,6 +25,7 @@ syn_areas = [241300, 241200, 243000, 247700, 242400]
 #syn_areas = random_sample(syn_areas, 50)
 # syn_areas = list(test_data["geog_data"]["hierarchy"]["area"].unique())
 # syn_areas = [236800, 237200]
+syn_areas = [241800]
 
 syspop_create(
     syn_areas,

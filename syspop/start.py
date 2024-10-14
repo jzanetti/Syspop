@@ -549,8 +549,8 @@ def create(
         "syspop_base": ["area", "age", "gender", "ethnicity"],
         "syspop_household": [
             "household",
-            "dwelling_type",
-            "social_economics",
+            #"dwelling_type",
+            #"social_economics",
         ],
         "syspop_travel": ["travel_mode_work", "public_transport_trip"],
         "syspop_work_and_school": ["area_work", "company", "school", "kindergarten"],

@@ -16,7 +16,7 @@ library(tibble)
 nz_data <- new_zealand()
 
 output_dir <- "/tmp/syspop"
-# syn_areas <- c(236800, 237200)
+
 syn_areas <- c(241800, 242800, 241400, 242000)
 # syn_areas <- test_data$`geog_data//hierarchy` %>%
 #  filter(region == "Wellington") %>%
