@@ -64,7 +64,7 @@ create_base_pop <- function(
 #'
 #' @importFrom arrow read_parquet write_parquet
 #' @export
-create_household_composition <- function(
+create_household <- function(
     tmp_dir,
     household_data,
     geo_address_data) {
@@ -75,7 +75,10 @@ create_household_composition <- function(
   # Read location data
   base_address <- read_parquet(file.path(tmp_dir, "syspop_location.parquet"))
   
+  # add index for household data
   household_data$index <- seq_len(nrow(household_data))
+  
+  # create household composition
   output <- household_wrapper(
     household_data,
     base_pop,
