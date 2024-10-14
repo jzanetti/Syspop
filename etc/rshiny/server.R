@@ -1,37 +1,22 @@
 library(shiny)
 library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(arrow)
+library(stringr)
+# source("etc/rshiny/data.R")
+source("data.R")
 
-base_dir <- "/tmp/syspop/"
-df_pop <- read_parquet(paste0(base_dir, "syspop_base.parquet"))
-df_household <- read_parquet(paste0(base_dir, "syspop_household.parquet"))
-df_travel <- read_parquet(paste0(base_dir, "syspop_travel.parquet"))
-
-base_dir_truth <- "~/Github/Syspop/etc/data/test_data/"
-df_pop_truth <- read_parquet(paste0(base_dir_truth, "population_structure.parquet"))
-
-df_pop_truth <- df_pop_truth[df_pop_truth$area %in% unique(df_pop$area), ]
-# Define server logic
-
+data <- get_data()
 
 server <- function(input, output) {
   
-  df <- reactive({
-    # Construct the file path based on the dropdown selection
-    
-    base_dir <- "/tmp/syspop/"
+  df_sim <- reactive({
     if (input$file_choice == "Base population"){
-      df <- df_pop
+      df <- data$sim$df_pop
     }
     else if (input$file_choice == "Household"){
-      df <- df_household
-      df$composition <- str_extract(df$household, "(?<=_)[0-9]+-[0-9]+(?=_)")
-      df$area <- str_extract(df$household, "(?<=household_)\\d+")
-    }
-    else if (input$file_choice == "Travel (home to work)"){
-      df <- df_travel
-      df <- na.omit(df)
-      df_base <- read_parquet(paste0(base_dir, "syspop_base.parquet"))
-      df <- merge(df, df_base, by = "id")
+      df <- data$sim$df_household
     }
     df
   })
@@ -39,23 +24,26 @@ server <- function(input, output) {
   df_truth <- reactive({
     # Construct the file path based on the dropdown selection
     if (input$file_choice == "Base population"){
-      df <- df_pop_truth
+      df <- data$truth$df_pop
+    }
+    if (input$file_choice == "Household"){
+      df <- data$truth$df_household
     }
     df
   })
 
   output$area_filter <- renderUI({
-    req(df())
-    selectInput("area", "Filter by Area", choices = unique(df()$area), multiple = TRUE)
+    req(df_sim())
+    selectInput("area", "Filter by Area", choices = unique(df_sim()$area), multiple = TRUE)
   })
   
-  filtered_df <- reactive({
-    req(df())
+  filtered_df_sim <- reactive({
+    req(df_sim())
     if (length(input$area) > 0) {
-      df() %>%
+      df_sim() %>%
         filter(area %in% input$area)  # Filter based on selected areas
     } else {
-      df()
+      df_sim()
     }
   })
   
@@ -71,33 +59,48 @@ server <- function(input, output) {
   
   # Output for x-variable dropdown (only shows if data is available)
   output$xvar <- renderUI({
-    req(filtered_df())
+    req(filtered_df_sim())
+    req(filtered_df_truth())
     if (input$file_choice == "Base population") {
       selectInput("x", "X-axis variable", choices = c("age", "ethnicity", "gender"), selected = "ethnicity")
     }
     else if (input$file_choice == "Household") {
       selectInput("x", "X-axis variable", choices = c("composition"), selected = "composition")
     }
-    else if (input$file_choice == "Travel (home to work)") {
-      selectInput("x", "X-axis variable", choices = c("travel_mode_work"), selected = "travel_mode_work")
-    }
   })
   
   # Output for the plot
   output$plot <- renderPlot({
+    req(filtered_df_sim())
+    req(filtered_df_truth())
     req(input$x)
-    # Scatter plot or bar plot depending on user selection
-    p1 <- ggplot(filtered_df(), aes_string(x = input$x)) +
-      geom_bar(position = "dodge") +
+
+    plot_sim <- ggplot(filtered_df_sim(), aes_string(x = input$x)) +
+      geom_bar(position = "dodge", fill = "red", alpha=0.3) +
       theme_minimal() +
-      labs(x = input$x, y = "Count")
-    
-    p2 <- ggplot(filtered_df_truth(), aes_string(x = input$x)) +
-      geom_bar(position = "dodge") +
+      labs(x = input$x, y = "Count", title = "Synthetic population") + 
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+        axis.title.x = element_text(size = 14)
+      )
+  
+    filtered_df_truth_summary <- filtered_df_truth() %>%
+      group_by(!!sym(input$x)) %>%
+      summarize(value = sum(value))
+  
+    plot_truth <- ggplot(
+        filtered_df_truth_summary, 
+        aes_string(x = input$x, y = "value")
+      ) +
+      geom_bar(stat = "identity", position = "dodge", fill = "blue", alpha=0.3) +
       theme_minimal() +
-      labs(x = "Ethnicity", y = "Count")
+      labs(x = input$x, y = "Count", title = "Truth") + 
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+        axis.title.x = element_text(size = 14)
+      )
     
-    grid.arrange(p1, p2, ncol = 1)
+    grid.arrange(plot_sim, plot_truth, ncol = 1)
 
   })
 }
