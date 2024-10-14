@@ -39,7 +39,7 @@ def assign_employees_employers_to_base_pop(
                 break
             try:
                 possible_work_sector = proc_employee_data.sample(
-                    weights=proc_employee_data["employee_number_percentage"])["business_code"].values[0]
+                    weights=proc_employee_data["employee_percentage"])["business_code"].values[0]
                 possible_employers = all_employers[proc_area_work]
                 output_employer = numpy_choice(
                     [item for item in possible_employers if 
@@ -49,6 +49,10 @@ def assign_employees_employers_to_base_pop(
 
             return output_employer
         return "Unknown"
+
+    total_employees_per_area = employee_data.groupby("area")["employee"].transform("sum")
+    employee_data["employee_percentage"] = employee_data[
+        "employee"] / total_employees_per_area
 
     base_pop["company"] = numpy_nan
     base_pop["company"] = base_pop.apply(
@@ -172,7 +176,7 @@ def create_employers(
     """
     employers = []
     for index, proc_row in employer_input.iterrows():
-        proc_employer_num = int(proc_row["employer_number"] / employer_num_factor)
+        proc_employer_num = int(proc_row["employer"] / employer_num_factor)
         proc_employer_code = proc_row["business_code"]
         proc_employer_area = proc_row["area"]
 
@@ -251,7 +255,7 @@ def create_work_and_commute(
         all_commute_data.append(proc_commute_data)
 
         all_employers[proc_area] = create_employers(proc_employer_data)
-        all_employees[proc_area] = proc_employee_data["employee_number"].sum()
+        all_employees[proc_area] = proc_employee_data["employee"].sum()
 
     all_commute_data = concat(all_commute_data, ignore_index=True)
 

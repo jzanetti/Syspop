@@ -40,7 +40,7 @@ def create_household_wrapper(workdir: str, input_cfg: dict):
     2. Saves the generated household data to a pickle file in the specified working directory.
 
     The generated household data looks like:
-                area  adults  children   num
+                area  adults  children value
         0      100100       0         1    3
         1      100100       0         2    4
         2      100100       1         0  142
@@ -156,7 +156,7 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
     """Create work wrapper (e.g., employees etc.)
 
     The output looks like:
-                  area business_code  employer_number  employee_number 
+                  area business_code         employer         employee
         0       100100             A               93              190                    
         1       100200             A              138              190                   
         2       100300             A                6               25
@@ -164,7 +164,7 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
         4       100500             A               57               95
         ......
     For each area it is sth like:
-                  area business_code  employer_number  employee_number
+                  area business_code         employer         employee
         0       100100             A               93              190                    
         20082   100100             C                0                6                    
         56927   100100             E               12                6                   
@@ -187,11 +187,11 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
         [
             "area",
             "business_code",
-            "employee_number"
+            "employee"
         ]
     ]
     employer_data = data[
-        ["area", "business_code", "employer_number"]
+        ["area", "business_code", "employer"]
     ]
     
     employee_data.to_parquet(join(workdir, "work_employee.parquet"))

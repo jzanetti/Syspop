@@ -45,7 +45,7 @@ def _read_raw_household(raw_household_path, include_public_dwelling: bool = Fals
             "Number of people": "people",
             "Number of adults": "adults",
             "Dwelling type": "dwelling_type",
-            "Count": "num",
+            "Count": "value",
         })
 
 
@@ -56,9 +56,9 @@ def _read_raw_household(raw_household_path, include_public_dwelling: bool = Fals
     data["people"] = data["people"].astype(int)
     data["children"] = data["people"].astype(int) - data["adults"].astype(int)
 
-    data = data.groupby(["area", "adults", "children"], as_index=False)['num'].sum()
+    data = data.groupby(["area", "adults", "children"], as_index=False)["value"].sum()
 
-    return data[["area", "adults", "children", "num"]]
+    return data[["area", "adults", "children", "value"]]
         
 
 def _read_raw_address(raw_sa2_area_path: str, raw_address_path: str):
@@ -248,7 +248,7 @@ def _read_raw_employer_employee_data(employer_employee_num_path: str) -> DataFra
     """Write the number of employees by gender for different area
 
     The output looks like:
-            area business_code  employee_number  employer_number
+            area business_code           employee         employer
     0       100100             A              190               93
     1       100200             A              190              138
     2       100300             A               25                6
@@ -274,14 +274,14 @@ def _read_raw_employer_employee_data(employer_employee_num_path: str) -> DataFra
 
     data = data.rename(columns={
         "anzsic06": "business_code", 
-        "ec_count": "employee_number", 
-        "geo_count": "employer_number"})
+        "ec_count": "employee", 
+        "geo_count": "employer"})
 
     return data[[
         "area",
         "business_code", 
-        "employer_number", 
-        "employee_number"]
+        "employer", 
+        "employee"]
     ]
 
 

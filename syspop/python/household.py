@@ -826,7 +826,7 @@ def assign_household_and_dwelling_id(
     return proc_base_pop
 
 
-def sort_household_v2(proc_houshold_dataset: DataFrame, exclude_row_indices: list) -> DataFrame:
+def get_household_composition(proc_houshold_dataset: DataFrame, exclude_row_indices: list) -> DataFrame:
     """
     Sorts the household dataset by randomly selecting a row based on the 'percentage' column,
     after excluding a specified row.
@@ -896,7 +896,7 @@ def create_household_composition_v3(
     exclude_hhd_composition_indices = []
 
     while True:
-        proc_household_composition = sort_household_v2(
+        proc_household_composition = get_household_composition(
             proc_houshold_dataset, exclude_hhd_composition_indices)
 
         household_id = str(uuid4())[:6]
@@ -1056,7 +1056,7 @@ def household_wrapper(
     base_pop["dwelling_type"] = numpy_nan
     base_pop["hhd_src"] = numpy_nan
 
-    houshold_dataset["percentage"] = houshold_dataset.groupby("area")["num"].transform(
+    houshold_dataset["percentage"] = houshold_dataset.groupby("area")["value"].transform(
         lambda x: x / x.sum())
 
     all_areas = list(base_pop["area"].unique())
@@ -1067,8 +1067,6 @@ def household_wrapper(
         logger.info(f"{i}/{total_areas}: Processing {proc_area}")
 
         proc_base_pop = base_pop[base_pop["area"] == proc_area].reset_index()
-
-        # proc_houshold_dataset = household_prep(houshold_dataset, proc_base_pop)
         proc_houshold_dataset = houshold_dataset[houshold_dataset["area"] == proc_area]
 
         if len(proc_base_pop) == 0:
