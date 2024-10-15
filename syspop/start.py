@@ -453,6 +453,43 @@ def create(
         tmp_data_path, population["structure"], syn_areas
     )
 
+    # -----------------
+    # New
+    # ------------------
+    from syspop.python.household import create_households, place_agent_to_household
+    from syspop.python.work import assign_agent_to_employee, create_employee_probability, create_employer, place_agent_to_employer
+    from syspop.python.commute import create_commute_probability, assign_agent_to_commute
+    from copy import deepcopy
+    with open(tmp_data_path, "rb") as fid:
+        base_pop = pickle_load(fid)
+
+    all_areas = list(base_pop["synpop"]["area"].unique())
+    household_data = create_households(household["composition"], all_areas)
+
+    # ---------------------
+    # work
+    # ---------------------
+    commute_data_work = create_commute_probability(
+        commute["travel_to_work"], all_areas, commute_type="work")
+    employee_data = create_employee_probability(
+        work["employee"], commute_data_work.area_work.unique())
+    employer_data = create_employer(
+        work["employer"], list(commute_data_work.area_work.unique()))
+
+
+    updated_agents = []
+    updated_household_data = deepcopy(household_data)
+    for _, proc_agent in base_pop["synpop"].iterrows():
+        proc_agent, updated_household_data = place_agent_to_household(
+            updated_household_data, proc_agent)
+        proc_agent = assign_agent_to_commute(commute_data_work, proc_agent, commute_type="work")
+        proc_agent = assign_agent_to_employee(employee_data, proc_agent)
+        proc_agent = place_agent_to_employer(employer_data, proc_agent)
+
+        updated_agents.append(proc_agent)
+    
+    updated_agents = DataFrame(updated_agents)
+
     # -------------------------------
     # Create household
     # -------------------------------

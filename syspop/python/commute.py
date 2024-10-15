@@ -384,3 +384,94 @@ def shared_transport(
         people_data = people_data.drop("super_area", axis=1)
 
     return people_data
+
+
+# --------------------------------
+# New
+# ---------------------------------
+from pandas import Series
+def create_commute_probability(
+        commute_dataset: DataFrame, 
+        areas: list, 
+        commute_type: str = "work") -> DataFrame:
+    """
+    Calculates commute probabilities for specified areas and commute type.
+
+    Args:
+        commute_dataset (DataFrame): DataFrame containing commute data with 'area_home' and 'area_work' columns.
+        areas (list): List of areas to filter commute data by.
+        commute_type (str, optional): Type of commute (e.g., 'work', 'school'). Defaults to "work".
+
+    Returns:
+        DataFrame: Commute probabilities for each travel method, area home, and area work.
+
+    Notes:
+        - The function filters commute data by specified areas.
+        - It calculates the total number of people commuting from each area home.
+        - Probabilities are calculated by dividing the number of people using each travel method
+          by the total number of people commuting from each area home.
+    """
+    commute_dataset = commute_dataset[commute_dataset["area_home"].isin(areas)]
+    travel_methods = [col for col in commute_dataset.columns if col not in [
+            "area_home", f"area_{commute_type}"]]
+
+    total_people = commute_dataset.groupby('area_home')[travel_methods].sum().sum(axis=1)
+    area_sums = commute_dataset.groupby(['area_home', 'area_work'])[travel_methods].sum()
+    return area_sums.div(total_people, axis=0).reset_index()
+
+
+def assign_agent_to_commute(
+        commute_dataset: DataFrame, 
+        agent: Series, 
+        commute_type: str = "work") -> Series:
+    """
+    Assigns an area of work and a travel method to an agent based on their age 
+    and the provided commute dataset.
+
+    Parameters:
+    ----------
+        commute_dataset : pd.DataFrame
+            A DataFrame containing commute information, including areas of work and 
+            various travel methods, with their corresponding probabilities.
+
+        agent : pd.Series
+            A Series containing information about the agent, including their age 
+            and area of residence.
+
+        commute_type : str, optional
+            The type of commute to consider (e.g., "work" or other), by default "work".
+
+    Returns:
+    -------
+        Series: The updated agent Series with an added 'travel' value.
+    
+    Notes:
+    -----
+        If the agent's age is less than 18, both `area_work` and `travel_method` 
+        will be assigned as None. The function uses the probabilities derived from 
+        the `commute_dataset` to randomly select an area of work and a travel 
+        method.
+    """
+    if agent.age < 18:
+        area_work = None
+        travel_method = None
+    else:
+        proc_commute_dataset = commute_dataset[commute_dataset.area_home == agent.area]
+
+        # Select an area_Work
+        proc_commute_dataset["total"] = proc_commute_dataset.drop(
+            columns=["area_home", f"area_{commute_type}"]).sum(axis=1)
+        selected_row = proc_commute_dataset.iloc[
+            numpy_choice(proc_commute_dataset.index, p=proc_commute_dataset["total"])]
+        area_work = int(selected_row.area_work)
+
+        # Select travel method
+        selected_row = selected_row.drop(['area_home', 'area_work', 'total'])
+        # Step 3: Randomly select a travel method based on the probabilities
+        travel_method = numpy_choice(
+            selected_row.index, p=selected_row /selected_row .sum())
+    
+    agent[f"area_{commute_type}"] = area_work
+    agent[f"travel_method_{commute_type}"] = travel_method
+
+    return agent

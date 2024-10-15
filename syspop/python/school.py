@@ -337,3 +337,30 @@ def school_and_kindergarten_wrapper(
 
     address_data["area"] = address_data["area"].astype(int)
     return pop_data, address_data
+
+
+# --------------------------------
+# New
+# --------------------------------
+def create_school(school_data: DataFrame):
+    schools = []
+
+    school_data = school_data[school_data["area"].isin(areas)]
+
+    # Loop through each row in the original DataFrame
+    for _, row in household_data.iterrows():
+        area = row["area"]
+        adults = row["adults"]
+        children = row["children"]
+        count = row["value"]
+        
+        # Create individual records for each household
+        for _ in range(count):
+            households.append({
+                "area": int(area),
+                "adults": int(adults),
+                "children": int(children),
+                "id": str(uuid4())[:6]  # Create a 6-digit unique ID
+            })
+    
+    return DataFrame(households)
