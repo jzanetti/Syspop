@@ -198,7 +198,7 @@ def _read_raw_geography_location_area(raw_geography_location_path: str):
     return data
 
 
-def _read_raw_travel_to_work(raw_travel_to_work_path: str) -> DataFrame:
+def _read_raw_travel_to_work(raw_travel_to_work_path: str, data_type: str = "work") -> DataFrame:
     """Write Transport Model file
 
     The output looks like:
@@ -215,31 +215,51 @@ def _read_raw_travel_to_work(raw_travel_to_work_path: str) -> DataFrame:
 
     data = read_csv(raw_travel_to_work_path)
 
-    data = data[
-        [
-            "SA2_code_usual_residence_address",
-            "SA2_code_workplace_address",
-            "Work_at_home",
-            "Drive_a_private_car_truck_or_van",
-            "Drive_a_company_car_truck_or_van",
-            "Passenger_in_a_car_truck_van_or_company_bus",
-            "Public_bus",
-            "Train",
-            "Bicycle",
-            "Walk_or_jog",
-            "Ferry",
-            "Other",
+    if data_type == "work":
+        data = data[
+            [
+                "SA2_code_usual_residence_address",
+                "SA2_code_workplace_address",
+                "Work_at_home",
+                "Drive_a_private_car_truck_or_van",
+                "Drive_a_company_car_truck_or_van",
+                "Passenger_in_a_car_truck_van_or_company_bus",
+                "Public_bus",
+                "Train",
+                "Bicycle",
+                "Walk_or_jog",
+                "Ferry",
+                "Other",
+            ]
         ]
-    ]
+        data.rename(
+            columns={
+                "SA2_code_usual_residence_address": "area_home",
+                "SA2_code_workplace_address": "area_work",
+            },
+            inplace=True,
+        )
+    elif data_type == "school":
+        data = data[
+            [
+                "SA2_code_usual_residence_address",
+                "SA2_code_educational_address",
+                "Study_at_home",
+                "Drive_a_car_truck_or_van",
+                "Passenger_in_a_car_truck_or_van",
+                "Train",
+                "Bicycle", "Walk_or_jog", "School_bus", "Public_bus", "Ferry", "Other"
+            ]
+        ]
+        data.rename(
+            columns={
+                "SA2_code_usual_residence_address": "area_home",
+                "SA2_code_educational_address": "area_school",
+            },
+            inplace=True,
+        )
 
     data = data.replace(-999.0, 0)
-    data.rename(
-        columns={
-            "SA2_code_usual_residence_address": "area_home",
-            "SA2_code_workplace_address": "area_work",
-        },
-        inplace=True,
-    )
 
     return data
 

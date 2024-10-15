@@ -40,7 +40,6 @@ def import_raw_data(workdir: str, input_cfg: str):
         makedirs(workdir)
 
     input_cfg = read_cfg(input_cfg)
-
     # -----------------------------
     # Create population
     # -----------------------------
@@ -150,7 +149,7 @@ if __name__ == "__main__":
     parser.add_argument("--add_proj", action=BooleanOptionalAction)
 
     args = parser.parse_args(
-        # ["--workdir", "etc/data/test_data", "--input", "etc/scripts_nz/input_v2.0.yml"]
+       # ["--workdir", "etc/data/test_data", "--input", "etc/scripts_nz/input_cfg.yml"]
     )  # ["--workdir", "etc/data/test_data_wellington_latest"]
     import_raw_data(args.workdir, args.input)
 

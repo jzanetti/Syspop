@@ -16,6 +16,7 @@ geography:
 
 commute:
   travel_to_work: etc/data/raw_data/travel-to-work-info-2018.csv
+  travel_to_school: etc/data/raw_data/travel-to-school-info-2018.csv
 
 employment:
   employer_employee_num: etc/data/raw_data/employee_by_area-2022.csv
