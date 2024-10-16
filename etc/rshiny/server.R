@@ -11,6 +11,18 @@ data <- get_data()
 
 server <- function(input, output) {
   
+  output$xvar <- renderUI({
+    if (input$file_choice == "Base population") {
+      selectInput("x", "X-axis variable", choices = c("age", "ethnicity", "gender"), selected = "ethnicity")
+    }
+    else if (input$file_choice == "Household") {
+      selectInput("x", "X-axis variable", choices = c("composition"), selected = "composition")
+    }
+    else if (input$file_choice == "Employment") {
+      selectInput("x", "X-axis variable", choices = c("employer: business_code", "employee: business_code"), selected = "employer: business_code")
+    }
+  })
+  
   df_sim <- reactive({
     if (input$file_choice == "Base population"){
       df <- data$sim$df_pop
@@ -25,6 +37,8 @@ server <- function(input, output) {
   })
   
   df_truth <- reactive({
+    req(input$file_choice)
+    req(input$x)
     # Construct the file path based on the dropdown selection
     if (input$file_choice == "Base population"){
       df <- data$truth$df_pop
@@ -33,7 +47,13 @@ server <- function(input, output) {
       df <- data$truth$df_household
     }
     else if (input$file_choice == "Employment"){
-      df <- data$truth$df_employee
+      browser()
+      if (input$x == "employee: business_code") {
+        df <- data$truth$df_employee
+      }
+      else if (input$x == "employee: business_code") {
+        df <- data$truth$df_employer
+      }
     }
     df
   })
@@ -62,21 +82,7 @@ server <- function(input, output) {
       df_truth()
     }
   })
-  
-  # Output for x-variable dropdown (only shows if data is available)
-  output$xvar <- renderUI({
-    req(filtered_df_sim())
-    req(filtered_df_truth())
-    if (input$file_choice == "Base population") {
-      selectInput("x", "X-axis variable", choices = c("age", "ethnicity", "gender"), selected = "ethnicity")
-    }
-    else if (input$file_choice == "Household") {
-      selectInput("x", "X-axis variable", choices = c("composition"), selected = "composition")
-    }
-    else if (input$file_choice == "Employment") {
-      selectInput("x", "X-axis variable", choices = c("business_code"), selected = "composition")
-    }
-  })
+
   
   # Output for the plot
   output$plot <- renderPlot({
@@ -92,10 +98,20 @@ server <- function(input, output) {
         plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
         axis.title.x = element_text(size = 14)
       )
-  
-    filtered_df_truth_summary <- filtered_df_truth() %>%
-      group_by(!!sym(input$x)) %>%
-      summarize(value = sum(value))
+    if (input$x == "employer: business_code") {browser()}
+    if (input$file_choice == "Employment" & grepl("business_code", input$x)) {
+      filtered_df_truth_summary <- filtered_df_truth() %>%
+        group_by(!!sym(input$x)) %>%
+        summarize(value = sum(value)) %>%
+        mutate(value = (value / sum(value)) * 100)
+      y_label = "Count percentage (%)"
+    }
+    else {
+      filtered_df_truth_summary <- filtered_df_truth() %>%
+        group_by(!!sym(input$x)) %>%
+        summarize(value = sum(value))
+      y_label = "Count"
+    }
   
     plot_truth <- ggplot(
         filtered_df_truth_summary, 
@@ -103,7 +119,7 @@ server <- function(input, output) {
       ) +
       geom_bar(stat = "identity", position = "dodge", fill = "blue", alpha=0.3) +
       theme_minimal() +
-      labs(x = input$x, y = "Count", title = "Truth") + 
+      labs(x = input$x, y = y_label, title = "Truth") + 
       theme(
         plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
         axis.title.x = element_text(size = 14)

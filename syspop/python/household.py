@@ -438,7 +438,7 @@ def create_households(household_data: DataFrame, address_data: DataFrame, areas:
                 "children": int(children),
                 "latitude": float(proc_address_data.latitude),
                 "longitude": float(proc_address_data.longitude),
-                "id": str(uuid4())[:6]  # Create a 6-digit unique ID
+                "household": str(uuid4())[:6]  # Create a 6-digit unique ID
             })
     
     return DataFrame(households)
@@ -470,7 +470,7 @@ def place_agent_to_household(households: DataFrame, agent: Series) -> tuple:
     else:
         selected_household = households.sample(n=1)
 
-    agent["household"] = selected_household.id.values[0]
+    agent["household"] = selected_household.household.values[0]
     return agent, households
 
 
