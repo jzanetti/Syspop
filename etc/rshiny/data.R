@@ -38,15 +38,13 @@ get_data <- function(
   df_employee_sim <- read_parquet(paste0(base_dir, "syspop_work.parquet"))
   df_employee_sim <- na.omit(df_employee_sim)
   colnames(df_employee_sim)[colnames(df_employee_sim) == "area_work"] <- "area"
-  df_employee_sim <- df_employee_sim[, c("area", "business_code", "employer")]
-  colnames(df_employee_sim)[colnames(df_employee_sim) == "business_code"] <- "employee: business_code"
+  df_employee_sim <- df_employee_sim[, c("area", "business_code")]
   
   df_work_truth <- list()
   df_work_truth$employee <- read_parquet(paste0(base_dir_truth, "work_employee.parquet"))
   df_work_truth$employee <- df_work_truth$employee[df_work_truth$employee$area %in% unique(df_employee_sim$area), ]
   df_work_truth$employee <- df_work_truth$employee[, c("area", "business_code", "employee")]
   colnames(df_work_truth$employee)[colnames(df_work_truth$employee) == "employee"] <- "value"
-  colnames(df_work_truth$employee)[colnames(df_work_truth$employee) == "business_code"] <- "employee: business_code"
   
   # Employer
   df_employer_sim <- read_parquet(paste0(base_dir, "syspop_work.parquet"))
@@ -56,15 +54,14 @@ get_data <- function(
     summarize(value = n_distinct(employer)) %>%
     ungroup()
   colnames(df_employer_sim)[colnames(df_employer_sim) == "area_work"] <- "area"
-  colnames(df_employer_sim)[colnames(df_employer_sim) == "business_code"] <- "employer: business_code"
+  df_employer_sim <- df_employer_sim[, c("area", "business_code")]
 
   df_work_truth$employer <- read_parquet(paste0(base_dir_truth, "work_employer.parquet"))
   df_work_truth$employer <- df_work_truth$employer[df_work_truth$employer$area %in% unique(df_employer_sim$area), ]
   df_work_truth$employer <- df_work_truth$employer[, c("area", "business_code", "employer")]
   colnames(df_work_truth$employer)[colnames(df_work_truth$employer) == "employer"] <- "value"
-  colnames(df_work_truth$employer)[colnames(df_work_truth$employer) == "business_code"] <- "employer: business_code"
   
-  
+  # browser()
   return(list(
     sim = list(
       df_pop = df_pop_sim, 

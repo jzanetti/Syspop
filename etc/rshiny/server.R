@@ -7,7 +7,8 @@ library(stringr)
 # source("etc/rshiny/data.R")
 source("data.R")
 
-data <- get_data()
+data <- get_data(base_dir="C:\\Users\\ZhangS\\Downloads\\Wellington_test_v2.0\\", 
+                 base_dir_truth="C:\\Users\\ZhangS\\Downloads\\Syspop\\etc\\data\\test_data\\")
 
 server <- function(input, output) {
   
@@ -18,8 +19,11 @@ server <- function(input, output) {
     else if (input$file_choice == "Household") {
       selectInput("x", "X-axis variable", choices = c("composition"), selected = "composition")
     }
-    else if (input$file_choice == "Employment") {
-      selectInput("x", "X-axis variable", choices = c("employer: business_code", "employee: business_code"), selected = "employer: business_code")
+    else if (input$file_choice == "Employer") {
+      selectInput("x", "X-axis variable", choices = c("business_code"), selected = "business_code")
+    }
+    else if (input$file_choice == "Employee") {
+      selectInput("x", "X-axis variable", choices = c("business_code"), selected = "business_code")
     }
   })
   
@@ -30,8 +34,11 @@ server <- function(input, output) {
     else if (input$file_choice == "Household"){
       df <- data$sim$df_household
     }
-    else if (input$file_choice == "Employment"){
+    else if (input$file_choice == "Employee"){
       df <- data$sim$df_employee
+    }
+    else if (input$file_choice == "Employer"){
+      df <- data$sim$df_employer
     }
     df
   })
@@ -46,13 +53,12 @@ server <- function(input, output) {
     else if (input$file_choice == "Household"){
       df <- data$truth$df_household
     }
-    else if (input$file_choice == "Employment"){
-      if (input$x == "employee: business_code") {
-        df <- data$truth$df_employee
-      }
-      else if (input$x == "employee: business_code") {
+    else if (input$file_choice == "Employer"){
+
         df <- data$truth$df_employer
-      }
+    }
+    else if (input$file_choice == "Employee"){
+        df <- data$truth$df_employee
     }
     df
   })
@@ -88,7 +94,7 @@ server <- function(input, output) {
     req(filtered_df_sim())
     req(filtered_df_truth())
     req(input$x)
-
+    
     plot_sim <- ggplot(filtered_df_sim(), aes_string(x = input$x)) +
       geom_bar(position = "dodge", fill = "red", alpha=0.3) +
       theme_minimal() +
@@ -97,7 +103,7 @@ server <- function(input, output) {
         plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
         axis.title.x = element_text(size = 14)
       )
-    if (input$file_choice == "Employment" & grepl("business_code", input$x)) {
+    if (input$file_choice == "Employer" | input$file_choice == "Employee") {
       filtered_df_truth_summary <- filtered_df_truth() %>%
         group_by(!!sym(input$x)) %>%
         summarize(value = sum(value)) %>%
@@ -110,7 +116,6 @@ server <- function(input, output) {
         summarize(value = sum(value))
       y_label = "Count"
     }
-  
     plot_truth <- ggplot(
         filtered_df_truth_summary, 
         aes_string(x = input$x, y = "value")
@@ -122,7 +127,7 @@ server <- function(input, output) {
         plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
         axis.title.x = element_text(size = 14)
       )
-    
+
     grid.arrange(plot_sim, plot_truth, ncol = 1)
 
   })

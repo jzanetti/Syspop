@@ -17,7 +17,7 @@ ui <- fluidPage(
       selectInput(
         "file_choice", 
         "Select a Parquet File", 
-        choices = c("Base population", "Household", "Employment"), 
+        choices = c("Base population", "Household", "Employer", "Employee"), 
         selected = "Base population"),
       uiOutput("xvar"),
       uiOutput("area_filter")
