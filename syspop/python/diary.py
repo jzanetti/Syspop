@@ -201,7 +201,7 @@ def create_diary(
             output = create_diary_single_person_llm(
                 llm_diary_data,
                 proc_people.age,
-                proc_people.company,
+                proc_people.employer,
                 proc_people.school,
                 use_llm_percentage_flag,
             )
@@ -303,7 +303,7 @@ def create_diary_single_person_llm(
 def quality_check_diary(
     synpop_data: DataFrame,
     diary_data: DataFrame,
-    diary_to_check: list = ["school", "kindergarten"],
+    diary_to_check: list = ["school"],
 ) -> DataFrame:
     """For example, in diary may go to school at T03,
     while for this person the school property may be just NA (e.g., no school can be
@@ -317,14 +317,16 @@ def quality_check_diary(
 
         proc_people_id = proc_people_diary["id"]
         proc_people_attr = synpop_data.loc[proc_people_id]
+        try:
+            for proc_hr in range(24):
 
-        for proc_hr in range(24):
-
-            if (
-                proc_people_diary.iloc[proc_hr] in diary_to_check
-                and proc_people_attr[proc_people_diary.iloc[proc_hr]] is None
-            ):
-                proc_people_diary.at[proc_hr] = default_place
+                if (
+                    proc_people_diary.iloc[proc_hr] in diary_to_check
+                    and proc_people_attr[proc_people_diary.iloc[proc_hr]] is None
+                ):
+                    proc_people_diary.at[proc_hr] = default_place
+        except:
+            x = 3
 
         return proc_people_diary
 
@@ -347,43 +349,49 @@ def map_loc_to_diary(output_dir: str):
     # synpop_data = pandas_read_parquet(syn_pop_path)
 
     synpop_data = merge_syspop_data(
-        output_dir, ["base", "travel", "lifechoice", "household", "work_and_school"]
+        output_dir, ["base", "travel", "shared_space", "household", "work", "school"]
     )
     diary_type_data = pandas_read_parquet(
-        join(output_dir, "tmp", "syspop_diaries_type.parquet")
+        join(output_dir, "syspop_diaries_type.parquet")
     )
 
     time_start = datetime.utcnow()
 
     def _match_person_diary(
-        proc_people: DataFrame, known_missing_locs: list = ["gym", "others", "outdoor"]
+        proc_people: DataFrame, 
+        known_missing_locs: list = ["gym", "others", "outdoor"], 
+        proc_diray_mapping = {
+            "kindergarten": "school",
+            "company": "employer"
+        }
     ):
         proc_people_id = proc_people["id"]
         proc_people_attr = synpop_data.loc[proc_people_id]
 
         for proc_hr in range(24):
             proc_diray = proc_people.iloc[proc_hr]
-            if proc_diray == "travel":
-                proc_people_attr_value = proc_people_attr["public_transport_trip"]
-            else:
-                try:
-                    proc_people_attr_value = numpy_choice(
-                        proc_people_attr[proc_diray].split(",")
+            proc_diray = proc_diray_mapping.get(proc_diray, proc_diray)
+            #if proc_diray == "travel":
+            #    proc_people_attr_value = proc_people_attr["public_transport_trip"]
+
+            try:
+                proc_people_attr_value = numpy_choice(
+                    proc_people_attr[proc_diray].split(",")
+                )
+            except (
+                KeyError,
+                AttributeError,
+            ):  # For example, people may in the park from the diary,
+                # but it's not the current synthetic pop can support
+                if proc_diray in known_missing_locs:
+                    proc_people_attr_value = None
+                else:
+                    raise Exception(
+                        f"Not able to find {proc_diray} in the person attribute ..."
                     )
-                except (
-                    KeyError,
-                    AttributeError,
-                ):  # For example, people may in the park from the diary,
-                    # but it's not the current synthetic pop can support
-                    if proc_diray in known_missing_locs:
-                        proc_people_attr_value = None
-                    else:
-                        raise Exception(
-                            f"Not able to find {proc_diray} in the person attribute ..."
-                        )
-                    # proc_people_attr_value = numpy_choice(
-                    #    proc_people_attr[default_place].split(",")
-                    # )
+                # proc_people_attr_value = numpy_choice(
+                #    proc_people_attr[default_place].split(",")
+                # )
 
             proc_people.at[str(proc_hr)] = proc_people_attr_value
 
