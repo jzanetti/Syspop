@@ -47,7 +47,6 @@ server <- function(input, output) {
       df <- data$truth$df_household
     }
     else if (input$file_choice == "Employment"){
-      browser()
       if (input$x == "employee: business_code") {
         df <- data$truth$df_employee
       }
@@ -98,7 +97,6 @@ server <- function(input, output) {
         plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
         axis.title.x = element_text(size = 14)
       )
-    if (input$x == "employer: business_code") {browser()}
     if (input$file_choice == "Employment" & grepl("business_code", input$x)) {
       filtered_df_truth_summary <- filtered_df_truth() %>%
         group_by(!!sym(input$x)) %>%

@@ -429,10 +429,15 @@ def create(
     if not exists(output_dir):
         makedirs(output_dir)
 
+    logger.info("----------------------------")
     logger.info("Creating base population ...")
+    logger.info("----------------------------")
     population_data = base_pop_wrapper(population["structure"], syn_areas)
     all_areas = list(population_data["area"].unique())
 
+    logger.info("----------------------------")
+    logger.info("Creating required data ...")
+    logger.info("----------------------------")
     logger.info("Creating household data ...")
     household_data = create_households(household["composition"], geography["address"], all_areas)    
 
@@ -467,13 +472,16 @@ def create(
             geography["location"], 
             proc_shared_space_name)
 
+    logger.info("----------------------------")
+    logger.info("Creating agents ...")
+    logger.info("----------------------------")
     updated_agents = []
     updated_household_data = deepcopy(household_data)
     total_people = len(population_data)
     for i, proc_agent in population_data.iterrows():
 
         if i % 500.0 == 0:
-            logger.info(f"{i} / {total_people}")
+            logger.info(f"Completed: {i} / {total_people}: {int(i * 100.0/total_people)}%")
 
         proc_agent, updated_household_data = place_agent_to_household(
             updated_household_data, proc_agent)

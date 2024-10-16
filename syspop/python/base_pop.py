@@ -39,8 +39,8 @@ def base_pop_wrapper(
         population = df_repeated.reset_index(drop=True).drop(columns=["value"])
 
     end_time = datetime.utcnow()
-    total_mins = (end_time - start_time).total_seconds() / 60.0
+    total_mins = round((end_time - start_time).total_seconds() / 60.0, 2)
 
-    logger.info(f"Processing time (base population): {total_mins}")
+    logger.info(f"Processing time (base population): {total_mins} minutes")
 
     return population
