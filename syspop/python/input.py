@@ -24,6 +24,7 @@ def new_zealand(data_dir: str = NZ_DATA_DEFAULT) -> dict:
         "geography_address",
         "household_composition",
         "commute_travel_to_work",
+        "commute_travel_to_school",
         "work_employee",
         "work_employer",
         "school",

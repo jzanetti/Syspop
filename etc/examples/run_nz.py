@@ -40,15 +40,15 @@ syspop_create(
     },
     household={"composition": nz_data["household_composition"]},
     work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"]},
-    commute={"travel_to_work": nz_data["commute_travel_to_work"]},
+    commute={
+        "travel_to_work": nz_data["commute_travel_to_work"], 
+        "travel_to_school": nz_data["commute_travel_to_school"]},
     education={
         "school": nz_data["school"],
         "kindergarten": nz_data["kindergarten"]
     },
-    healthcare={
-        "hospital": nz_data["hospital"]
-    },
     shared_space={
+        "hospital": nz_data["hospital"],
         "bakery": nz_data["shared_space_bakery"],
         "cafe": nz_data["shared_space_cafe"],
         "department_store": nz_data["shared_space_department_store"],
@@ -58,6 +58,5 @@ syspop_create(
         "restaurant": nz_data["shared_space_restaurant"],
         "supermarket": nz_data["shared_space_supermarket"],
         "wholesale": nz_data["shared_space_wholesale"],
-
     }
 )

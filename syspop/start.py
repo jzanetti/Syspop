@@ -34,18 +34,14 @@ from syspop.python.vis import (
     plot_pie_charts,
     plot_travel_html,
 )
-from syspop.python.create_pop_wrapper import (
-    create_base_pop,
-    create_birthplace,
-    create_hospital,
-    create_household,
-    create_school_and_kindergarten,
-    create_shared_space,
-    create_vaccine,
-    create_work,
-)
-
-from syspop.python import SHARED_PLACE_AREA_NUMS
+from syspop.python.base_pop import base_pop_wrapper
+from syspop.python.household import create_households, place_agent_to_household
+from syspop.python.work import assign_agent_to_business_code, create_business_code_probability, create_employer
+from syspop.python.school import create_school
+from syspop.python.commute import create_commute_probability, assign_agent_to_commute
+from syspop.python.shared_space import place_agent_to_shared_space_based_on_area, find_nearest_shared_space_from_household, create_shared_data, place_agent_to_shared_space_based_on_distance
+from copy import deepcopy
+from pandas import concat
 
 logger = setup_logging(workdir="")
 
@@ -265,14 +261,10 @@ def vis(
 
 
 def validate(
-    output_dir: str = "",
-    pop_gender: DataFrame = None,  # census
-    pop_ethnicity: DataFrame = None,  # census
-    household: DataFrame or None = None,  # census
-    work_data: DataFrame or None = None,  # census
-    home_to_work: DataFrame or None = None,  # census
-    mmr_data: DataFrame or None = None,  # imms data
-    data_years: dict = {"vaccine": 2023},
+    output_dir,
+    household: dict,
+    work: dict,
+    commute: dict,
 ):
     """Doding the validation of synthetic population
 
@@ -287,19 +279,16 @@ def validate(
     if not exists(val_dir):
         makedirs(val_dir)
 
-    if mmr_data is not None:
-        logger.info("Validating MMR ...")
-        validate_mmr(
-            val_dir,
-            merge_syspop_data(output_dir, ["base", "healthcare"]),
-            mmr_data,
-            data_years["vaccine"],
-        )
 
     logger.info("Valdating commute (area) ...")
+    df_model = merge_syspop_data(output_dir, ["base", "travel", "work"])
+    df_truth = commute["travel_to_work"]
+    df_model = df_model[df_model["area"].isin(df_truth.area_home)]
+    df_model = df_model[["area", "area_work", "travel_method_work"]]
+    df_model = df_model.rename(columns={"area": "area_home"}).dropna()
     validate_commute_area(
         val_dir,
-        merge_syspop_data(output_dir, ["base", "travel", "work_and_school"]),
+        merge_syspop_data(output_dir, ["base", "travel", "work"]),
         home_to_work,
     )
 
@@ -407,192 +396,143 @@ def create(
     work: dict = None,
     commute: dict = None,
     education: dict = None,
-    healthcare: dict = None,
     shared_space: dict = None,
-    others: dict = None,
-    assign_address_flag=True
     ):
-    """Create synthetic population
+    """
+    Generates a synthetic population and related data based on provided parameters.
+
+    This function orchestrates the creation of a synthetic population by generating
+    various components, including population structure, households, work-related data,
+    school-related data, and shared space information. The resulting data is saved 
+    in the specified output directory.
 
     Args:
-        syn_areas (listorNone, optional): Areas to be processed. Defaults to None.
-        output_dir (str, optional): Where the data will be written. Defaults to "".
-        pop_gender (DataFrame, optional): population gender data. Defaults to None.
-        pop_ethnicity (DataFrame, optional): population ethnicity data. Defaults to None.
-        geo_hierarchy (DataFrame, optional): geography hierarchy data. Defaults to None.
-        geo_location (DataFrame, optional): geography location data. Defaults to None.
-        geo_address (DataFrame, optional): geography address data. Defaults to None.
-        household (DataFrame, optional): household data. Defaults to None.
-        socialeconomic (DataFrame, optional): socialeconomic data. Defaults to None.
-        work_data (DataFrame, optional): employer/eomplyee data. Defaults to None.
-        home_to_work (DataFrame, optional): work commute data. Defaults to None.
-        school_data (DataFrame, optional): school data. Defaults to None.
-        hospital_data (DataFrame, optional): hospital data. Defaults to None.
-        supermarket_data (DataFrame, optional): supermarket data. Defaults to None.
-        restaurant_data (DataFrame, optional): restaurant data. Defaults to None.
-        pharmacy_data (DataFrame, optional): pharmacy data. Defaults to None.
-        assign_address_flag (bool, optional): if assign lat/lon to different venues. Defaults to False.
-        rewrite_base_pop (bool, optional): if re-write base population. Defaults to False.
-        data_year (int, optional): the Year that data to be used (if available). Defaults to None
+        syn_areas: A collection of synthetic areas used for population generation.
+        output_dir (str): The directory where the output data files will be saved.
+        population (dict, optional): A dictionary containing population structure data.
+        geography (dict, optional): A dictionary containing geographical address data.
+        household (dict, optional): A dictionary containing household composition data.
+        work (dict, optional): A dictionary containing work-related data.
+        commute (dict, optional): A dictionary containing commute-related data.
+        education (dict, optional): A dictionary containing education-related data.
+        shared_space (dict, optional): A dictionary containing shared space information.
+
+    Returns:
+        None: The function saves various output files to the specified directory.
 
     Raises:
-        Exception: missing depedancies
+        OSError: If the output directory cannot be created or written to.
+
+    Logs:
+        The function logs the creation process of each data component.
     """
+    if not exists(output_dir):
+        makedirs(output_dir)
 
-    tmp_dir = join(output_dir, "tmp")
-    if not exists(tmp_dir):
-        makedirs(tmp_dir)
-
-    tmp_data_path = join(tmp_dir, "synpop.pickle")
-
-    # -------------------------------
-    # Create base population
-    # -------------------------------
     logger.info("Creating base population ...")
-    create_base_pop(
-        tmp_data_path, population["structure"], syn_areas
-    )
+    population_data = base_pop_wrapper(population["structure"], syn_areas)
+    all_areas = list(population_data["area"].unique())
 
-    # -----------------
-    # New
-    # ------------------
-    from syspop.python.household import create_households, place_agent_to_household
-    from syspop.python.work import assign_agent_to_employee, create_employee_probability, create_employer, place_agent_to_employer
-    from syspop.python.commute import create_commute_probability, assign_agent_to_commute
-    from copy import deepcopy
-    with open(tmp_data_path, "rb") as fid:
-        base_pop = pickle_load(fid)
+    logger.info("Creating household data ...")
+    household_data = create_households(household["composition"], geography["address"], all_areas)    
 
-    all_areas = list(base_pop["synpop"]["area"].unique())
-    household_data = create_households(household["composition"], all_areas)
-
-    # ---------------------
-    # work
-    # ---------------------
+    logger.info("Creating work related data ...")
     commute_data_work = create_commute_probability(
         commute["travel_to_work"], all_areas, commute_type="work")
-    employee_data = create_employee_probability(
-        work["employee"], commute_data_work.area_work.unique())
+    business_code_probability = create_business_code_probability(
+        work["employee"], 
+        commute_data_work.area_work.unique())
     employer_data = create_employer(
-        work["employer"], list(commute_data_work.area_work.unique()))
+        work["employer"],
+        geography["address"],
+        list(commute_data_work.area_work.unique()))
 
+    logger.info("Creating school related data ...")
+    commute_data_school = create_commute_probability(
+        commute["travel_to_school"], all_areas, commute_type="school")
+
+    school_data = create_school(
+        concat([education["school"], education["kindergarten"]]))
+    
+    logger.info("Creating shared space related data ...")
+    shared_space_data = {}
+    shared_space_loc = {}
+    for proc_shared_space_name in shared_space:
+        shared_space_data[proc_shared_space_name] = create_shared_data(
+            shared_space[proc_shared_space_name])
+
+        shared_space_loc[proc_shared_space_name] = find_nearest_shared_space_from_household(
+            household_data, 
+            shared_space_data[proc_shared_space_name], 
+            geography["location"], 
+            proc_shared_space_name)
 
     updated_agents = []
     updated_household_data = deepcopy(household_data)
-    for _, proc_agent in base_pop["synpop"].iterrows():
+    total_people = len(population_data)
+    for i, proc_agent in population_data.iterrows():
+
+        if i % 500.0 == 0:
+            logger.info(f"{i} / {total_people}")
+
         proc_agent, updated_household_data = place_agent_to_household(
             updated_household_data, proc_agent)
-        proc_agent = assign_agent_to_commute(commute_data_work, proc_agent, commute_type="work")
-        proc_agent = assign_agent_to_employee(employee_data, proc_agent)
-        proc_agent = place_agent_to_employer(employer_data, proc_agent)
+        
+        # ----------------
+        # Work
+        # ----------------
+        proc_agent = assign_agent_to_commute(
+            commute_data_work, 
+            proc_agent, 
+            commute_type="work", 
+            include_filters={"age": [(18, 999)]})
+        proc_agent = assign_agent_to_business_code(business_code_probability, proc_agent)
+        proc_agent = place_agent_to_shared_space_based_on_area(
+            employer_data, 
+            proc_agent, 
+            "work",
+            filter_keys = ["business_code"],
+            shared_space_type_convert = {"work": "employer"})
+
+        # ----------------
+        # School
+        # ----------------
+        proc_agent = assign_agent_to_commute(
+            commute_data_school, 
+            proc_agent, 
+            commute_type="school",
+            include_filters={"age": [(0, 17)]}
+        )
+        proc_agent = place_agent_to_shared_space_based_on_area(
+            school_data, 
+            proc_agent, 
+            "school",
+            filter_keys = ["age"],
+            weight_key="max_students")
+
+        # ----------------
+        # Shared space
+        # ----------------
+        proc_agent = place_agent_to_shared_space_based_on_distance(
+            proc_agent, 
+            shared_space_loc)
 
         updated_agents.append(proc_agent)
     
     updated_agents = DataFrame(updated_agents)
 
-    # -------------------------------
-    # Create household
-    # -------------------------------
-    if household is not None:
-        logger.info("Adding household ...")
-        create_household(tmp_data_path, household["composition"], geography["address"])
-
-    # -------------------------------
-    # Create work
-    # -------------------------------
-    if (work is not None) and (commute is not None):
-        logger.info("Adding work ...")
-        create_work(
-            tmp_data_path,
-            work["employer"],
-            work["employee"],
-            commute["travel_to_work"],
-            geography["hierarchy"],
-            geography["address"]
-        )
-
-    # -------------------------------
-    # Create school and kindergarten
-    # -------------------------------
-    if education["school"] is not None:
-        logger.info("Adding school ...")
-        create_school_and_kindergarten(
-            tmp_data_path,
-            "school",
-            education["school"],
-            geography["hierarchy"],
-            assign_address_flag,
-            possile_area_levels=["area", "super_area", "region"],
-        )
-
-    if education["kindergarten"] is not None:
-        logger.info("Adding kindergarten ...")
-        create_school_and_kindergarten(
-            tmp_data_path,
-            "kindergarten",
-            education["kindergarten"],
-            geography["hierarchy"],
-            assign_address_flag,
-            possile_area_levels=["area"],
-        )
-
-    # -------------------------------
-    # Create healthcare:
-    # -------------------------------
-    if healthcare is not None:
-        if "hospital" in healthcare:
-            logger.info("Adding hospital ...")
-            create_hospital(tmp_data_path, healthcare["hospital"], geography["location"], assign_address_flag)
-        if "vaccine" in healthcare:
-            logger.info("Adding vaccine ...")
-            for vaccine_name in healthcare["vaccine"]:
-                create_vaccine(tmp_data_path, healthcare["vaccine"][vaccine_name])
-
-    # -------------------------------
-    # Create shared space
-    # -------------------------------
-    if shared_space is not None:
-        for shared_place_name in ["supermarket", "department_store", "wholesale", "restaurant", "cafe", "fast_food", "pub", "park"]:
-            if shared_place_name not in shared_space:
-                continue
-            logger.info(f"Adding {shared_place_name} ...")
-            create_shared_space(
-                tmp_data_path,
-                shared_space[shared_place_name],
-                shared_place_name,
-                geography["location"],
-                assign_address_flag,
-                area_name_keys_and_selected_nums=SHARED_PLACE_AREA_NUMS[shared_place_name],
-            )
-
-    # -------------------------------
-    # Create others
-    # -------------------------------
-    if others is not None:
-        for other_name in ["birthplace"]:
-            if other_name not in others:
-                continue
-
-            if other_name == "birthplace":
-                create_birthplace(tmp_data_path, healthcare["hospital"]["birthplace"])
-
-    # ---------------------------
-    # Export output
-    # ---------------------------
-    with open(tmp_data_path, "rb") as fid:
-        synpop_data = pickle_load(fid)
+    updated_agents["id"] = updated_agents.index
 
     output_files = {
         "syspop_base": ["area", "age", "gender", "ethnicity"],
         "syspop_household": [
-            "household",
-            #"dwelling_type",
-            #"social_economics",
+            "household"
         ],
-        "syspop_travel": ["travel_mode_work", "public_transport_trip"],
-        "syspop_work_and_school": ["area_work", "company", "school", "kindergarten"],
-        "syspop_healthcare": ["primary_hospital", "secondary_hospital", "mmr"],
-        "syspop_lifechoice": [
+        "syspop_travel": ["travel_method_work", "travel_method_school"],
+        "syspop_work": ["area_work", "business_code", "employer"],
+        "syspop_school": ["area_school", "school"],
+        "syspop_shared_space": [
+            "hospital",
             "supermarket",
             "restaurant",
             "cafe",
@@ -601,19 +541,21 @@ def create(
             "fast_food",
             "pub",
             "park",
-        ],
-        "syspop_others": ["hhd_src"],
-        "syspop_immigration": ["birthplace"],
+        ]
     }
 
-    synpop_data["synpop"]["id"] = synpop_data["synpop"].index
     for name, cols in output_files.items():
         output_path = join(output_dir, f"{name}.parquet")
         try:
-            synpop_data["synpop"][["id"] + cols].to_parquet(output_path, index=False)
+            updated_agents[["id"] + cols].to_parquet(output_path, index=False)
         except KeyError:
             pass
+    
+    household_data.to_parquet(join(output_dir, f"household_data.parquet"), index=False)
+    employer_data.to_parquet(join(output_dir, f"employer_data.parquet"), index=False)
+    school_data.to_parquet(join(output_dir, f"school_data.parquet"), index=False)
+    for shared_space_name in shared_space_data:
+        shared_space_data[shared_space_name].to_parquet(
+            join(output_dir, f"{shared_space_name}.parquet"), index=False)
 
-    synpop_data["synadd"].to_parquet(
-        join(output_dir, "syspop_location.parquet"), index=False
-    )
+

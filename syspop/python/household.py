@@ -398,7 +398,7 @@ def household_wrapper(
 # New
 # --------------------------
 from uuid import uuid4
-def create_households(household_data: DataFrame, areas: list):
+def create_households(household_data: DataFrame, address_data: DataFrame, areas: list,):
     """
     Create a DataFrame of individual households from aggregated data.
 
@@ -407,6 +407,7 @@ def create_households(household_data: DataFrame, areas: list):
                                     with columns ['area', 'adults', 'children', 'value'].
                                     'value' indicates the number of households for the
                                     given combination of adults and children.
+        address_data (pd.DataFrame): address data in latitude and longitude
         areas (list): the areas to be included
 
     Returns:
@@ -417,6 +418,7 @@ def create_households(household_data: DataFrame, areas: list):
     households = []
 
     household_data = household_data[household_data["area"].isin(areas)]
+    address_data = address_data[address_data["area"].isin(areas)]
 
     # Loop through each row in the original DataFrame
     for _, row in household_data.iterrows():
@@ -424,13 +426,18 @@ def create_households(household_data: DataFrame, areas: list):
         adults = row["adults"]
         children = row["children"]
         count = row["value"]
+        proc_address_data_area = address_data[
+            address_data["area"] == area]
         
         # Create individual records for each household
         for _ in range(count):
+            proc_address_data = proc_address_data_area.sample(n=1)
             households.append({
                 "area": int(area),
                 "adults": int(adults),
                 "children": int(children),
+                "latitude": float(proc_address_data.latitude),
+                "longitude": float(proc_address_data.longitude),
                 "id": str(uuid4())[:6]  # Create a 6-digit unique ID
             })
     

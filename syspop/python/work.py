@@ -277,7 +277,7 @@ def create_work_and_commute(
 from pandas import Series
 from uuid import uuid4
 
-def create_employee_probability(employee_data: DataFrame, all_areas: list) -> DataFrame:
+def create_business_code_probability(employee_data: DataFrame, all_areas: list) -> DataFrame:
     """
     Calculates employee probability for each business code within specified areas.
 
@@ -307,13 +307,14 @@ def create_employee_probability(employee_data: DataFrame, all_areas: list) -> Da
     return employee_data[["area_work", "business_code", "percentage"]]
 
 
-def create_employer(employer_dataset: DataFrame, all_areas: list) -> DataFrame:
+def create_employer(employer_dataset: DataFrame, address_data: DataFrame, all_areas: list) -> DataFrame:
     """
     Expands employer data into individual records and filters by specified areas.
 
     Args:
         employer_dataset (DataFrame): DataFrame containing employer 
             information with 'area', 'business_code', and 'employer' columns.
+        address_data (DataFrame): Address datasets
         all_areas (list): List of areas to include in the expanded DataFrame.
 
     Returns:
@@ -333,56 +334,26 @@ def create_employer(employer_dataset: DataFrame, all_areas: list) -> DataFrame:
         area = row["area"]
         business_code = row["business_code"]
         count = row["employer"]
-        
+        proc_address_data_area = address_data[
+            address_data["area"] == area]
+
         # Create individual records for each household
         for _ in range(count):
+            proc_address_data = proc_address_data_area.sample(n=1)
             employer_datasets.append({
                 "area_work": int(area),
                 "business_code": str(business_code),
+                "latitude": float(proc_address_data.latitude),
+                "longitude": float(proc_address_data.longitude),
                 "id": str(uuid4())[:6]  # Create a 6-digit unique ID
             })
     
     return DataFrame(employer_datasets)
 
 
-def place_agent_to_employer(employer_data: DataFrame, agent: Series) -> Series:
+def assign_agent_to_business_code(employee_data: DataFrame, agent: Series, employment_rate: float = 0.9) -> Series:
     """
-    Assigns an employer to an agent based on area and business code.
-
-    Args:
-        employer_data (DataFrame): DataFrame containing employer information with 'area', 'business_code', and 'id' columns.
-        agent (Series): Series containing agent information with 'area', 'business_code', and optionally 'employer' values.
-
-    Returns:
-        Series: The updated agent Series with an assigned 'employer' value.
-
-    Notes:
-        - If the agent's business code is None, the employer is set to None.
-        - If no matching employer is found, the employer is set to 'Unknown'.
-        - Otherwise, a random matching employer is selected.
-    """
-    if agent.area_work is None:
-        selected_employer = None
-    else:
-        selected_employers = employer_data[
-            (employer_data["area_work"] == agent.area_work) & 
-            (employer_data["business_code"] == agent.business_code)]
-        
-        if len(selected_employers) == 0:
-            selected_employer = "Unknown"
-        else:
-            selected_employer = selected_employers.sample(n=1).id.values[0]
-        
-    agent["employer"] = selected_employer
-
-    return agent
-
-    
-
-
-def assign_agent_to_employee(employee_data: DataFrame, agent: Series, employment_rate: float = 0.9) -> Series:
-    """
-    Assigns an employee status to an agent based on age, location, and employment rate.
+    Assigns an business_code to an agent based on age, location, and employment rate.
 
     Args:
         employee_data (DataFrame): DataFrame containing employee information with 'area' and 'percentage' columns.

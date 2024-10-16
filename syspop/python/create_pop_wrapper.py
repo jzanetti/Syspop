@@ -17,22 +17,15 @@ from syspop.python.work import work_and_commute_wrapper
 
 
 def create_base_pop(
-    tmp_data_path: str,
     pop_structure: DataFrame,
     syn_areas: list
 ):
     """Creating base population
 
     Args:
-        tmp_data_path (str): where to save the population data
         syn_areas (list): area to be processed
     """
-    synpop, synadd = base_pop_wrapper(
-        pop_structure, syn_areas
-    )
-
-    with open(tmp_data_path, "wb") as fid:
-        pickle_dump({"synpop": synpop, "synadd": synadd}, fid)
+    return base_pop_wrapper(pop_structure, syn_areas)
 
 
 def create_household(
