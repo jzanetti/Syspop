@@ -50,14 +50,16 @@ A synthetic population can be created using:
 from syspop.python.input import new_zealand
 from syspop.start import create as syspop_create
 
-output_dir = "/tmp/test"
+output_dir = "/tmp/syspop"
 nz_data = new_zealand()
-syn_areas = [236800, 237200]
+syn_areas = [241300, 241800]
 
 syspop_create(
     syn_areas,
     output_dir,
-    population = {"structure": nz_data["population_structure"]},
+    population = {
+        "structure": nz_data["population_structure"]
+    },
     geography = {
         "hierarchy": nz_data["geography_hierarchy"],
         "location": nz_data["geography_location"],
@@ -65,13 +67,15 @@ syspop_create(
     },
     household={"composition": nz_data["household_composition"]},
     work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"]},
-    commute={"travel_to_work": nz_data["commute_travel_to_work"]},
+    commute={
+        "travel_to_work": nz_data["commute_travel_to_work"], 
+        "travel_to_school": nz_data["commute_travel_to_school"]},
     education={
         "school": nz_data["school"],
         "kindergarten": nz_data["kindergarten"]
     },
-    healthcare={"hospital": nz_data["hospital"]},
     shared_space={
+        "hospital": nz_data["hospital"],
         "bakery": nz_data["shared_space_bakery"],
         "cafe": nz_data["shared_space_cafe"],
         "department_store": nz_data["shared_space_department_store"],
@@ -80,7 +84,7 @@ syspop_create(
         "pub": nz_data["shared_space_pub"],
         "restaurant": nz_data["shared_space_restaurant"],
         "supermarket": nz_data["shared_space_supermarket"],
-        "wholesale": nz_data["shared_space_wholesale"]
+        "wholesale": nz_data["shared_space_wholesale"],
     }
 )
 ```
@@ -89,7 +93,7 @@ syspop_create(
 ```
 source("syspop/r/global_vars.R")
 source("syspop/r/input.R")
-source("syspop/syspop.R")
+source("syspop/start.R")
 
 library(dplyr)
 library(tidyr)
@@ -101,47 +105,49 @@ library(lubridate)
 library(dplyr)
 library(uuid)
 library(tibble)
+library(fs)
+library(data.table)
 
 nz_data <- new_zealand()
 
 output_dir <- "/tmp/syspop"
-syn_areas <- c(241800, 242800, 241400, 242000)
+syn_areas <- c(241300, 241800)
 
-create_synthetic_population(
-    syn_areas = syn_areas,
-    output_dir = output_dir,
-    population = list(
-      structure = nz_data$population_structure
-    ),
-    household = list(
-      composition = nz_data$household_composition
-    ),
-    geography = list(
-      hierarchy = nz_data$geography_hierarchy,
-      location = nz_data$geography_location,
-      address = nz_data$geography_address
-    ),
-    work = list(
-      employer = nz_data$work_employer,
-      employee = nz_data$work_employee
-    ),
-    commute = list(
-      travel_to_work = nz_data$commute_travel_to_work
-    ),
-    education = list(
-      school = nz_data$school,
-      kindergarten = nz_data$kindergarten
-    ),
-    shared_space = list(
-      supermarket = nz_data$shared_space_supermarket,
-      restaurant = nz_data$shared_space_restaurant,
-      department_store = nz_data$shared_space_department_store,
-      wholesale = nz_data$shared_space_wholesale,
-      cafe = nz_data$shared_space_cafe,
-      fast_food = nz_data$shared_space_fast_food,
-      pub = nz_data$shared_space_pub,
-      park = nz_data$shared_space_park
-    )
+# Create the synthetic population, assuming syspop_create is a defined function in R or custom code
+create(
+  syn_areas = syn_areas,
+  output_dir = output_dir,
+  population = list(structure = nz_data$population_structure),
+  geography = list(
+    hierarchy = nz_data$geography_hierarchy,
+    location = nz_data$geography_location,
+    address = nz_data$geography_address
+  ),
+  household = list(composition = nz_data$household_composition),
+  work = list(
+    employee = nz_data$work_employee,
+    employer = nz_data$work_employer
+  ),
+  commute = list(
+    travel_to_work = nz_data$commute_travel_to_work,
+    travel_to_school = nz_data$commute_travel_to_school
+  ),
+  education = list(
+    school = nz_data$school,
+    kindergarten = nz_data$kindergarten
+  ),
+  shared_space = list(
+    hospital = nz_data$hospital,
+    bakery = nz_data$shared_space_bakery,
+    cafe = nz_data$shared_space_cafe,
+    department_store = nz_data$shared_space_department_store,
+    fast_food = nz_data$shared_space_fast_food,
+    park = nz_data$shared_space_park,
+    pub = nz_data$shared_space_pub,
+    restaurant = nz_data$shared_space_restaurant,
+    supermarket = nz_data$shared_space_supermarket,
+    wholesale = nz_data$shared_space_wholesale
+  )
 )
 ```
 

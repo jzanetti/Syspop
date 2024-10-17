@@ -1,5 +1,5 @@
 global_vars <- list(
-  nz_data_default = "etc/data/test_data",
+  NZ_DATA_DEFAULT = "etc/data/test_data",
   shared_space_nearest_distance_km = list(
     supermarket = 2.5,
     restaurant = 3.0,

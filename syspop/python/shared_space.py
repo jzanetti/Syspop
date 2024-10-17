@@ -84,12 +84,12 @@ def place_agent_to_shared_space_based_on_area(
         for proc_filter_key in filter_keys:
             if proc_filter_key in shared_space_data:
                 selected_spaces = selected_spaces[
-                    shared_space_data[proc_filter_key] == agent[proc_filter_key]
+                    agent[proc_filter_key] == selected_spaces[proc_filter_key]
                 ]
             else:
                 selected_spaces = selected_spaces[
-                    (agent[proc_filter_key] >= shared_space_data[f"{proc_filter_key}_min"]) &
-                    (agent[proc_filter_key] <= shared_space_data[f"{proc_filter_key}_max"])
+                    (agent[proc_filter_key] >= selected_spaces[f"{proc_filter_key}_min"]) &
+                    (agent[proc_filter_key] <= selected_spaces[f"{proc_filter_key}_max"])
                 ]
         if len(selected_spaces) == 0:
             selected_space_id = "Unknown"
@@ -193,32 +193,6 @@ def find_nearest_shared_space_from_household(
 
     updated_src_data[shared_space_type] = nearest_names
     return updated_src_data
-
-
-
-
-    """
-        nearest_indices = distance_matrix.argmin(axis=1)
-
-        nearest_rows = shared_space_data.iloc[nearest_indices].reset_index(drop=True)
-
-        nearest_rows.rename(columns={shared_space_name: f"tmp_{i}"}, inplace=True)
-
-        nearest_rows = nearest_rows.drop(columns=["area"])
-
-        # Remove shared space too far away
-        dis_value = distance_matrix[
-            numpy_arrange(nearest_indices.shape[0]), nearest_indices
-        ]
-        dis_indices = numpy_where(
-            dis_value > SHARED_SPACE_NEAREST_DISTANCE_KM[shared_space_name] / 110.0
-        )[0]
-
-        logger.info(
-            f"{shared_space_name}({i}, {area_name_key}): Removing {round((dis_indices.shape[0] / dis_value.shape[0]) * 100.0, 2)}% due to distance"
-        )
-
-    """
 
 
 

@@ -8,8 +8,6 @@ from syspop.start import create as syspop_create
 from warnings import filterwarnings
 filterwarnings("ignore")
 
-proj_year = None  # can be None or an actual year, e.g., None or 2028
-
 output_dir = "/tmp/syspop_test17/Wellington_test_v3.0"
 
 nz_data = new_zealand()
