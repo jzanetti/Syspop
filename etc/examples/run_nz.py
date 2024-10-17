@@ -10,7 +10,7 @@ filterwarnings("ignore")
 
 proj_year = None  # can be None or an actual year, e.g., None or 2028
 
-output_dir = "/tmp/syspop_test17/Wellington_test_v2.0"
+output_dir = "/tmp/syspop_test17/Wellington_test_v3.0"
 
 nz_data = new_zealand()
 
@@ -20,7 +20,7 @@ syn_areas = list(
     ]["area"]
 )
 
-syn_areas = [241300, 241500, 241800]
+syn_areas = [241300, 241800]
 
 syspop_create(
     syn_areas,

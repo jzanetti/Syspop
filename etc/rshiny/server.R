@@ -7,7 +7,7 @@ library(stringr)
 # source("etc/rshiny/data.R")
 source("data.R")
 
-data <- get_data(#base_dir="C:\\Users\\ZhangS\\Downloads\\Wellington_test_v2.0\\", 
+data <- get_data(#base_dir="C:\\Users\\ZhangS\\Downloads\\Wellington_test_v3.0\\", 
                  #base_dir_truth="C:\\Users\\ZhangS\\Downloads\\Syspop\\etc\\data\\test_data\\"
   )
 

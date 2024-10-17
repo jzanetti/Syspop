@@ -75,6 +75,7 @@ def place_agent_to_shared_space_based_on_area(
     selected_space_id = None
 
     if agent[f"area_{shared_space_type}"] is not None:
+
         selected_spaces = shared_space_data[
             shared_space_data[f"area_{shared_space_type}"] == 
             agent[f"area_{shared_space_type}"]
