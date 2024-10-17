@@ -230,21 +230,13 @@ def create_travel_wrapper(workdir: str, input_cfg: dict):
     """
 
     trave_to_work_data = _read_raw_travel_to_work(
-        input_cfg["commute"]["travel_to_work"])
+        input_cfg["commute"]["travel_to_work"], data_type="work")
 
-    # travel_methods = [item for item in list(
-    #    trave_to_work_data.columns) if item not in ["area_home", "area_work"]]
-
-    #trave_to_work_data["total_people"] = trave_to_work_data[
-    #    travel_methods].sum(axis=1)
-
-    #for method in travel_methods:
-    #    trave_to_work_data[f"{method}_percentage"] = trave_to_work_data[
-    #        method] / trave_to_work_data['total_people']
-
-    #trave_to_work_data.drop(columns=["total_people"], inplace=True)
+    trave_to_school_data = _read_raw_travel_to_work(
+        input_cfg["commute"]["travel_to_school"], data_type="school")
     
     trave_to_work_data.to_parquet(join(workdir, "commute_travel_to_work.parquet"))
+    trave_to_school_data.to_parquet(join(workdir, "commute_travel_to_school.parquet"))
 
 
 def create_population_wrapper(workdir: str, input_cfg: dict):

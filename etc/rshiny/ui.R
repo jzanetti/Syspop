@@ -16,8 +16,8 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput(
         "file_choice", 
-        "Select a Parquet File", 
-        choices = c("Base population", "Household", "Employment"), 
+        "Select a Parquet File",
+        choices = c("Base population", "Household", "Employer", "Employee"), 
         selected = "Base population"),
       uiOutput("xvar"),
       uiOutput("area_filter")

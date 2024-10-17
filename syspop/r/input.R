@@ -1,26 +1,11 @@
 source("syspop/r/global_vars.R")
 library(arrow)
 
-
-#' Retrieve Test Data from Catalog
-#'
-#' Reads the test data catalog, loads Parquet files, and organizes data into a nested list.
-#'
-#' @return A list containing test data, nested by data type, subtype1 (if available), and subtype2.
-#' @details
-#'   This function reads the test data catalog CSV file, iterates over each row,
-#'   reads the corresponding Parquet file, and stores the data in a nested list.
-#'
-#' @note
-#'   The catalog file should have four columns: data_type, data_subtype1, data_subtype2, and data_path.
-#'   If data_subtype1 is missing, data will be nested directly under data_type.
-#'  
-new_zealand <- function(data_dir = global_vars$nz_data_default) {
-  # Get data to create synthetic population
-  
+new_zealand <- function(data_dir = global_vars$NZ_DATA_DEFAULT) {
+  # Initialize an empty list to store data
   nz_data <- list()
-  nz_data$geography <- list()
   
+  # List of items to load
   items <- c(
     "population_structure", 
     "geography_hierarchy", 
@@ -28,6 +13,7 @@ new_zealand <- function(data_dir = global_vars$nz_data_default) {
     "geography_address",
     "household_composition",
     "commute_travel_to_work",
+    "commute_travel_to_school",
     "work_employee",
     "work_employer",
     "school",
@@ -44,10 +30,14 @@ new_zealand <- function(data_dir = global_vars$nz_data_default) {
     "shared_space_wholesale"
   )
   
+  # Loop through each item and attempt to load corresponding parquet file
   for (item in items) {
     proc_path <- file.path(data_dir, paste0(item, ".parquet"))
+    
+    # Check if the file exists
     if (file.exists(proc_path)) {
-      nz_data[[item]] <- arrow::read_parquet(proc_path)
+      # Read the parquet file and store in the list
+      nz_data[[item]] <- read_parquet(proc_path)
     }
   }
   

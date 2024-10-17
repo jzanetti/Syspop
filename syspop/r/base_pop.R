@@ -1,52 +1,61 @@
-#' Base Population Wrapper Function
+#' Create Base Population
 #'
-#' This function generates a base population dataset by combining gender and ethnicity data.
+#' This function generates a synthetic base population by repeating rows in the
+#' input data frame based on the values specified in the "value" column.
+#' It filters the data frame based on the specified area if a filter is provided.
+#' The output includes an index column representing the row number.
 #'
-#' @param gender_data Data frame containing gender information.
-#' @param ethnicity_data Data frame containing ethnicity information.
-#' @param output_area_filter Optional vector of output areas to filter data by.
-#' @param ref_population Reference population, defaults to "gender".
+#' @param structure_data A data frame containing the population structure data.
+#'                       It must include a column named "area" and a column named "value".
+#' @param output_area_filter An optional vector of area IDs to filter the rows of
+#'                           the structure_data. If NULL, no filtering is applied.
 #'
-#' @details
-#' The function performs the following steps:
-#'  1. Filters data by output area if provided.
-#'  2. Melts data into long format.
-#'  3. Normalizes data by calculating probabilities.
-#'  4. Loops through each output area and age to create the base population.
-#'  
-#'  The output looks like:
-#'       area ethnicity   age gender index
-#'     <int> <chr>     <int> <chr>  <int>
-#'   1 241400 European      0 female     1
-#'   2 241400 European      0 female     2
-#'   3 241400 European      0 female     3
-#'   4 241400 European      0 female     4
-#'   ....
+#' @return A data frame containing the generated base population with repeated rows.
+#'         The "value" column is removed, and a new column "index" is added that
+#'         contains the row numbers.
 #'
-#' @return A data frame containing the generated base population.
-#' @export
-#' 
+#' @examples
+#' # Example of using the base_pop_wrapper function
+#' data <- data.frame(area = c(241300, 241300, 241301),
+#'                    value = c(12, 9, 15))
+#' population <- base_pop_wrapper(data, output_area_filter = c(241300))
+#' print(population)
+#'
 base_pop_wrapper <- function(
-    structure_data,
+    structure_data, 
     output_area_filter = NULL
 ) {
-  start_time <- Sys.time()
-  # Filter data by output area if provided
+
+  # Start the timer
+  start_time <- now(tz = "UTC")
+  
+  # Filter based on output_area_filter if provided
   if (!is.null(output_area_filter)) {
-    structure_data <- structure_data %>% filter(area %in% output_area_filter)
+    structure_data <- structure_data[structure_data$area %in% output_area_filter, ]
+  }
+
+  # Repeat rows based on the "value" column and drop the "value" column
+  if (!is.null(structure_data)) {
+    
+    population <- structure_data %>%
+      as.data.frame() %>%  # Ensure we are working with a data frame
+      .[rep(1:nrow(.), times = as.integer(.$value)), ] %>%
+      select(-value)  # Remove the value column
+    
+    rownames(population) <- NULL
+
+    population <- population %>%
+      mutate(index = row_number())
   }
   
-  population <- structure_data %>%
-    uncount(weights = as.integer(value))  # Repeat rows by "value" column
-  population = population[ , !(names(population) %in% c("value"))]
+  # End the timer
+  end_time <- now(tz = "UTC")
   
-  population$age <- as.integer(population$age)
-  population$index <- seq_len(nrow(population))
-
-  # Calculate processing time
-  end_time <- Sys.time()
-  total_mins <- as.numeric(end_time - start_time, units = "mins")
-  print(paste0("Processing time (base population): ", round(total_mins, 2)))
+  # Calculate the processing time in minutes
+  total_mins <- round(as.numeric(difftime(end_time, start_time, units = "mins")), 2)
+  
+  # Log the processing time
+  print(sprintf("Processing time (base population): %.2f minutes", total_mins))
   
   return(population)
 }

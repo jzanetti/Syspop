@@ -17,7 +17,7 @@ source("syspop/r/shared_space.R")
 #' @param ref_population A string that defines the reference population; defaults to "gender". 
 #'                       This can be adjusted based on the requirements of the population generation.
 #' 
-#' @return NULL. The function saves the generated base population data to the specified file path.
+#' @return NA. The function saves the generated base population data to the specified file path.
 #' 
 create_base_pop <- function(
     tmp_dir,

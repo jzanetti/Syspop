@@ -24,6 +24,7 @@ def new_zealand(data_dir: str = NZ_DATA_DEFAULT) -> dict:
         "geography_address",
         "household_composition",
         "commute_travel_to_work",
+        "commute_travel_to_school",
         "work_employee",
         "work_employer",
         "school",
@@ -44,3 +45,17 @@ def new_zealand(data_dir: str = NZ_DATA_DEFAULT) -> dict:
             nz_data[item] = read_parquet(proc_path)
 
     return nz_data
+
+
+def load_llm_diary(data_dir: str = NZ_DATA_DEFAULT):
+    """Load LLM based diary data
+
+    Args:
+        data_dir (str, optional): _description_. Defaults to NZ_DATA_DEFAULT.
+
+    Returns:
+        _type_: _description_
+    """
+    with open(f"{data_dir}/llm_diary.pickle", "rb") as fid:
+        llm_diary_data = pickle_load(fid)
+    return llm_diary_data

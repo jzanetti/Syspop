@@ -1,6 +1,6 @@
 source("syspop/r/global_vars.R")
 source("syspop/r/input.R")
-source("syspop/syspop.R")
+source("syspop/start.R")
 
 library(dplyr)
 library(tidyr)
@@ -12,51 +12,47 @@ library(lubridate)
 library(dplyr)
 library(uuid)
 library(tibble)
+library(fs)
+library(data.table)
 
 nz_data <- new_zealand()
 
 output_dir <- "/tmp/syspop"
+syn_areas <- c(241300, 241800)
 
-syn_areas <- c(241800, 242800, 241400, 242000)
-# syn_areas <- test_data$`geog_data//hierarchy` %>%
-#  filter(region == "Wellington") %>%
-#  pull(area)
-# syn_areas <- unique(test_data$`geog_data//hierarchy`$area)
-
-create_synthetic_population(
-    syn_areas = syn_areas,
-    output_dir = output_dir,
-    population = list(
-      structure = nz_data$population_structure
-    ),
-    household = list(
-      composition = nz_data$household_composition
-    ),
-    geography = list(
-      hierarchy = nz_data$geography_hierarchy,
-      location = nz_data$geography_location,
-      address = nz_data$geography_address
-    ),
-    work = list(
-      employer = nz_data$work_employer,
-      employee = nz_data$work_employee
-    ),
-    commute = list(
-      travel_to_work = nz_data$commute_travel_to_work
-    ),
-    education = list(
-      school = nz_data$school,
-      kindergarten = nz_data$kindergarten
-    ),
-    shared_space = list(
-      supermarket = nz_data$shared_space_supermarket,
-      restaurant = nz_data$shared_space_restaurant,
-      department_store = nz_data$shared_space_department_store,
-      wholesale = nz_data$shared_space_wholesale,
-      cafe = nz_data$shared_space_cafe,
-      fast_food = nz_data$shared_space_fast_food,
-      pub = nz_data$shared_space_pub,
-      park = nz_data$shared_space_park
-    )
+# Create the synthetic population, assuming syspop_create is a defined function in R or custom code
+create(
+  syn_areas = syn_areas,
+  output_dir = output_dir,
+  population = list(structure = nz_data$population_structure),
+  geography = list(
+    hierarchy = nz_data$geography_hierarchy,
+    location = nz_data$geography_location,
+    address = nz_data$geography_address
+  ),
+  household = list(composition = nz_data$household_composition),
+  work = list(
+    employee = nz_data$work_employee,
+    employer = nz_data$work_employer
+  ),
+  commute = list(
+    travel_to_work = nz_data$commute_travel_to_work,
+    travel_to_school = nz_data$commute_travel_to_school
+  ),
+  education = list(
+    school = nz_data$school,
+    kindergarten = nz_data$kindergarten
+  ),
+  shared_space = list(
+    hospital = nz_data$hospital,
+    bakery = nz_data$shared_space_bakery,
+    cafe = nz_data$shared_space_cafe,
+    department_store = nz_data$shared_space_department_store,
+    fast_food = nz_data$shared_space_fast_food,
+    park = nz_data$shared_space_park,
+    pub = nz_data$shared_space_pub,
+    restaurant = nz_data$shared_space_restaurant,
+    supermarket = nz_data$shared_space_supermarket,
+    wholesale = nz_data$shared_space_wholesale
+  )
 )
-

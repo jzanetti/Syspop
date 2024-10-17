@@ -1,310 +1,228 @@
-source("syspop/r/global_vars.R")
+#' Create Shared Space Data
+#'
+#' This function creates a DataFrame of shared space data by transforming the input DataFrame.
+#'
+#' It extracts the 'area', 'latitude', and 'longitude' columns from the provided DataFrame. 
+#' It then generates a new DataFrame where each row corresponds to an entry in the input data, 
+#' with an added unique identifier for each entry.
+#'
+#' @param shared_space_data A data frame containing at least the 'area', 
+#'                          'latitude', and 'longitude' columns.
+#'
+#' @return A new data frame containing the transformed shared space data, 
+#'         with 'area' as an integer, a unique 'id' as a string (first 6 
+#'         characters of a UUID), and 'latitude' and 'longitude' as floats.
+#'
+create_shared_data <- function(shared_space_data) {
+  
+  # Select relevant columns
+  shared_space_data <- shared_space_data %>%
+    select(area, latitude, longitude)
+  
+  # Initialize an empty list to store the shared space records
+  shared_space_datas <- list()
+  
+  # Loop through each row in the shared_space_data
+  for (i in seq_len(nrow(shared_space_data))) {
+    row <- shared_space_data[i, ]
+    
+    # Append the new record to the list
+    shared_space_datas[[i]] <- data.frame(
+      area = as.integer(row$area),
+      id = substr(UUIDgenerate(), 1, 6),  # Create a unique 6-character ID
+      latitude = as.numeric(row$latitude),
+      longitude = as.numeric(row$longitude),
+      stringsAsFactors = FALSE  # Avoid factors in data frame
+    )
+  }
+  
+  # Bind rows into a single data frame
+  return(bind_rows(shared_space_datas))
+}
 
-#' Calculate Distances between Population and Shared Space Coordinates
+#' Find Nearest Shared Space from Households
 #'
-#' This function calculates the Euclidean distance between the coordinates
-#' of the population data and the coordinates of the specified shared space data.
+#' This function identifies the nearest shared spaces to households based on geographic location.
+#' It computes the Euclidean distances between households and shared spaces and returns a data
+#' frame that includes the specified number of nearest shared spaces for each household.
 #'
-#' @param pop_data A data frame containing the population data with columns 
-#'        for source latitude (src_latitude) and source longitude 
-#'        (src_longitude).
-#' @param shared_space_data A data frame containing the shared space 
-#'        data with latitude and longitude columns named based on the 
-#'        specified `shared_space_name`.
-#' @param shared_space_name A character string indicating the name of the 
-#'        shared space whose coordinates will be used for distance 
-#'        calculation.
+#' @param household_data A data frame containing household information, including an area column.
+#'                       The data frame should have at least the columns: 'area'.
+#' @param shared_space_address A data frame with shared space details, including their latitude
+#'                             and longitude coordinates, and an 'id' column for identification.
+#' @param geography_location A data frame containing geographic data, which includes 'area',
+#'                           'latitude', and 'longitude' columns.
+#' @param shared_space_type A string that specifies the name of the column to store the nearest
+#'                          shared space information in the returned data frame.
+#' @param n An integer specifying the number of nearest shared spaces to return for each household.
+#'          Default is 2.
 #'
-#' @return A matrix of distances where each entry corresponds to the 
-#'         Euclidean distances between each point in `pop_data` and 
-#'         each point in `shared_space_data`. The output is structured so
-#'         that rows correspond to the `pop_data` entries and columns 
-#'         correspond to the `shared_space_data` entries.
+#' @return A data frame that contains the original `geography_location` data along with an additional
+#'         column specified by `shared_space_type`, listing the nearest shared spaces to each household.
+#'         If no shared spaces are found, it returns "Unknown" for that household.
 #'
 #' @examples
-#' pop_data <- data.frame(src_latitude = c(34.05, 36.16), 
-#'                         src_longitude = c(-118.25, -115.15))
-#' shared_space_data <- data.frame(latitude_space = c(34.00, 36.20), 
-#'                                   longitude_space = c(-118.20, -115.10))
-#' distances <- get_dis(pop_data, shared_space_data, "space")
-get_dis <- function(
-    pop_data,
-    shared_space_data,
-    shared_space_name) {
+#' # Assuming household_data, shared_space_address, and geography_location are already defined:
+#' result <- find_nearest_shared_space_from_household(household_data, 
+#'                                                    shared_space_address, 
+#'                                                    geography_location, 
+#'                                                    shared_space_type = "nearest_spaces", 
+#'                                                    n = 3)
+#'
+find_nearest_shared_space_from_household <- function(household_data, 
+                                                     shared_space_address, 
+                                                     geography_location, 
+                                                     shared_space_type, 
+                                                     n = 2) {
   
-  src_coordinates <- pop_data[, c("src_latitude", "src_longitude")]
-  shared_coordinates <- shared_space_data[, c(paste0("latitude_", shared_space_name), paste0("longitude_", shared_space_name))]
-  colnames(shared_coordinates) <- c("src_latitude", "src_longitude")
+  # Filter geography_location for areas present in household_data
+  updated_src_data <- geography_location %>%
+    filter(area %in% unique(household_data$area))
   
-  # Combine both sets of coordinates
-  combined_coordinates <- rbind(src_coordinates, shared_coordinates)
+  # Extract latitude and longitude as a matrix
+  coords1 <- as.matrix(updated_src_data[, c("latitude", "longitude")])
+  coords2 <- as.matrix(shared_space_address[, c("latitude", "longitude")])
   
-  # Calculate the distance matrix
+  # Combine coordinates into a single matrix
+  combined_coordinates <- rbind(coords1, coords2)
+  
+  # Compute distances using dist() for Euclidean distance
   distance_matrix <- as.matrix(dist(combined_coordinates, method = "euclidean"))
   
-  # Extract the distances corresponding to the two sets of coordinates
-  # The first n rows correspond to pop_data, the next rows correspond to shared_space_data
-  distance_matrix <- distance_matrix[1:nrow(src_coordinates), (nrow(src_coordinates) + 1):ncol(distance_matrix)]
+  # The distance_matrix will contain distances between all points in combined_coordinates.
+  # Extract the relevant distances for the households.
+  n_households <- nrow(coords1)
+  distances <- distance_matrix[1:n_households, (n_households + 1):ncol(distance_matrix)]
+  
+  # Find the nearest n indices for each household
+  nearest_indices <- apply(distances, 1, order)[1:n, ]
+  
+  # Process the nearest names
+  nearest_names <- vector("list", nrow(coords1))
+  for (i in 1:nrow(coords1)) {
+    proc_names <- shared_space_address$id[nearest_indices[i,]]
+    nearest_names[[i]] <- ifelse(length(proc_names) == 0, "Unknown", paste(proc_names, collapse = ", "))
+  }
+  
+  # Add the nearest names to updated_src_data
+  updated_src_data[[shared_space_type]] <- sapply(nearest_names, function(x) x)
+  
+  return(updated_src_data)
 }
 
 
-#' Add Shared Space Address to Address Data
+#' Place Agent to Shared Space Based on Area
 #'
-#' This function extracts unique shared space values from the provided 
-#' population data, retrieves the corresponding latitude and longitude 
-#' from the shared space data, and appends this information to the 
-#' existing address data.
+#' Assigns an agent to a shared space based on specified area criteria. This function 
+#' selects a shared space from the provided data based on the agent's area and other 
+#' filtering criteria. If multiple shared spaces meet the criteria, one is randomly 
+#' selected, optionally weighted by a specified key.
 #'
-#' @param pop_data A data frame containing population data, which includes 
-#'        a column specified by `shared_space_name` containing shared 
-#'        space identifiers as comma-separated values.
-#' @param shared_space_data A data frame containing shared space data 
-#'        with columns for shared space names, latitude, and longitude.
-#' @param address_data A data frame to which the shared space address 
-#'        information will be added.
-#' @param shared_space_name A character string indicating the name of the 
-#'        column in both `pop_data` and `shared_space_data` that contains 
-#'        shared space identifiers.
+#' @param shared_space_data A data frame containing shared space information, including 
+#'                          area and filter criteria.
+#' @param agent A named vector representing an agent with area and filter values.
+#' @param shared_space_type A string indicating the type of shared space to which the 
+#'                          agent is being assigned.
+#' @param filter_keys A character vector of keys used for additional filtering of 
+#'                    shared spaces. Defaults to an empty character vector.
+#' @param weight_key A string indicating the key used for weighting the selection of 
+#'                   shared spaces. If NULL, selection is uniform. Defaults to NULL.
+#' @param shared_space_type_convert A list (named vector) for converting shared space types. 
+#'                                   If NULL, no conversion is applied. Defaults to NULL.
 #'
-#' @return A data frame containing the updated address data with the 
-#'         shared space addresses included.
-#'
-#' @examples
-#' pop_data <- data.frame(shared_space_name = c("Space1,Space2", "Space3"))
-#' shared_space_data <- data.frame(name = c("Space1", "Space2", "Space3"),
-#'                                   latitude_space1 = c(34.05, 36.16, 40.71),
-#'                                   longitude_space1 = c(-118.25, -115.15, -74.00))
-#' address_data <- data.frame(existing_address = c("Address1", "Address2"))
-#' updated_data <- add_shared_space_address(pop_data, shared_space_data, 
-#'                                           address_data, "shared_space_name")
-add_shared_space_address <- function(pop_data, shared_space_data, address_data, shared_space_name) {
-  # Extract unique shared space values
-  
-  if(all(sapply(pop_data[[shared_space_name]], is.na))) {
-    return(address_data)
-  }
-  else{
-    unique_shared_space <- unique(unlist(strsplit(pop_data[[shared_space_name]], ",")))
-    
-    # Get the lat/lon for unique shared space
-    unique_shared_space_data <- shared_space_data %>%
-      filter(sapply(shared_space_data[[shared_space_name]], function(x) {
-        any(unique_shared_space %in% strsplit(x, ",")[[1]])
-      })) %>%
-      distinct()
-    
-    # Rename columns
-    unique_shared_space_data <- unique_shared_space_data %>%
-      rename(
-        name = !!sym(shared_space_name),
-        latitude = !!sym(paste0("latitude_", shared_space_name)),
-        longitude = !!sym(paste0("longitude_", shared_space_name))
-      )
-    
-    # Add type column
-    unique_shared_space_data$type <- shared_space_name
-    
-    # Concatenate address_data and unique_shared_space_data
-    updated_address_data <- bind_rows(address_data, unique_shared_space_data)
-    
-    return(updated_address_data)
-  }
-}
-
-
-#' Remove Duplicate Shared Space Values
-#'
-#' This function takes a comma-separated string, splits it into individual 
-#' values, removes any duplicates, and then joins the unique values back 
-#' into a single comma-separated string.
-#'
-#' @param row A character string containing comma-separated values, 
-#'        which may include duplicates.
-#'
-#' @return A character string with duplicates removed, containing only 
-#'         unique values separated by commas.
+#' @return A named vector representing the updated agent with the selected shared space 
+#'         ID assigned to the corresponding shared_space_type.
 #'
 #' @examples
-#' result <- remove_duplicates_shared_space("x1,x2,x1,x3,x2")
-#' # result will be "x1,x2,x3"
-remove_duplicates_shared_space <- function(row) {
-  # Split the row into individual values using the comma as a separator
-  values <- unlist(strsplit(row, ","))
-  
-  # Remove duplicates by converting to a unique set
-  unique_values <- unique(values)
-  
-  # Join the unique values back into a single string, separated by commas
-  return(paste(unique_values, collapse = ","))
-}
-
-#' Process Shared Space Data for Population and Address Information
+#' # Assuming shared_space_data is a data frame and agent is a named vector
+#' updated_agent <- place_agent_to_shared_space_based_on_area(
+#'     shared_space_data,
+#'     agent,
+#'     shared_space_type = "office",
+#'     filter_keys = c("capacity"),
+#'     weight_key = "popularity"
+#' )
 #'
-#' This function processes shared space data to enrich population data 
-#' and address data with geographic information. It computes distances 
-#' from population locations to shared spaces and appends the nearest 
-#' shared spaces to the population data. If specified, it can also 
-#' update the address data with shared space information.
-#'
-#' @param shared_space_name A character string representing the name 
-#'        of the shared space column.
-#' @param shared_space_data A data frame containing shared space data 
-#'        with latitude, longitude, and name columns.
-#' @param pop_data A data frame containing population data that will 
-#'        be enriched with shared space information.
-#' @param address_data A data frame containing address data that may 
-#'        be updated with shared space addresses.
-#' @param household_address A data frame containing household addresses 
-#'        with latitude and longitude for merging.
-#' @param geography_location_data A data frame containing geographic 
-#'        location data to merge with population data based on the area.
-#' @param num_nearest An integer specifying the number of nearest shared 
-#'        spaces to find for each population entry (default is 3).
-#' @param assign_address_flag A logical flag indicating whether to 
-#'        assign shared space addresses to the address data (default is 
-#'        FALSE).
-#' @param area_name_key A character string representing the key for 
-#'        the area name (default is "area").
-#'
-#' @return A list containing the updated population data and address 
-#'         data. The population data includes the nearest shared spaces 
-#'         for each entry, while the address data is updated if the 
-#'         `assign_address_flag` is TRUE.
-#'
-#' @examples
-#' shared_space_data <- data.frame(name = c("Space1", "Space2"), 
-#'                                   latitude = c(34.05, 36.16), 
-#'                                   longitude = c(-118.25, -115.15))
-#' pop_data <- data.frame(household = c("HH1", "HH2"), 
-#'                         area_work = c("Area1", "Area2"))
-#' address_data <- data.frame(existing_address = c("Address1", "Address2"))
-#' household_address <- data.frame(household = c("HH1", "HH2"), 
-#'                                   latitude = c(34.05, 36.16), 
-#'                                   longitude = c(-118.25, -115.15))
-#' geography_location_data <- data.frame(area = c("Area1", "Area2"),
-#'                                       latitude = c(34.00, 36.00),
-#'                                       longitude = c(-118.00, -115.00))
-#' result <- shared_space_wrapper("shared_space", shared_space_data, 
-#'                                 pop_data, address_data, 
-#'                                 household_address, 
-#'                                 geography_location_data, 
-#'                                 num_nearest = 2, 
-#'                                 assign_address_flag = TRUE)
-shared_space_wrapper <- function(
-    shared_space_name,
-    shared_space_data,
-    pop_data,
-    address_data,
-    household_address,
-    geography_location_data,
-    num_nearest = 3,
-    area_name_key = "area"
-) {
+#' @export
+place_agent_to_shared_space_based_on_area <- function(shared_space_data, agent, shared_space_type,
+                                                      filter_keys = character(0), weight_key = NULL,
+                                                      shared_space_type_convert = NULL) {
   
-  if(num_nearest == 0){
-    return(list(pop_data = pop_data, address_data = address_data))
-  }
+  selected_space_id <- NULL
   
-  # Rename columns in shared_space_data
-  names(shared_space_data)[names(shared_space_data) == "latitude"] <- paste0("latitude_", shared_space_name)
-  names(shared_space_data)[names(shared_space_data) == "longitude"] <- paste0("longitude_", shared_space_name)
-  names(shared_space_data)[names(shared_space_data) == "name"] <- shared_space_name
-  
-  if (area_name_key == "area") {
-    pop_data <- merge(
-      pop_data,
-      household_address[, c("household", "latitude", "longitude")],
-      by = "household",
-      all.x = TRUE
-    )
-    names(pop_data)[names(pop_data) == "latitude"] <- "src_latitude"
-    names(pop_data)[names(pop_data) == "longitude"] <- "src_longitude"
-  } else {
-    geography_location_data_updated <- geography_location_data
-    names(geography_location_data_updated)[names(geography_location_data_updated) == "area"] <- area_name_key
-    names(geography_location_data_updated)[names(geography_location_data_updated) == "latitude"] <- paste0(area_name_key, "_latitude")
-    names(geography_location_data_updated)[names(geography_location_data_updated) == "longitude"] <- paste0(area_name_key, "_longitude")
+  if (!is.null(agent[[paste0("area_", shared_space_type)]])) {
     
-    pop_data <- merge(
-      pop_data,
-      geography_location_data_updated,
-      by = "area_work",
-      all.x = TRUE
-    )
+    selected_spaces <- shared_space_data[
+      shared_space_data[[paste0("area_", shared_space_type)]] == 
+        agent[[paste0("area_", shared_space_type)]], 
+    ]
     
-    names(pop_data)[names(pop_data) == paste0("area_work_latitude")] <- "src_latitude"
-    names(pop_data)[names(pop_data) == paste0("area_work_longitude")] <- "src_longitude"
-  }
-  
-  for (i in 0:(num_nearest - 1)) {
-    if (i == 0) {
-      distance_matrix <- get_dis(pop_data,
-        shared_space_data,
-        shared_space_name)
+    if (nrow(selected_spaces) == 0) {
+      selected_space_id <- "Unknown"
     } else {
-      distance_matrix[cbind(seq_along(nearest_indices), nearest_indices)] <- Inf
+      for (proc_filter_key in filter_keys) {
+        if (proc_filter_key %in% names(shared_space_data)) {
+          selected_spaces <- selected_spaces[
+            agent[[proc_filter_key]] == selected_spaces[[proc_filter_key]], 
+          ]
+        } else {
+          selected_spaces <- selected_spaces[
+            (agent[[proc_filter_key]] >= selected_spaces[[paste0(proc_filter_key, "_min")]]) &
+              (agent[[proc_filter_key]] <= selected_spaces[[paste0(proc_filter_key, "_max")]]), 
+          ]
+        }
+      }
+      if (nrow(selected_spaces) == 0) {
+        selected_space_id <- "Unknown"
+      }
+      else {
+        if (is.null(weight_key)) {
+          selected_space_id <- sample(selected_spaces$id, size = 1)
+        } else {
+          weights <- selected_spaces[[weight_key]]
+          selected_space_id <- selected_spaces$id[
+            sample(nrow(selected_spaces), size = 1, prob = weights / sum(weights))
+          ]
+        }
+      }
     }
-    
-    nearest_indices <- apply(distance_matrix, 1, which.min)
-    
-    nearest_rows <- shared_space_data[nearest_indices, , drop = FALSE]
-    colnames(nearest_rows)[colnames(nearest_rows) == shared_space_name] <- paste0("tmp_", i)
-    nearest_rows <- nearest_rows[, !colnames(nearest_rows) %in% "area"]
-    
-    # Remove shared space too far away
-    dis_value <- distance_matrix[cbind(seq_along(nearest_indices) , nearest_indices)]
-    dis_indices <- which(
-      dis_value > global_vars$shared_space_nearest_distance_km[[shared_space_name]] / 110.0)
-    
-    print(sprintf(
-      "%s(%d, %s): Removing %.2f%% due to distance", 
-      shared_space_name, 
-      i, 
-      area_name_key, 
-      (length(dis_indices) / length(dis_value)) * 100.0))
-    
-    for (j in dis_indices) {
-      nearest_rows[j, ] <- NA  # Use double brackets to assign NA to the list element
-    }
-    
-    pop_data <- cbind(pop_data, nearest_rows)
-    
-    pop_data[pop_data[[area_name_key]] == -9999, paste0("tmp_", i)] <- ""
-    
-    pop_data <- pop_data[, !colnames(pop_data) %in% c(paste0("latitude_", shared_space_name), paste0("longitude_", shared_space_name))]
   }
   
-  for (i in 0:(num_nearest - 1)) {
-    # Convert the column tmp_i to character and concatenate to shared_space_name
-    pop_data[[shared_space_name]] <- paste(
-      pop_data[[shared_space_name]],
-      as.character(pop_data[[paste0("tmp_", i)]]), 
-      sep = ","
-    )
-    # Remove the temporary column
-    pop_data[[paste0("tmp_", i)]] <- NULL
+  if (!is.null(shared_space_type_convert)) {
+    shared_space_type <- shared_space_type_convert[[shared_space_type]]
   }
   
-  pop_data[[shared_space_name]] <- gsub("^,", "", pop_data[[shared_space_name]])
-  pop_data[[shared_space_name]] <- ifelse(
-    pop_data[[shared_space_name]] == "NA,NA", 
-    NA, 
-    gsub(",NA$", "", pop_data[[shared_space_name]])
-  )
-  pop_data <- pop_data[, !colnames(pop_data) %in% c("src_latitude", "src_longitude")]
-
-  if (!is.null(address_data)) {
-    address_data <- add_shared_space_address(
-      pop_data, 
-      shared_space_data, 
-      address_data, 
-      shared_space_name)
-  }
-
-  if(!all(sapply(pop_data[[shared_space_name]], is.na))){
-    pop_data[[shared_space_name]] <- sapply(
-      pop_data[[shared_space_name]], remove_duplicates_shared_space)
-  }
-
-  return(list(pop_data = pop_data, address_data = address_data))
+  agent[[shared_space_type]] <- selected_space_id
+  
+  return(agent)
 }
+
+
+# Function to place agent to shared space based on distance
+
+place_agent_to_shared_space_based_on_distance <- function(agent, shared_space_loc) {
+  #' Assign an agent to a shared space based on their area attribute.
+  #'
+  #' This function updates an agent's location based on shared space data for a given area.
+  #' It finds the corresponding shared space location that matches the agent's area and 
+  #' assigns the location attributes (like latitude and longitude) to the agent.
+  #'
+  #' @param agent A dataframe or named vector representing the agent, which contains an 'area' attribute.
+  #' @param shared_space_loc A dataframe containing shared space locations, including an 'area' column.
+  #'
+  #' @return The updated agent with shared space location details (e.g., latitude, longitude).
+  
+  # Iterate over each column in shared_space_loc
+  for (proc_shared_space_name in names(shared_space_loc)) {
+    
+    # Extract the shared space data for the current shared space name
+    proc_shared_space_loc <- shared_space_loc[[proc_shared_space_name]]
+    
+    # Assign the relevant location to the agent where area matches
+    agent[[proc_shared_space_name]] <- shared_space_loc[[proc_shared_space_name]][
+      shared_space_loc[[proc_shared_space_name]]$area == agent$area, proc_shared_space_name][[1]]
+  }
+  
+  return(agent)
+}
+
