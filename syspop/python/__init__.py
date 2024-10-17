@@ -119,29 +119,16 @@ DIARY_CFG = {
 
 
 SHARED_SPACE_NEAREST_DISTANCE_KM = {
-    "restaurant": 3.0,
-    "fast_food": 2.0,
-    "pub": 2.0,
-    "supermarket": 2.5,
-    "pharmacy": 5.0,
-    "cafe": 2.0,
-    "department_store": 10.0,
+    "restaurant": 5.0,
+    "fast_food": 5.0,
+    "pub": 5.0,
+    "supermarket": 10.0,
+    "bakery": 5.0,
+    "cafe": 5.0,
+    "department_store": 15.0,
     "wholesale": 10.0,
-    "park": 3.0,
+    "park": 10.0,
+    "hospital": 50.0
 }
-
-SHARED_PLACE_AREA_NUMS = {
-    "supermarket": {"area": 2},
-    "restaurant": {"area": 3, "area_work": 0},
-    "pharmacy": {"area": 2},
-    "cafe": {"area": 2},
-    "department_store": {"area": 2},
-    "wholesale": {"area": 2},
-    "fast_food": {"area": 1, "area_work": 0},
-    "pub": {"area": 1},
-    "park": {"area": 1}
-}
-
-
 
 NZ_DATA_DEFAULT = "etc/data/test_data"

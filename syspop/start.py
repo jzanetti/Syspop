@@ -1,39 +1,20 @@
 from datetime import datetime
-from functools import reduce as functools_reduce
 from os import makedirs
 from os.path import exists, join
-from pickle import load as pickle_load
 
-from numpy import nan as numpy_nan
-from numpy import unique as numpy_unique
-from numpy import zeros as numpy_zeros
+
 from pandas import DataFrame
 from pandas import concat as pandas_concat
 from pandas import cut as pandas_cut
-from pandas import merge as pandas_merge
-from pandas import read_parquet as pandas_read_parquet
+
 from syspop.python.diary import (
     create_diary,
     map_loc_to_diary,
     quality_check_diary,
 )
 from syspop.python.utils import merge_syspop_data, setup_logging
-from syspop.python.validate import (
-    validate_base_pop_and_age,
-    validate_commute_area,
-    validate_commute_mode,
-    validate_household,
-    validate_mmr,
-    validate_work,
-)
-from syspop.python.vis import (
-    plot_average_occurence_charts,
-    plot_location_occurence_charts_by_hour,
-    plot_location_timeseries_charts,
-    plot_map_html,
-    plot_pie_charts,
-    plot_travel_html,
-)
+
+
 from syspop.python.base_pop import base_pop_wrapper
 from syspop.python.household import create_households, place_agent_to_household
 from syspop.python.work import assign_agent_to_business_code, create_business_code_probability, create_employer

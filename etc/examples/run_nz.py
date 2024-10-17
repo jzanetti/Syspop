@@ -20,7 +20,7 @@ syn_areas = list(
     ]["area"]
 )
 
-syn_areas = [241300, 241800]
+syn_areas = [241300, 241500, 241800]
 
 syspop_create(
     syn_areas,
