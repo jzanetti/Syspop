@@ -115,7 +115,7 @@ AREAS_CONSISTENCY_CHECK = {
 }
 
 
-POPULATION_STRUCTURE_CODE = {
+POPULATION_CODE = {
     "ethnicity": {1: "European", 2: "Maori", 3: "Pacific", 4: "Asian", 5: "MELAA"},
     "gender": {1: "male", 2: "female", 3: "other"}
 }

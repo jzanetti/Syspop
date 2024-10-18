@@ -21,6 +21,7 @@ from funcs.preproc import (
     _read_raw_geography_hierarchy, 
     _read_raw_geography_location_area, 
     _read_raw_travel_to_work, 
+    _read_raw_income_data,
     _read_raw_employer_employee_data)
 
 logger = getLogger()
@@ -172,12 +173,12 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
         159241  100100             K                6                0        
 
     In addition, the income data looks like:
-            business_code  sex     age  ethnicity  value
-        137488             A    1   15-19          1    166
-        137498             A    1   60-64          1   1215
-        137508             A    1  65-999          1   1247
-        137513             A    1  65-999          2    945
-        137523             A    1   20-24          1   1036
+               business_code     sex     age  ethnicity  value
+        137488             A    Male   15-19      Asian    166
+        137498             A    Male   60-64   European   1215
+        137508             A  Female  65-999      Maori   1247
+        137513             A    Male  65-999      Maori    945
+        137523             A    Male   20-24      Maori   1036
         ...              ...  ...     ...        ...    ...            
 
     Args:
@@ -185,7 +186,7 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
     """
     data = _read_raw_employer_employee_data(input_cfg["work"]["employer_employee_num"])
     
-    data_income = read_csv(input_cfg["work"]["income"]).reset_index(drop=True)
+    data_income = _read_raw_income_data(input_cfg["work"]["income"])
 
     employee_data = data[
         [

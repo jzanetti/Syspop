@@ -4,7 +4,7 @@ from math import ceil as math_ceil
 
 from geopandas import read_file as gpd_read_file
 from geopandas import sjoin as gpd_sjoin
-from funcs import REGION_CODES, REGION_NAMES_CONVERSIONS, RAW_DATA_INFO
+from funcs import REGION_CODES, REGION_NAMES_CONVERSIONS, RAW_DATA_INFO, POPULATION_CODE
 from funcs.utils import get_central_point
 
 def _read_raw_household(raw_household_path, include_public_dwelling: bool = False) -> DataFrame:
@@ -263,6 +263,20 @@ def _read_raw_travel_to_work(raw_travel_to_work_path: str, data_type: str = "wor
 
     return data
 
+
+def _read_raw_income_data(income_path: str) -> DataFrame:
+    """_summary_
+
+    Args:
+        income_path (str): _description_
+
+    Returns:
+        DataFrame: _description_
+    """
+    data_income = read_csv(income_path).reset_index(drop=True)
+    data_income = data_income.rename(columns={"sex": "gender"})
+    data_income = data_income.replace(POPULATION_CODE)
+    return data_income
 
 def _read_raw_employer_employee_data(employer_employee_num_path: str) -> DataFrame:
     """Write the number of employees by gender for different area
