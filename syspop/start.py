@@ -17,7 +17,7 @@ from syspop.python.utils import merge_syspop_data, setup_logging
 
 from syspop.python.base_pop import base_pop_wrapper
 from syspop.python.household import create_households, place_agent_to_household
-from syspop.python.work import place_agent_to_employee, create_employee, create_employer, create_income
+from syspop.python.work import place_agent_to_employee, create_employee, create_employer, create_income, place_agent_to_income
 from syspop.python.school import create_school
 from syspop.python.commute import create_commute_probability, assign_agent_to_commute
 from syspop.python.shared_space import place_agent_to_shared_space_based_on_area, find_nearest_shared_space_from_household, create_shared_data, place_agent_to_shared_space_based_on_distance
@@ -188,6 +188,7 @@ def create(
             commute_type="work", 
             include_filters={"age": [(18, 999)]})
         proc_agent = place_agent_to_employee(employee_data, proc_agent)
+        proc_agent = place_agent_to_income(income_data, proc_agent)
         proc_agent = place_agent_to_shared_space_based_on_area(
             employer_data, 
             proc_agent, 
@@ -236,7 +237,7 @@ def create(
             "household"
         ],
         "syspop_travel": ["travel_method_work", "travel_method_school"],
-        "syspop_work": ["area_work", "business_code", "employer"],
+        "syspop_work": ["area_work", "business_code", "employer", "income"],
         "syspop_school": ["area_school", "school"],
         "syspop_shared_space": [
             "hospital",
