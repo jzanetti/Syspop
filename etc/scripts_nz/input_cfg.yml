@@ -18,8 +18,9 @@ commute:
   travel_to_work: etc/data/raw_data/travel-to-work-info-2018.csv
   travel_to_school: etc/data/raw_data/travel-to-school-info-2018.csv
 
-employment:
+work:
   employer_employee_num: etc/data/raw_data/employee_by_area-2022.csv
+  income: etc/data/open_data/income.csv
 
 venue:
   hospital: etc/data/raw_data/nz-facilities-2022.csv

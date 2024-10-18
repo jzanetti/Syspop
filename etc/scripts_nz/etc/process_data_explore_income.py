@@ -69,4 +69,6 @@ df = df.replace(AGE_CONVERTER)
 for item in ["sex", "ethnicity", "value"]:
     df[item] = df[item].astype(int)
 
+df = df.reset_index()
+
 df.to_csv("etc/data/open_data/income.csv")
