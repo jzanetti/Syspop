@@ -1,42 +1,33 @@
-#' Calculate Business Code Probability
+#' Filter employee data by specified areas and return relevant columns.
 #'
-#' This function calculates the employee probability for each business code
-#' within specified areas. The probability is determined as the proportion of
-#' employees for each business code within the given areas.
+#' @param employee_data A data frame containing employee information, with at least the columns 'area', 'business_code', and 'employee'.
+#' @param all_areas A vector of area names to filter the employee data by.
 #'
-#' @param employee_data A data frame containing employee information, including
-#'                      columns for 'area' and 'employee'.
-#' @param all_areas A vector of areas to filter the employee data by.
+#' @return A data frame with the following columns:
+#' \itemize{
+#'   \item area_work: The area name, renamed from 'area'.
+#'   \item business_code: The business code identifier.
+#'   \item employee: The employee count or data.
+#' }
+#' 
+#' @details
+#' This function filters the employee data to only include rows where the 'area' is in the specified `all_areas`.
+#' The 'area' column is renamed to 'area_work', and the function returns a data frame containing only the relevant columns.
 #'
-#' @return A data frame containing the following columns:
-#'         - area_work (str): Area name
-#'         - business_code (str): Business code identifier
-#'         - percentage (float): Employee probability (proportion of employees)
-#'
-#' @notes The resulting data frame is filtered to only include areas specified
-#'        in `all_areas`.
-#'
-#' @import dplyr
-#'
-create_business_code_probability <- function(employee_data, all_areas) {
+#' @examples
+#' # Example usage:
+#' # employee_data <- data.frame(area = c("A", "B"), business_code = c("001", "002"), employee = c(100, 200))
+#' # create_employee(employee_data, c("A"))
+#' 
+create_employee <- function(employee_data, all_areas) {
+  # Filter employee data for specified areas
+  employee_data <- employee_data[employee_data$area %in% all_areas, ]
   
-  # Filter employee data by specified areas
-  employee_data <- employee_data %>%
-    filter(area %in% all_areas)
-  
-  # Calculate total employees per area
-  total_employees_per_area <- employee_data %>%
-    group_by(area) %>%
-    summarise(total_employees = sum(employee), .groups = "drop")
-  
-  # Join total employees back to the employee_data
-  employee_data <- employee_data %>%
-    left_join(total_employees_per_area, by = "area") %>%
-    mutate(percentage = employee / total_employees) %>%
-    rename(area_work = area) %>%
-    select(area_work, business_code, percentage)
-  
-  return(employee_data)
+  # Rename the 'area' column to 'area_work'
+  employee_data <- employee_data %>% 
+    rename(area_work = area)
+
+  return(employee_data[c("area_work", "business_code", "employee")])
 }
 
 
@@ -97,57 +88,52 @@ create_employer <- function(employer_dataset, address_data, all_areas) {
   return(bind_rows(employer_records))
 }
 
-#' Assign Agent to Business Code
+' Place Agent to Employee
 #'
-#' This function assigns a business code to an agent based on their age, location, and employment rate.
+#' Assigns a business code to an agent based on age, location, and employment rate.
 #'
-#' @param employee_data A data frame containing employee information with 'area' and 'percentage' columns.
-#' @param agent A named vector containing agent information, including 'age' and 'area' values.
-#' @param employment_rate A numeric value representing the probability of an adult agent being employed. 
-#'                        Defaults to 0.9.
+#' @param employee_data A data frame containing employee information with 'area_work' 
+#'                      and 'employee' columns.
+#' @param agent A list or data frame containing agent information with 'age' and 'area_work' values.
 #'
-#' @return A named vector representing the updated agent with an added 'business_code' value.
+#' @return A list or data frame: The updated agent with an added 'business_code' value.
 #'
-#' @details
+#' @details 
 #' - Agents under 18 are automatically assigned NA (not employed).
 #' - Agents 18 and older are assigned a business code based on the employment rate and a randomly selected 
-#'   business code from the employee_data data frame.
-#' - The 'business_code' value is either a character string (the selected business code) or NA.
-#'
-#' @throws ValueError if employment_rate is not between 0 and 1.
+#'   business code from the `employee_data` data frame.
+#' - The 'business_code' value is either a business code (character) or NA.
 #'
 #' @examples
-#' # Assuming employee_data is a data frame and agent is a named vector
-#' updated_agent <- assign_agent_to_business_code(employee_data, 
-#'                                                agent, 
-#'                                                employment_rate = 0.9)
+#' employee_data <- data.frame(area_work = c("A", "B", "A"), 
+#'                              employee = c(10, 20, 30), 
+#'                              business_code = c("BC1", "BC2", "BC3"))
+#' agent <- list(age = 25, area_work = "A")
+#' updated_agent <- place_agent_to_employee(employee_data, agent)
 #'
-#' @export
-assign_agent_to_business_code <- function(employee_data, agent, employment_rate = 0.9) {
-  
-  # Check employment rate
-  if (employment_rate < 0 || employment_rate > 1) {
-    stop("ValueError: employment_rate must be between 0 and 1.")
-  }
-  
-  # Assign business code based on agent's work area
+place_agent_to_employee <- function(employee_data, agent) {
+  # Check if the agent's area is NULL
   if (is.null(agent$area_work)) {
-    selected_code <- NULL
+    selected_code <- NA
   } else {
-    employee_data_area_work <- employee_data[
-      employee_data$area_work == agent$area_work, ]
-  
-    selected_code <- employee_data_area_work$business_code[
-      sample(nrow(employee_data_area_work), 
-             size = 1, 
-             prob = employee_data_area_work$percentage)
-    ]
+    # Filter the employee data for the agent's area
+    proc_employee_data <- employee_data %>%
+      filter(area_work == agent$area_work)
+    
+    # Calculate the weighted probabilities for the employee business codes
+    proc_employee_weight <- proc_employee_data$employee / sum(proc_employee_data$employee)
+    
+    # Sample a business code based on the weights
+    selected_code <- sample(
+      proc_employee_data$business_code,
+      size = 1,
+      prob = proc_employee_weight
+    )
   }
   
-  # Update the agent's business code
+  # Assign the selected business code to the agent
   agent$business_code <- selected_code
   
   return(agent)
 }
-
 

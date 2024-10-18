@@ -59,4 +59,4 @@ population_structure_data = population_structure_data.dropna()
 population_structure_data = population_structure_data.reset_index()
 population_structure_data = population_structure_data[["sa2", "ethnicity", "age", "gender", "value"]]
 
-population_structure_data.to_csv("etc/data/open_data/population_structure_2023.csv")
+population_structure_data.to_csv("etc/data/open_data/population_structure_2023.csv", index=False)

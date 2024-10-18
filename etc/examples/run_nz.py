@@ -32,7 +32,7 @@ syspop_create(
         "address": nz_data["geography_address"]
     },
     household={"composition": nz_data["household_composition"]},
-    work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"]},
+    work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"], "income": nz_data["work_income"]},
     commute={
         "travel_to_work": nz_data["commute_travel_to_work"], 
         "travel_to_school": nz_data["commute_travel_to_school"]},

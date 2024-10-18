@@ -185,7 +185,7 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
     """
     data = _read_raw_employer_employee_data(input_cfg["work"]["employer_employee_num"])
     
-    data_income = read_csv(input_cfg["work"]["income"]).reset_index()
+    data_income = read_csv(input_cfg["work"]["income"]).reset_index(drop=True)
 
     employee_data = data[
         [
@@ -193,11 +193,11 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
             "business_code",
             "employee"
         ]
-    ].reset_index()
+    ].reset_index(drop=True)
 
     employer_data = data[
         ["area", "business_code", "employer"]
-    ].reset_index()
+    ].reset_index(drop=True)
     
     employee_data.to_parquet(join(workdir, "work_employee.parquet"))
     employer_data.to_parquet(join(workdir, "work_employer.parquet"))

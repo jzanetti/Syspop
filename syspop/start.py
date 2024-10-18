@@ -17,7 +17,7 @@ from syspop.python.utils import merge_syspop_data, setup_logging
 
 from syspop.python.base_pop import base_pop_wrapper
 from syspop.python.household import create_households, place_agent_to_household
-from syspop.python.work import assign_agent_to_business_code, create_business_code_probability, create_employer
+from syspop.python.work import place_agent_to_employee, create_employee, create_employer, create_income
 from syspop.python.school import create_school
 from syspop.python.commute import create_commute_probability, assign_agent_to_commute
 from syspop.python.shared_space import place_agent_to_shared_space_based_on_area, find_nearest_shared_space_from_household, create_shared_data, place_agent_to_shared_space_based_on_distance
@@ -139,13 +139,14 @@ def create(
     logger.info("Creating work related data ...")
     commute_data_work = create_commute_probability(
         commute["travel_to_work"], all_areas, commute_type="work")
-    business_code_probability = create_business_code_probability(
+    employee_data = create_employee(
         work["employee"], 
         commute_data_work.area_work.unique())
     employer_data = create_employer(
         work["employer"],
         geography["address"],
         list(commute_data_work.area_work.unique()))
+    income_data = create_income(work["income"])
 
     logger.info("Creating school related data ...")
     commute_data_school = create_commute_probability(
@@ -177,9 +178,6 @@ def create(
 
         if i % 500.0 == 0:
             logger.info(f"Completed: {i} / {total_people}: {int(i * 100.0/total_people)}%")
-
-        proc_agent, updated_household_data = place_agent_to_household(
-            updated_household_data, proc_agent)
         
         # ----------------
         # Work
@@ -189,7 +187,7 @@ def create(
             proc_agent, 
             commute_type="work", 
             include_filters={"age": [(18, 999)]})
-        proc_agent = assign_agent_to_business_code(business_code_probability, proc_agent)
+        proc_agent = place_agent_to_employee(employee_data, proc_agent)
         proc_agent = place_agent_to_shared_space_based_on_area(
             employer_data, 
             proc_agent, 
@@ -212,6 +210,12 @@ def create(
             "school",
             filter_keys = ["age"],
             weight_key="max_students")
+
+        # ----------------
+        # Household
+        # ----------------
+        proc_agent, updated_household_data = place_agent_to_household(
+            updated_household_data, proc_agent)
 
         # ----------------
         # Shared space

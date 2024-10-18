@@ -189,7 +189,7 @@ def find_nearest_shared_space_from_household(
         else:
             nearest_names.append(", ".join(proc_names))
 
-    logger.info(f"Missing {shared_space_type}: {round(total_missing * 100.0/totals_expected, 2)}%")
+    logger.info(f"* Missing {shared_space_type}: {round(total_missing * 100.0/totals_expected, 2)}%")
 
     updated_src_data[shared_space_type] = nearest_names
     return updated_src_data

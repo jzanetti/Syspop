@@ -37,7 +37,7 @@ create <- function(
     commute$travel_to_work, all_areas, commute_type = "work"
   )
 
-  business_code_probability <- create_business_code_probability(
+  employee_data <- create_employee(
     work$employee, unique(commute_data_work$area_work)
   )
   employer_data <- create_employer(
@@ -88,7 +88,7 @@ create <- function(
     # Work
     proc_agent <- assign_agent_to_commute(
       commute_data_work, proc_agent, "work", include_filters = list(age = list(c(18, 999))))
-    proc_agent <- assign_agent_to_business_code(business_code_probability, proc_agent)
+    proc_agent <- place_agent_to_employee(employee_data, proc_agent)
     proc_agent <- place_agent_to_shared_space_based_on_area(
       employer_data, 
       proc_agent, 
