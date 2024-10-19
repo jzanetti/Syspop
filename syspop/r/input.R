@@ -16,6 +16,7 @@ new_zealand <- function(data_dir = global_vars$NZ_DATA_DEFAULT) {
     "commute_travel_to_school",
     "work_employee",
     "work_employer",
+    "work_income",
     "school",
     "kindergarten",
     "hospital",

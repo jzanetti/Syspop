@@ -26,6 +26,9 @@ server <- function(input, output) {
     else if (input$file_choice == "Employee") {
       selectInput("x", "X-axis variable", choices = c("business_code"), selected = "business_code")
     }
+    else if (input$file_choice == "Income") {
+      selectInput("x", "X-axis variable", choices = c("business_code", "age", "gender", "ethnicity"), selected = "business_code")
+    }
   })
   
   df_sim <- reactive({
@@ -40,6 +43,9 @@ server <- function(input, output) {
     }
     else if (input$file_choice == "Employer"){
       df <- data$sim$df_employer
+    }
+    else if (input$file_choice == "Income"){
+      df <- data$sim$df_income
     }
     df
   })
@@ -61,16 +67,27 @@ server <- function(input, output) {
     else if (input$file_choice == "Employee"){
         df <- data$truth$df_employee
     }
+    else if (input$file_choice == "Income"){
+        df <- data$truth$df_income
+    }
     df
   })
 
   output$area_filter <- renderUI({
     req(df_sim())
-    selectInput("area", "Filter by Area", choices = unique(df_sim()$area), multiple = TRUE)
+    req(input$x)
+    req(input$file_choice)
+    if (input$file_choice != "Income"){
+      selectInput("area", "Filter by Area", choices = unique(df_sim()$area), multiple = TRUE)
+    }
+    else{
+      selectInput("area", "Filter by Area", choices = NULL, multiple = TRUE)
+    }
   })
   
   filtered_df_sim <- reactive({
     req(df_sim())
+    req(input$x)
     if (length(input$area) > 0) {
       df_sim() %>%
         filter(area %in% input$area)  # Filter based on selected areas
@@ -92,18 +109,30 @@ server <- function(input, output) {
   
   # Output for the plot
   output$plot <- renderPlot({
+    # if (input$file_choice == "Income") {browser()}
     req(filtered_df_sim())
     req(filtered_df_truth())
     req(input$x)
+    req(input$file_choice)
     
-    plot_sim <- ggplot(filtered_df_sim(), aes_string(x = input$x)) +
-      geom_bar(position = "dodge", fill = "red", alpha=0.3) +
-      theme_minimal() +
-      labs(x = input$x, y = "Count", title = "Synthetic population") + 
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
-        axis.title.x = element_text(size = 14)
-      )
+    # -----------
+    # Sim
+    # -----------
+    if (input$file_choice == "Income"){
+      filtered_df_sim_summary <- filtered_df_sim() %>%
+        group_by(!!sym(input$x)) %>%
+        summarize(mean_value = mean(value, na.rm = TRUE)) %>%
+        ungroup()
+      y_label = "Income (weekly)"}
+    else {
+      filtered_df_sim_summary <- filtered_df_sim()
+      y_label = "Count percentage (%)"
+    }
+    
+    
+    # -----------
+    # Truth
+    # -----------
     if (input$file_choice == "Employer" | input$file_choice == "Employee") {
       filtered_df_truth_summary <- filtered_df_truth() %>%
         group_by(!!sym(input$x)) %>%
@@ -111,23 +140,62 @@ server <- function(input, output) {
         mutate(value = (value / sum(value)) * 100)
       y_label = "Count percentage (%)"
     }
+    else if (input$file_choice == "Income"){
+      filtered_df_truth_summary <- filtered_df_truth() %>%
+        group_by(!!sym(input$x)) %>%
+        summarize(mean_value = mean(value, na.rm = TRUE)) %>%
+        ungroup()
+      y_label = "Income (weekly)"
+    }
     else {
       filtered_df_truth_summary <- filtered_df_truth() %>%
         group_by(!!sym(input$x)) %>%
         summarize(value = sum(value))
       y_label = "Count"
     }
-    plot_truth <- ggplot(
-        filtered_df_truth_summary, 
-        aes_string(x = input$x, y = "value")
-      ) +
-      geom_bar(stat = "identity", position = "dodge", fill = "blue", alpha=0.3) +
-      theme_minimal() +
-      labs(x = input$x, y = y_label, title = "Truth") + 
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
-        axis.title.x = element_text(size = 14)
-      )
+    
+    # -----------
+    # VIS
+    # -----------
+    if (input$file_choice == "Income"){
+      # browser()
+      plot_sim <- ggplot(filtered_df_sim_summary, aes_string(x = input$x, y = "mean_value")) +
+        geom_bar(stat = "identity") +
+        labs(x = input$x, y = y_label, title = "Synthetic population") +
+        theme_minimal() +
+        theme(legend.position = "none")
+    }
+    else {
+      plot_sim <- ggplot(filtered_df_sim_summary, aes_string(x = input$x)) +
+        geom_bar(position = "dodge", fill = "red", alpha=0.3) +
+        theme_minimal() +
+        labs(x = input$x, y = y_label, title = "Synthetic population") + 
+        theme(
+          plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+          axis.title.x = element_text(size = 14)
+        )
+    }
+    
+    if (input$file_choice == "Income"){
+      plot_truth <- ggplot(filtered_df_truth_summary, aes_string(x = input$x, y = "mean_value")) +
+        geom_bar(stat = "identity") +
+        labs(x = input$x, y = y_label, title = "Truth") +
+        theme_minimal() +
+        theme(legend.position = "none")
+    }
+    else {
+      plot_truth <- ggplot(
+          filtered_df_truth_summary, 
+          aes_string(x = input$x, y = "value")
+        ) +
+        geom_bar(stat = "identity", position = "dodge", fill = "blue", alpha=0.3) +
+        theme_minimal() +
+        labs(x = input$x, y = y_label, title = "Truth") + 
+        theme(
+          plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+          axis.title.x = element_text(size = 14)
+        )
+    }
 
     grid.arrange(plot_sim, plot_truth, ncol = 1)
 

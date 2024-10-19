@@ -61,19 +61,39 @@ get_data <- function(
   df_work_truth$employer <- df_work_truth$employer[, c("area", "business_code", "employer")]
   colnames(df_work_truth$employer)[colnames(df_work_truth$employer) == "employer"] <- "value"
   
-  # browser()
+  # Income
+  df_income_sim <- read_parquet(paste0(base_dir, "syspop_work.parquet"))
+  df_pop_sim <- read_parquet(paste0(base_dir, "syspop_base.parquet"))
+  df_income_sim <- na.omit(df_income_sim)
+  df_income_sim <- df_income_sim[, c("id", "business_code", "income")]
+  df_income_sim <- df_income_sim[df_income_sim$income != "Unknown", ]
+  df_income_sim <- left_join(df_income_sim, df_pop_sim[,c("id", "age", "gender", "ethnicity")], by = "id")
+  df_income_sim <- df_income_sim[, c("business_code", "income", "age", "gender", "ethnicity")]
+  breaks <- c(15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 1000)
+  labels <- c("15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-999")
+  df_income_sim$age <- cut(df_income_sim$age, breaks = breaks, labels = labels, right = FALSE)
+  df_income_sim$income <- as.numeric(df_income_sim$income)
+  df_income_sim <- df_income_sim %>%
+    group_by(business_code, age, gender, ethnicity) %>%
+    summarize(value = mean(income, na.rm = TRUE)) %>%
+    ungroup()  # ungroup the data if needed
+  
+  df_work_truth$income <- read_parquet(paste0(base_dir_truth, "work_income.parquet"))
+
   return(list(
     sim = list(
       df_pop = df_pop_sim, 
       df_household = df_household_sim,
       df_employee = df_employee_sim,
-      df_employer = df_employer_sim
+      df_employer = df_employer_sim,
+      df_income = df_income_sim
     ),
     truth = list(
       df_pop = df_pop_truth,
       df_household = df_household_truth,
       df_employee = df_work_truth$employee,
-      df_employer = df_work_truth$employer
+      df_employer = df_work_truth$employer,
+      df_income = df_work_truth$income
     )
     ))
 }

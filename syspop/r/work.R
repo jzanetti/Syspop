@@ -1,3 +1,12 @@
+#' Get income data
+#'
+#' @param income_dataset: income dataset
+#'
+create_income <- function(income_dataset){
+  return (income_dataset)
+}
+
+
 #' Filter employee data by specified areas and return relevant columns.
 #'
 #' @param employee_data A data frame containing employee information, with at least the columns 'area', 'business_code', and 'employee'.
@@ -133,6 +142,54 @@ place_agent_to_employee <- function(employee_data, agent) {
   
   # Assign the selected business code to the agent
   agent$business_code <- selected_code
+  
+  return(agent)
+}
+
+
+#' Assigns an income value to an agent based on specific criteria from a DataFrame of income data.
+#'
+#' This function filters the `income_data` based on the agent's characteristics (gender, business_code, 
+#' ethnicity, and age) and assigns the corresponding income value to the agent. If no matching income record is 
+#' found, the income is set to "Unknown".
+#'
+#' @param income_data A data.frame containing income data with columns for gender, business_code, age, ethnicity, and value.
+#' @param agent A list representing an agent with attributes: area_work, gender, business_code, ethnicity, and age.
+#'
+#' @return A modified list representing the agent, now including an 'income' attribute with the assigned income value
+#' or "Unknown" if no match is found.
+#'
+place_agent_to_income <- function(income_data, agent) {
+
+  if (is.null(agent$area_work)) {
+    selected_income <- NA
+  } else {
+    income_data$business_code1 <- sapply(strsplit(income_data$business_code, ","), `[`, 1)
+    income_data$business_code2 <- sapply(strsplit(income_data$business_code, ","), `[`, 2)
+    income_data$age1 <- as.integer(sapply(strsplit(income_data$age, "-"), `[`, 1))
+    income_data$age2 <- as.integer(sapply(strsplit(income_data$age, "-"), `[`, 2))
+    
+    income_data$business_code1 <- trimws(income_data$business_code1)
+    income_data$business_code2 <- trimws(income_data$business_code2)
+    
+    proc_income_data <- subset(income_data, 
+                               gender == agent$gender &
+                                 (business_code1 == agent$business_code | business_code2 == agent$business_code) &
+                                 ethnicity == agent$ethnicity &
+                                 agent$age >= age1 & agent$age <= age2)
+    
+    if (nrow(proc_income_data) > 1) {
+      stop("Income data decoding error ...")
+    }
+    
+    if (nrow(proc_income_data) == 0) {
+      selected_income <- "Unknown"
+    } else {
+      selected_income <- as.character(proc_income_data$value)
+    }
+    
+    agent$income <- selected_income
+  }
   
   return(agent)
 }

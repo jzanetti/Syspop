@@ -43,7 +43,8 @@ create <- function(
   employer_data <- create_employer(
     work$employer, geography$address, unique(commute_data_work$area_work)
   )
-  
+  income_data <- create_income(work$income)
+
   print("Creating school-related data ...")
   commute_data_school <- create_commute_probability(
     commute$travel_to_school, all_areas, commute_type = "school"
@@ -89,6 +90,7 @@ create <- function(
     proc_agent <- assign_agent_to_commute(
       commute_data_work, proc_agent, "work", include_filters = list(age = list(c(18, 999))))
     proc_agent <- place_agent_to_employee(employee_data, proc_agent)
+    proc_agent <- place_agent_to_income(income_data, proc_agent)
     proc_agent <- place_agent_to_shared_space_based_on_area(
       employer_data, 
       proc_agent, 
@@ -122,7 +124,7 @@ create <- function(
     syspop_base = c("area", "age", "gender", "ethnicity"),
     syspop_household = c("household"),
     syspop_travel = c("travel_method_work", "travel_method_school"),
-    syspop_work = c("area_work", "business_code", "employer"),
+    syspop_work = c("area_work", "business_code", "employer", "income"),
     syspop_school = c("area_school", "school"),
     syspop_shared_space = c(
       "hospital", "supermarket", "restaurant", "cafe", "department_store", 

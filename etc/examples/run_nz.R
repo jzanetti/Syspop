@@ -33,7 +33,8 @@ create(
   household = list(composition = nz_data$household_composition),
   work = list(
     employee = nz_data$work_employee,
-    employer = nz_data$work_employer
+    employer = nz_data$work_employer,
+    income = nz_data$work_income
   ),
   commute = list(
     travel_to_work = nz_data$commute_travel_to_work,
