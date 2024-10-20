@@ -80,6 +80,14 @@ get_data <- function(
   
   df_work_truth$income <- read_parquet(paste0(base_dir_truth, "work_income.parquet"))
 
+  # -------------------------
+  # Address
+  # -------------------------
+  df_household_address <- read_parquet(paste0(base_dir, "household_data.parquet"))
+  df_employer_address <- read_parquet(paste0(base_dir, "employer_data.parquet"))
+  df_school_address <- read_parquet(paste0(base_dir, "school_data.parquet"))
+  df_supermarket_address <- read_parquet(paste0(base_dir, "supermarket.parquet"))
+
   return(list(
     sim = list(
       df_pop = df_pop_sim, 
@@ -94,6 +102,13 @@ get_data <- function(
       df_employee = df_work_truth$employee,
       df_employer = df_work_truth$employer,
       df_income = df_work_truth$income
+    ),
+    address = list(
+      df_household = df_household_address,
+      df_employer = df_employer_address,
+      df_school = df_school_address,
+      df_supermarket = df_supermarket_address
     )
-    ))
+    )
+  )
 }
