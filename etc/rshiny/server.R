@@ -2,8 +2,10 @@
 # source("etc/rshiny/data.R")
 source("data.R")
 
-data <- get_data(base_dir="/tmp/syspop/", 
-                 #base_dir_truth="C:\\Users\\ZhangS\\Downloads\\Syspop\\etc\\data\\test_data\\"
+data <- get_data(
+  # base_dir = "/tmp/syspop_test17/Wellington_test_v3.0/"
+  base_dir="/tmp/syspop2/", 
+  #base_dir_truth="C:\\Users\\ZhangS\\Downloads\\Syspop\\etc\\data\\test_data\\"
   )
 
 server <- function(input, output) {
@@ -25,7 +27,11 @@ server <- function(input, output) {
       selectInput("x", "X-axis variable", choices = c("business_code", "age", "gender", "ethnicity"), selected = "business_code")
     }
     else if (input$file_choice == "Address") {
-      selectInput("x", "X-axis variable", choices = c("household", "employer", "school", "supermarket"), selected = "household")
+      selectInput("x", "X-axis variable", choices = c(
+        "household", 
+        "employer", 
+        "school", 
+        "supermarket"), selected = "household")
     }
   })
   
@@ -130,21 +136,17 @@ server <- function(input, output) {
     req(input$x)
     req(input$file_choice)
     if (input$file_choice == "Address") {
+      df_address <- filtered_df_sim() %>%
+        group_by(latitude, longitude) %>%
+        summarize(count = n()) %>%
+        ungroup()
       output$mymap <- renderLeaflet({
         # Create a leaflet map
-        leaflet(filtered_df_sim()) %>%
-          addTiles() %>%  # Add default OpenStreetMap tiles
-          #addCircleMarkers(
-          #  lng = ~longitude, lat = ~latitude,  # Plot longitude and latitude
-          #  radius = 5,
-          #  color = "blue",
-          #  popup = ~paste("Lat:", latitude, "<br>Lon:", longitude)  # Popups with lat/lon
-          #)
-          addHeatmap(
-            lng = ~longitude, lat = ~latitude,  # Plot longitude and latitude
-            intensity = ~rep(1, nrow(filtered_df_sim())),  # Uniform intensity for simplicity
-            blur = 20, max = 0.05, radius = 15  # Heatmap settings
-          )
+        leaflet(df_address) %>%
+            addTiles() %>%
+            addHeatmap(lng = ~longitude, lat = ~latitude, intensity = ~count, 
+                       blur = 30, max = 0.1, radius = 15)
+
       })
     }
     

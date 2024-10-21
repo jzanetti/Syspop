@@ -78,7 +78,7 @@ def create_employer(employer_dataset: DataFrame, address_data: DataFrame, all_ar
                 "business_code": str(business_code),
                 "latitude": float(proc_address_data.latitude),
                 "longitude": float(proc_address_data.longitude),
-                "id": str(uuid4())[:6]  # Create a 6-digit unique ID
+                "employer": str(uuid4())[:6]  # Create a 6-digit unique ID
             })
     
     return DataFrame(employer_datasets)

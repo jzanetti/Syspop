@@ -61,9 +61,13 @@ create <- function(
   shared_space_data <- list()
   shared_space_loc <- list()
   for (proc_shared_space_name in names(shared_space)) {
-    shared_space_data[[proc_shared_space_name]] <- create_shared_data(shared_space[[proc_shared_space_name]])
+    shared_space_data[[proc_shared_space_name]] <- create_shared_data(
+      shared_space[[proc_shared_space_name]], proc_shared_space_name)
     shared_space_loc[[proc_shared_space_name]] <- find_nearest_shared_space_from_household(
-      household_data, shared_space_data[[proc_shared_space_name]], geography$location, proc_shared_space_name
+      household_data, 
+      shared_space_data[[proc_shared_space_name]], 
+      geography$location, 
+      proc_shared_space_name
     )
   }
 
@@ -91,11 +95,13 @@ create <- function(
       commute_data_work, proc_agent, "work", include_filters = list(age = list(c(18, 999))))
     proc_agent <- place_agent_to_employee(employee_data, proc_agent)
     proc_agent <- place_agent_to_income(income_data, proc_agent)
+
     proc_agent <- place_agent_to_shared_space_based_on_area(
       employer_data, 
       proc_agent, 
       "work", 
-      filter_keys = "business_code", 
+      filter_keys = "business_code",
+      name_key = "employer",
       shared_space_type_convert = list(work = "employer")
     )
     
@@ -106,7 +112,8 @@ create <- function(
       school_data, 
       proc_agent, 
       "school", 
-      filter_keys = "age", 
+      filter_keys = "age",
+      name_key = "school",
       weight_key = "max_students"
     )
     # Shared space
@@ -150,6 +157,6 @@ create <- function(
   write_parquet(school_data, file.path(output_dir, "school_data.parquet"))
   
   for (shared_space_name in names(shared_space_data)) {
-    write_parquet(shared_space_data[[shared_space_name]], file.path(output_dir, paste0(shared_space_name, ".parquet")))
+    write_parquet(shared_space_data[[shared_space_name]], file.path(output_dir, paste0(shared_space_name, "_data.parquet")))
   }
 }

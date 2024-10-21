@@ -160,7 +160,7 @@ def create(
     shared_space_loc = {}
     for proc_shared_space_name in shared_space:
         shared_space_data[proc_shared_space_name] = create_shared_data(
-            shared_space[proc_shared_space_name])
+            shared_space[proc_shared_space_name], proc_shared_space_name)
 
         shared_space_loc[proc_shared_space_name] = find_nearest_shared_space_from_household(
             household_data, 
@@ -194,6 +194,7 @@ def create(
             proc_agent, 
             "work",
             filter_keys = ["business_code"],
+            name_key = "employer",
             shared_space_type_convert = {"work": "employer"})
 
         # ----------------
@@ -210,6 +211,7 @@ def create(
             proc_agent, 
             "school",
             filter_keys = ["age"],
+            name_key = "school",
             weight_key="max_students")
 
         # ----------------
@@ -264,6 +266,6 @@ def create(
     school_data.to_parquet(join(output_dir, f"school_data.parquet"), index=False)
     for shared_space_name in shared_space_data:
         shared_space_data[shared_space_name].to_parquet(
-            join(output_dir, f"{shared_space_name}.parquet"), index=False)
+            join(output_dir, f"{shared_space_name}_data.parquet"), index=False)
 
 

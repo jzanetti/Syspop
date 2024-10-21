@@ -83,10 +83,43 @@ get_data <- function(
   # -------------------------
   # Address
   # -------------------------
-  df_household_address <- read_parquet(paste0(base_dir, "household_data.parquet"))
-  df_employer_address <- read_parquet(paste0(base_dir, "employer_data.parquet"))
-  df_school_address <- read_parquet(paste0(base_dir, "school_data.parquet"))
-  df_supermarket_address <- read_parquet(paste0(base_dir, "supermarket.parquet"))
+  df_address_data <- list()
+  
+  address_types <- c("household", "employer", "school", "supermarket")
+  
+  # For loop to print each number
+  for (address_type in address_types) {
+    df_address_data[[address_type]] <- read_parquet(
+      paste0(base_dir, paste0(address_type, "_data.parquet")))
+    
+    if (address_type == "household") {
+      df_sim_to_use <- read_parquet(paste0(base_dir, "syspop_household.parquet"))
+    }
+    else if (address_type == "employer") {
+      df_sim_to_use <- read_parquet(paste0(base_dir, "syspop_work.parquet"))
+    }
+    else if (address_type == "school") {
+      df_sim_to_use <- read_parquet(paste0(base_dir, "syspop_school.parquet"))
+    }
+    else if (address_type %in% c("supermarket")) {
+      df_sim_to_use <- read_parquet(paste0(base_dir, "syspop_shared_space.parquet"))
+      df_sim_to_use[] <- lapply(df_sim_to_use, function(col) {
+        sub(",.*", "", col)  # Replace everything after the first comma
+      })
+      df_sim_to_use$id <- as.integer(df_sim_to_use$id)
+    }
+    
+    df_sim_to_use <- na.omit(df_sim_to_use)
+    
+    df_address_data[[address_type]] <- na.omit(left_join(
+      left_join(
+        df_sim_to_use %>% select(id, all_of(address_type)),
+        df_pop_sim[,c("id")], 
+        by = "id"),
+      df_address_data[[address_type]] %>% select(latitude, longitude, all_of(address_type)),
+      by = address_type))
+    
+  }
 
   return(list(
     sim = list(
@@ -104,10 +137,10 @@ get_data <- function(
       df_income = df_work_truth$income
     ),
     address = list(
-      df_household = df_household_address,
-      df_employer = df_employer_address,
-      df_school = df_school_address,
-      df_supermarket = df_supermarket_address
+      df_household = df_address_data$household,
+      df_employer = df_address_data$employer,
+      df_school = df_address_data$school,
+      df_supermarket = df_address_data$supermarket
     )
     )
   )

@@ -51,7 +51,7 @@ create_school <- function(school_data, max_student_num = 30) {
       latitude = as.numeric(latitude),
       longitude = as.numeric(longitude),
       max_students = as.integer(max_students),
-      id = as.character(name)
+      school = as.character(name)
     )
   }
   # Convert the list of school records to a data frame

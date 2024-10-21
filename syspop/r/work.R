@@ -88,7 +88,7 @@ create_employer <- function(employer_dataset, address_data, all_areas) {
         business_code = as.character(business_code),
         latitude = as.numeric(proc_address_data$latitude),
         longitude = as.numeric(proc_address_data$longitude),
-        id = substr(UUIDgenerate(), 1, 6)  # Generate a unique 6-digit ID
+        employer = substr(UUIDgenerate(), 1, 6)  # Generate a unique 6-digit ID
       )
     }
   }
