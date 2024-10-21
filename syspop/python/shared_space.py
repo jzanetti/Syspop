@@ -12,7 +12,7 @@ from uuid import uuid4
 logger = getLogger()
 
 
-def create_shared_data(shared_space_data: DataFrame) -> DataFrame:
+def create_shared_data(shared_space_data: DataFrame, proc_shared_space_name: str) -> DataFrame:
     """
     Create a DataFrame of shared space data by transforming the input DataFrame.
 
@@ -35,7 +35,7 @@ def create_shared_data(shared_space_data: DataFrame) -> DataFrame:
     for _, row in shared_space_data.iterrows():
         shared_space_datas.append({
             "area": int(row.area),
-            "id": str(uuid4())[:6],
+            proc_shared_space_name: str(uuid4())[:6],
             "latitude": float(row.latitude),
             "longitude": float(row.longitude),
         })
@@ -48,6 +48,7 @@ def place_agent_to_shared_space_based_on_area(
         agent: Series, 
         shared_space_type: str,
         filter_keys: list = [],
+        name_key: str = "id",
         weight_key: str or None = None,
         shared_space_type_convert: dict or None = None) -> Series:
     """
@@ -96,11 +97,11 @@ def place_agent_to_shared_space_based_on_area(
         else:
             if weight_key is None:
                 selected_space_id = selected_spaces.sample(
-                    n=1).id.values[0]
+                    n=1)[name_key].values[0]
             else:
                 selected_space_id = selected_spaces.loc[numpy_choice(
                     selected_spaces.index, 
-                    p = selected_spaces[weight_key] / selected_spaces[weight_key].sum())].id
+                    p = selected_spaces[weight_key] / selected_spaces[weight_key].sum())][name_key]
 
     
 
@@ -182,14 +183,14 @@ def find_nearest_shared_space_from_household(
             if proc_dis > SHARED_SPACE_NEAREST_DISTANCE_KM[shared_space_type] / 110.0:
                 total_missing += 1
                 continue
-            proc_names.append(shared_space_address.loc[index]["id"])
+            proc_names.append(shared_space_address.loc[index][shared_space_type])
         
         if len(proc_names) == 0:
             nearest_names.append("Unknown")
         else:
             nearest_names.append(", ".join(proc_names))
 
-    logger.info(f"Missing {shared_space_type}: {round(total_missing * 100.0/totals_expected, 2)}%")
+    logger.info(f"* Missing {shared_space_type}: {round(total_missing * 100.0/totals_expected, 2)}%")
 
     updated_src_data[shared_space_type] = nearest_names
     return updated_src_data

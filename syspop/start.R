@@ -37,13 +37,14 @@ create <- function(
     commute$travel_to_work, all_areas, commute_type = "work"
   )
 
-  business_code_probability <- create_business_code_probability(
+  employee_data <- create_employee(
     work$employee, unique(commute_data_work$area_work)
   )
   employer_data <- create_employer(
     work$employer, geography$address, unique(commute_data_work$area_work)
   )
-  
+  income_data <- create_income(work$income)
+
   print("Creating school-related data ...")
   commute_data_school <- create_commute_probability(
     commute$travel_to_school, all_areas, commute_type = "school"
@@ -60,9 +61,13 @@ create <- function(
   shared_space_data <- list()
   shared_space_loc <- list()
   for (proc_shared_space_name in names(shared_space)) {
-    shared_space_data[[proc_shared_space_name]] <- create_shared_data(shared_space[[proc_shared_space_name]])
+    shared_space_data[[proc_shared_space_name]] <- create_shared_data(
+      shared_space[[proc_shared_space_name]], proc_shared_space_name)
     shared_space_loc[[proc_shared_space_name]] <- find_nearest_shared_space_from_household(
-      household_data, shared_space_data[[proc_shared_space_name]], geography$location, proc_shared_space_name
+      household_data, 
+      shared_space_data[[proc_shared_space_name]], 
+      geography$location, 
+      proc_shared_space_name
     )
   }
 
@@ -88,12 +93,15 @@ create <- function(
     # Work
     proc_agent <- assign_agent_to_commute(
       commute_data_work, proc_agent, "work", include_filters = list(age = list(c(18, 999))))
-    proc_agent <- assign_agent_to_business_code(business_code_probability, proc_agent)
+    proc_agent <- place_agent_to_employee(employee_data, proc_agent)
+    proc_agent <- place_agent_to_income(income_data, proc_agent)
+
     proc_agent <- place_agent_to_shared_space_based_on_area(
       employer_data, 
       proc_agent, 
       "work", 
-      filter_keys = "business_code", 
+      filter_keys = "business_code",
+      name_key = "employer",
       shared_space_type_convert = list(work = "employer")
     )
     
@@ -104,7 +112,8 @@ create <- function(
       school_data, 
       proc_agent, 
       "school", 
-      filter_keys = "age", 
+      filter_keys = "age",
+      name_key = "school",
       weight_key = "max_students"
     )
     # Shared space
@@ -122,7 +131,7 @@ create <- function(
     syspop_base = c("area", "age", "gender", "ethnicity"),
     syspop_household = c("household"),
     syspop_travel = c("travel_method_work", "travel_method_school"),
-    syspop_work = c("area_work", "business_code", "employer"),
+    syspop_work = c("area_work", "business_code", "employer", "income"),
     syspop_school = c("area_school", "school"),
     syspop_shared_space = c(
       "hospital", "supermarket", "restaurant", "cafe", "department_store", 
@@ -148,6 +157,6 @@ create <- function(
   write_parquet(school_data, file.path(output_dir, "school_data.parquet"))
   
   for (shared_space_name in names(shared_space_data)) {
-    write_parquet(shared_space_data[[shared_space_name]], file.path(output_dir, paste0(shared_space_name, ".parquet")))
+    write_parquet(shared_space_data[[shared_space_name]], file.path(output_dir, paste0(shared_space_name, "_data.parquet")))
   }
 }

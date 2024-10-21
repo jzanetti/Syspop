@@ -1,6 +1,5 @@
 from logging import getLogger
 from os.path import join
-from pickle import dump as pickle_dump
 
 from funcs.household.household import (
     create_household_and_dwelling_number
@@ -15,13 +14,14 @@ from funcs.venue.venue import (
     create_osm_space
 )
 
-from pandas import read_parquet
+from pandas import read_parquet, read_csv
 
 from funcs.preproc import (
     _read_raw_address, 
     _read_raw_geography_hierarchy, 
     _read_raw_geography_location_area, 
     _read_raw_travel_to_work, 
+    _read_raw_income_data,
     _read_raw_employer_employee_data)
 
 logger = getLogger()
@@ -155,7 +155,7 @@ def create_school_wrapper(workdir: str, input_cfg: dict):
 def create_work_wrapper(workdir: str, input_cfg: dict):
     """Create work wrapper (e.g., employees etc.)
 
-    The output looks like:
+    The output (employer/employee)looks like:
                   area business_code         employer         employee
         0       100100             A               93              190                    
         1       100200             A              138              190                   
@@ -170,18 +170,23 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
         56927   100100             E               12                6                   
         ....
         132366  100100             I                6                9                    
-        159241  100100             K                6                0                    
+        159241  100100             K                6                0        
+
+    In addition, the income data looks like:
+               business_code     sex     age  ethnicity  value
+        137488             A    Male   15-19      Asian    166
+        137498             A    Male   60-64   European   1215
+        137508             A  Female  65-999      Maori   1247
+        137513             A    Male  65-999      Maori    945
+        137523             A    Male   20-24      Maori   1036
+        ...              ...  ...     ...        ...    ...            
 
     Args:
         workdir (str): Working directory
     """
-    data = _read_raw_employer_employee_data(input_cfg["employment"]["employer_employee_num"])
+    data = _read_raw_employer_employee_data(input_cfg["work"]["employer_employee_num"])
     
-    # Calculate the total number of employees per area
-    #total_employees_per_area = data.groupby('area')['employee_number'].transform('sum')
-
-    # Calculate the employee number percentage
-    #data['employee_number_percentage'] = data['employee_number'] / total_employees_per_area
+    data_income = _read_raw_income_data(input_cfg["work"]["income"])
 
     employee_data = data[
         [
@@ -189,13 +194,15 @@ def create_work_wrapper(workdir: str, input_cfg: dict):
             "business_code",
             "employee"
         ]
-    ]
+    ].reset_index(drop=True)
+
     employer_data = data[
         ["area", "business_code", "employer"]
-    ]
+    ].reset_index(drop=True)
     
     employee_data.to_parquet(join(workdir, "work_employee.parquet"))
     employer_data.to_parquet(join(workdir, "work_employer.parquet"))
+    data_income.to_parquet(join(workdir, "work_income.parquet"))
 
 
 def create_travel_wrapper(workdir: str, input_cfg: dict):
@@ -328,3 +335,4 @@ def create_geography_wrapper(workdir: str, input_cfg: dict, include_address: boo
     output["hierarchy"].to_parquet(join(workdir, "geography_hierarchy.parquet"))
     output["location"].to_parquet(join(workdir, "geography_location.parquet"))
     output["address"].to_parquet(join(workdir, "geography_address.parquet"))
+

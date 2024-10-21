@@ -13,7 +13,7 @@
 #'         with 'area' as an integer, a unique 'id' as a string (first 6 
 #'         characters of a UUID), and 'latitude' and 'longitude' as floats.
 #'
-create_shared_data <- function(shared_space_data) {
+create_shared_data <- function(shared_space_data, proc_shared_space_name) {
   
   # Select relevant columns
   shared_space_data <- shared_space_data %>%
@@ -34,6 +34,8 @@ create_shared_data <- function(shared_space_data) {
       longitude = as.numeric(row$longitude),
       stringsAsFactors = FALSE  # Avoid factors in data frame
     )
+    colnames(shared_space_datas[[i]])[
+      colnames(shared_space_datas[[i]]) == "id"] <- proc_shared_space_name
   }
   
   # Bind rows into a single data frame
@@ -100,7 +102,7 @@ find_nearest_shared_space_from_household <- function(household_data,
   # Process the nearest names
   nearest_names <- vector("list", nrow(coords1))
   for (i in 1:nrow(coords1)) {
-    proc_names <- shared_space_address$id[nearest_indices[i,]]
+    proc_names <- shared_space_address[[shared_space_type]][nearest_indices[i,]]
     nearest_names[[i]] <- ifelse(length(proc_names) == 0, "Unknown", paste(proc_names, collapse = ", "))
   }
   
@@ -145,7 +147,7 @@ find_nearest_shared_space_from_household <- function(household_data,
 #'
 #' @export
 place_agent_to_shared_space_based_on_area <- function(shared_space_data, agent, shared_space_type,
-                                                      filter_keys = character(0), weight_key = NULL,
+                                                      filter_keys = character(0), weight_key = NULL, name_key = "id",
                                                       shared_space_type_convert = NULL) {
   
   selected_space_id <- NULL
@@ -177,10 +179,10 @@ place_agent_to_shared_space_based_on_area <- function(shared_space_data, agent, 
       }
       else {
         if (is.null(weight_key)) {
-          selected_space_id <- sample(selected_spaces$id, size = 1)
+          selected_space_id <- sample(selected_spaces[[name_key]], size = 1)
         } else {
           weights <- selected_spaces[[weight_key]]
-          selected_space_id <- selected_spaces$id[
+          selected_space_id <- selected_spaces[[name_key]][
             sample(nrow(selected_spaces), size = 1, prob = weights / sum(weights))
           ]
         }

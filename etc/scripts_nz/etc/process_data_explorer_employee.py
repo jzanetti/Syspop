@@ -74,5 +74,5 @@ df["var"] = df["var"].replace({
 df = df.rename(columns={"var": "employment_status"})
 df = df[["area", "employment_status", "value"]]
 df = df.reset_index(drop=True)
-df.to_csv("etc/data/open_data/employment_status_2023.csv")
+df.to_csv("etc/data/open_data/employment_status_2023.csv", index=False)
 

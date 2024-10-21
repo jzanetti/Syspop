@@ -18,7 +18,7 @@ library(data.table)
 nz_data <- new_zealand()
 
 output_dir <- "/tmp/syspop"
-syn_areas <- c(241300, 241800)
+syn_areas <- c(241800, 242800)
 
 # Create the synthetic population, assuming syspop_create is a defined function in R or custom code
 create(
@@ -33,7 +33,8 @@ create(
   household = list(composition = nz_data$household_composition),
   work = list(
     employee = nz_data$work_employee,
-    employer = nz_data$work_employer
+    employer = nz_data$work_employer,
+    income = nz_data$work_income
   ),
   commute = list(
     travel_to_work = nz_data$commute_travel_to_work,

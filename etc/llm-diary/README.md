@@ -27,9 +27,3 @@ make create_diary
 ```
 make combine_diary
 ```
-
-# Appendix:
-
-```
-it usually take how many days for a person (between 18 and 65 years old) to visit a pub/cafe/restaurant/supermarket/mall/park/gym in New Zealand or UK (e.g., 1 time every 30 days etc.), can you summarize it in a table ? I need to have some good estimates with credible sources
-```

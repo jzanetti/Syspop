@@ -8,7 +8,7 @@ from syspop.start import create as syspop_create
 from warnings import filterwarnings
 filterwarnings("ignore")
 
-output_dir = "/tmp/syspop_test17/Wellington_test_v3.0"
+output_dir = "/tmp/syspop2"
 
 nz_data = new_zealand()
 
@@ -18,7 +18,7 @@ syn_areas = list(
     ]["area"]
 )
 
-syn_areas = [241300, 241800]
+syn_areas = [241800, 242800]
 
 syspop_create(
     syn_areas,
@@ -32,7 +32,7 @@ syspop_create(
         "address": nz_data["geography_address"]
     },
     household={"composition": nz_data["household_composition"]},
-    work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"]},
+    work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"], "income": nz_data["work_income"]},
     commute={
         "travel_to_work": nz_data["commute_travel_to_work"], 
         "travel_to_school": nz_data["commute_travel_to_school"]},

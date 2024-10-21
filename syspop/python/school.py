@@ -54,7 +54,7 @@ def create_school(school_data: DataFrame, max_student_num: int = 30) -> DataFram
             "latitude": float(latitude),
             "longitude": float(longitude),
             "max_students": int(max_students),
-            "id": str(name)
+            "school": str(name)
         })
     
     return DataFrame(schools)
