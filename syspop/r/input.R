@@ -1,7 +1,7 @@
 source("syspop/r/global_vars.R")
 library(arrow)
 
-new_zealand <- function(data_dir = global_vars$NZ_DATA_DEFAULT) {
+new_zealand <- function(data_dir = global_vars$NZ_DATA_DEFAULT, apply_pseudo_ethnicity=TRUE) {
   # Initialize an empty list to store data
   nz_data <- list()
   
@@ -41,7 +41,26 @@ new_zealand <- function(data_dir = global_vars$NZ_DATA_DEFAULT) {
       nz_data[[item]] <- read_parquet(proc_path)
     }
   }
+
+  if (apply_pseudo_ethnicity == TRUE) {
+    nz_data[["household_composition"]] = add_pseudo_hhd_ethnicity(
+      nz_data[["household_composition"]])
+  }
   
   return(nz_data)
 }
 
+
+add_pseudo_hhd_ethnicity <- function(
+    household_composition_data,
+    ethnicities = c("european", "maori", "asian", "others"),
+    weights = c(0.7, 0.15, 0.12, 0.03)
+) {
+  household_composition_data$ethnicity <- sample(
+    ethnicities,
+    size = nrow(household_composition_data),
+    replace = TRUE,
+    prob = weights
+  )
+  return(household_composition_data)
+}

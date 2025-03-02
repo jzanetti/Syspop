@@ -17,15 +17,25 @@ from syspop.python.utils import merge_syspop_data, setup_logging
 
 from syspop.python.base_pop import base_pop_wrapper
 from syspop.python.household import create_households, place_agent_to_household
-from syspop.python.work import place_agent_to_employee, create_employee, create_employer, create_income, place_agent_to_income
+from syspop.python.work import (
+    place_agent_to_employee,
+    create_employee,
+    create_employer,
+    create_income,
+    place_agent_to_income,
+)
 from syspop.python.school import create_school
 from syspop.python.commute import create_commute_probability, assign_agent_to_commute
-from syspop.python.shared_space import place_agent_to_shared_space_based_on_area, find_nearest_shared_space_from_household, create_shared_data, place_agent_to_shared_space_based_on_distance
+from syspop.python.shared_space import (
+    place_agent_to_shared_space_based_on_area,
+    find_nearest_shared_space_from_household,
+    create_shared_data,
+    place_agent_to_shared_space_based_on_distance,
+)
 from copy import deepcopy
 from pandas import concat
 
 logger = setup_logging(workdir="")
-
 
 
 def diary(
@@ -92,13 +102,13 @@ def create(
     commute: dict = None,
     education: dict = None,
     shared_space: dict = None,
-    ):
+):
     """
     Generates a synthetic population and related data based on provided parameters.
 
     This function orchestrates the creation of a synthetic population by generating
     various components, including population structure, households, work-related data,
-    school-related data, and shared space information. The resulting data is saved 
+    school-related data, and shared space information. The resulting data is saved
     in the specified output directory.
 
     Args:
@@ -134,39 +144,49 @@ def create(
     logger.info("Creating required data ...")
     logger.info("----------------------------")
     logger.info("Creating household data ...")
-    household_data = create_households(household["composition"], geography["address"], all_areas)    
+    household_data = create_households(
+        household["composition"], geography["address"], all_areas
+    )
 
     logger.info("Creating work related data ...")
     commute_data_work = create_commute_probability(
-        commute["travel_to_work"], all_areas, commute_type="work")
+        commute["travel_to_work"], all_areas, commute_type="work"
+    )
     employee_data = create_employee(
-        work["employee"], 
-        commute_data_work.area_work.unique())
+        work["employee"], commute_data_work.area_work.unique()
+    )
     employer_data = create_employer(
         work["employer"],
         geography["address"],
-        list(commute_data_work.area_work.unique()))
+        list(commute_data_work.area_work.unique()),
+    )
     income_data = create_income(work["income"])
 
     logger.info("Creating school related data ...")
     commute_data_school = create_commute_probability(
-        commute["travel_to_school"], all_areas, commute_type="school")
+        commute["travel_to_school"], all_areas, commute_type="school"
+    )
 
     school_data = create_school(
-        concat([education["school"], education["kindergarten"]]))
-    
+        concat([education["school"], education["kindergarten"]])
+    )
+
     logger.info("Creating shared space related data ...")
     shared_space_data = {}
     shared_space_loc = {}
     for proc_shared_space_name in shared_space:
         shared_space_data[proc_shared_space_name] = create_shared_data(
-            shared_space[proc_shared_space_name], proc_shared_space_name)
+            shared_space[proc_shared_space_name], proc_shared_space_name
+        )
 
-        shared_space_loc[proc_shared_space_name] = find_nearest_shared_space_from_household(
-            household_data, 
-            shared_space_data[proc_shared_space_name], 
-            geography["location"], 
-            proc_shared_space_name)
+        shared_space_loc[proc_shared_space_name] = (
+            find_nearest_shared_space_from_household(
+                household_data,
+                shared_space_data[proc_shared_space_name],
+                geography["location"],
+                proc_shared_space_name,
+            )
+        )
 
     logger.info("----------------------------")
     logger.info("Creating agents ...")
@@ -177,67 +197,71 @@ def create(
     for i, proc_agent in population_data.iterrows():
 
         if i % 500.0 == 0:
-            logger.info(f"Completed: {i} / {total_people}: {int(i * 100.0/total_people)}%")
-        
+            logger.info(
+                f"Completed: {i} / {total_people}: {int(i * 100.0/total_people)}%"
+            )
+
         # ----------------
         # Work
         # ----------------
         proc_agent = assign_agent_to_commute(
-            commute_data_work, 
-            proc_agent, 
-            commute_type="work", 
-            include_filters={"age": [(18, 999)]})
+            commute_data_work,
+            proc_agent,
+            commute_type="work",
+            include_filters={"age": [(18, 999)]},
+        )
         proc_agent = place_agent_to_employee(employee_data, proc_agent)
         proc_agent = place_agent_to_income(income_data, proc_agent)
         proc_agent = place_agent_to_shared_space_based_on_area(
-            employer_data, 
-            proc_agent, 
+            employer_data,
+            proc_agent,
             "work",
-            filter_keys = ["business_code"],
-            name_key = "employer",
-            shared_space_type_convert = {"work": "employer"})
+            filter_keys=["business_code"],
+            name_key="employer",
+            shared_space_type_convert={"work": "employer"},
+        )
 
         # ----------------
         # School
         # ----------------
         proc_agent = assign_agent_to_commute(
-            commute_data_school, 
-            proc_agent, 
+            commute_data_school,
+            proc_agent,
             commute_type="school",
-            include_filters={"age": [(0, 17)]}
+            include_filters={"age": [(0, 17)]},
         )
         proc_agent = place_agent_to_shared_space_based_on_area(
-            school_data, 
-            proc_agent, 
+            school_data,
+            proc_agent,
             "school",
-            filter_keys = ["age"],
-            name_key = "school",
-            weight_key="max_students")
+            filter_keys=["age"],
+            name_key="school",
+            weight_key="max_students",
+        )
 
         # ----------------
         # Household
         # ----------------
         proc_agent, updated_household_data = place_agent_to_household(
-            updated_household_data, proc_agent)
+            updated_household_data, proc_agent
+        )
 
         # ----------------
         # Shared space
         # ----------------
         proc_agent = place_agent_to_shared_space_based_on_distance(
-            proc_agent, 
-            shared_space_loc)
+            proc_agent, shared_space_loc
+        )
 
         updated_agents.append(proc_agent)
-    
+
     updated_agents = DataFrame(updated_agents)
 
     updated_agents["id"] = updated_agents.index
 
     output_files = {
         "syspop_base": ["area", "age", "gender", "ethnicity"],
-        "syspop_household": [
-            "household"
-        ],
+        "syspop_household": ["household"],
         "syspop_travel": ["travel_method_work", "travel_method_school"],
         "syspop_work": ["area_work", "business_code", "employer", "income"],
         "syspop_school": ["area_school", "school"],
@@ -251,7 +275,7 @@ def create(
             "fast_food",
             "pub",
             "park",
-        ]
+        ],
     }
 
     for name, cols in output_files.items():
@@ -260,12 +284,11 @@ def create(
             updated_agents[["id"] + cols].to_parquet(output_path, index=False)
         except KeyError:
             pass
-    
+
     household_data.to_parquet(join(output_dir, f"household_data.parquet"), index=False)
     employer_data.to_parquet(join(output_dir, f"employer_data.parquet"), index=False)
     school_data.to_parquet(join(output_dir, f"school_data.parquet"), index=False)
     for shared_space_name in shared_space_data:
         shared_space_data[shared_space_name].to_parquet(
-            join(output_dir, f"{shared_space_name}_data.parquet"), index=False)
-
-
+            join(output_dir, f"{shared_space_name}_data.parquet"), index=False
+        )

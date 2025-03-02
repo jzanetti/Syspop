@@ -42,13 +42,19 @@ create_households <- function(household_data, address_data, areas) {
     children <- household_data$children[i]
     count <- household_data$value[i]
     
+    ethnicity <- NULL
+    if ("ethnicity" %in% names(household_data)) {
+      ethnicity <- household_data$ethnicity[i]
+    }
     # Filter address data for the current area
     proc_address_data_area <- address_data[address_data$area == area, ]
-    
+
     # Create individual records for each household
     for (j in seq_len(count)) {
-      proc_address_data <- proc_address_data_area[sample(nrow(proc_address_data_area), 1), ]
-      households[[length(households) + 1]] <- data.frame(
+      proc_address_data <- proc_address_data_area[
+        sample(nrow(proc_address_data_area), 1), ]
+      
+      proc_households_data <- data.frame(
         area = as.integer(area),
         adults = as.integer(adults),
         children = as.integer(children),
@@ -56,6 +62,13 @@ create_households <- function(household_data, address_data, areas) {
         longitude = as.numeric(proc_address_data$longitude),
         household = substr(uuid::UUIDgenerate(), 1, 6)  # Create a 6-digit unique ID
       )
+      
+      if (!is.null(ethnicity)) {
+        proc_households_data[["ethnicity"]] <- ethnicity
+      }
+      
+      households[[length(households) + 1]] <- proc_households_data
+
     }
   }
   
