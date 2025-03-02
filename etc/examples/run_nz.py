@@ -11,7 +11,7 @@ filterwarnings("ignore")
 
 output_dir = "/tmp/syspop2"
 
-nz_data = new_zealand()
+nz_data = new_zealand(apply_pseudo_ethnicity=False)
 
 syn_areas = list(
     nz_data["geography_hierarchy"][

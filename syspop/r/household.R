@@ -100,14 +100,26 @@ create_households <- function(household_data, address_data, areas) {
 place_agent_to_household <- function(households, agent) {
   # Determine agent type based on age
   agent_type <- ifelse(agent$age >= 18, "adults", "children")
-  
+
   # Filter selected households based on agent type and area
   selected_households <- households %>%
     filter(!!sym(agent_type) >= 1 & area == agent$area)
   
   if (nrow(selected_households) > 0) {
-    # Randomly select a household from the available options
-    selected_household <- selected_households %>% sample_n(1)
+    
+    if ("ethnicity" %in% colnames(selected_households)) {
+      selected_household <- select_place_with_constrain(
+          selected_households,
+          "ethnicity",
+          agent[["ethnicity"]],
+          unique(selected_households$ethnicity),
+      )
+    }
+    else {
+      # Randomly select a household from the available options
+      selected_household <- selected_households %>% sample_n(1)
+    }
+    
     households[households$household == selected_household$household, agent_type] <- 
       households[households$household == selected_household$household, agent_type] - 1
   } else {

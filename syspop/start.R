@@ -3,6 +3,7 @@ source("syspop/r/household.R")
 source("syspop/r/commute.R")
 source("syspop/r/work.R")
 source("syspop/r/school.R")
+source("syspop/r/utils.R")
 
 create <- function(
     syn_areas,
