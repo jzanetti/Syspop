@@ -15,7 +15,7 @@ library(tibble)
 library(fs)
 library(data.table)
 
-nz_data <- new_zealand()
+nz_data <- new_zealand(apply_pseudo_ethnicity=FALSE)
 
 output_dir <- "/tmp/syspop"
 syn_areas <- c(241800, 242800)

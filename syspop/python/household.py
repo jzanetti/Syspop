@@ -1,12 +1,17 @@
-
 from logging import getLogger
 from pandas import DataFrame, Series
-
+from random import choices as random_choices
 from uuid import uuid4
+from syspop.python.utils import select_place_with_contstrain
 
 logger = getLogger()
 
-def create_households(household_data: DataFrame, address_data: DataFrame, areas: list,):
+
+def create_households(
+    household_data: DataFrame,
+    address_data: DataFrame,
+    areas: list,
+):
     """
     Create a DataFrame of individual households from aggregated data.
 
@@ -34,21 +39,31 @@ def create_households(household_data: DataFrame, address_data: DataFrame, areas:
         adults = row["adults"]
         children = row["children"]
         count = row["value"]
-        proc_address_data_area = address_data[
-            address_data["area"] == area]
-        
+
+        ethnicity = None
+        if "ethnicity" in row:
+            ethnicity = row["ethnicity"]
+
+        proc_address_data_area = address_data[address_data["area"] == area]
+
         # Create individual records for each household
         for _ in range(count):
             proc_address_data = proc_address_data_area.sample(n=1)
-            households.append({
+
+            proc_hhd_info = {
                 "area": int(area),
                 "adults": int(adults),
                 "children": int(children),
                 "latitude": float(proc_address_data.latitude),
                 "longitude": float(proc_address_data.longitude),
-                "household": str(uuid4())[:6]  # Create a 6-digit unique ID
-            })
-    
+                "household": str(uuid4())[:6],  # Create a 6-digit unique ID
+            }
+
+            if ethnicity is not None:
+                proc_hhd_info["ethnicity"] = ethnicity
+
+            households.append(proc_hhd_info)
+
     return DataFrame(households)
 
 
@@ -71,14 +86,24 @@ def place_agent_to_household(households: DataFrame, agent: Series) -> tuple:
     """
     agent_type = "adults" if agent.age >= 18 else "children"
 
-    selected_households = households[(households[agent_type] >= 1) & (households["area"] == agent.area)]
+    selected_households = households[
+        (households[agent_type] >= 1) & (households["area"] == agent.area)
+    ]
     if len(selected_households) > 0:
-        selected_household = selected_households.sample(n=1)
+
+        if "ethnicity" in selected_households:
+            selected_household = select_place_with_contstrain(
+                selected_households,
+                "ethnicity",
+                agent.ethnicity,
+                list(selected_households.ethnicity.unique()),
+            )
+        else:
+            selected_household = selected_households.sample(n=1)
+
         households.at[selected_household.index[0], agent_type] -= 1
     else:
         selected_household = households.sample(n=1)
 
     agent["household"] = selected_household.household.values[0]
     return agent, households
-
-

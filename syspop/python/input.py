@@ -9,7 +9,7 @@ from pandas import DataFrame
 
 
 def new_zealand(
-    data_dir: str = NZ_DATA_DEFAULT, apply_pseudo_ethnicity: bool = True
+    data_dir: str = NZ_DATA_DEFAULT, apply_pseudo_ethnicity: bool = False
 ) -> dict:
     """Get data to create synthentic population
 
@@ -61,8 +61,8 @@ def new_zealand(
 
 def add_pseudo_hhd_ethnicity(
     household_composition_data: DataFrame,
-    ethnicities: list = ["european", "maori", "asian", "others"],
-    weights: list = [0.7, 0.15, 0.12, 0.03],
+    ethnicities: list = ["European", "Maori", "Pacific", "Asian", "MELAA"],
+    weights: list = [0.6, 0.15, 0.1, 0.12, 0.03],
 ) -> DataFrame:
     """
     Add a pseudo-ethnicity column to a household composition
