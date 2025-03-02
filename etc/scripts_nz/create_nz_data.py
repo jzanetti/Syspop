@@ -22,14 +22,15 @@ from funcs.wrapper import (
 
 from funcs.utils import read_cfg
 
+
 def import_raw_data(workdir: str, input_cfg: str):
     """Imports and processes raw data for various demographic and geographic categories.
 
-    This function checks if the specified working directory 
+    This function checks if the specified working directory
     exists and creates it if it does not.
-    It then calls a series of wrapper functions to 
+    It then calls a series of wrapper functions to
     create and process data for different categories such as population,
-    household, geography, commute, work, school, kindergarten, 
+    household, geography, commute, work, school, kindergarten,
     hospital, and shared spaces.
     Finally, it creates additional attributes.
 
@@ -105,7 +106,9 @@ def import_raw_data(workdir: str, input_cfg: str):
 
 
 def produce_proj_data(
-    workdir: str, input_cfg: dict, all_years: None or list = [2023, 2028, 2033, 2038, 2043]
+    workdir: str,
+    input_cfg: dict,
+    all_years: None or list = [2023, 2028, 2033, 2038, 2043],
 ):
     """
     Produces projected data by copying files and processing population and work data
@@ -149,9 +152,9 @@ if __name__ == "__main__":
     parser.add_argument("--add_proj", action=BooleanOptionalAction)
 
     args = parser.parse_args(
-       # ["--workdir", "etc/data/test_data", "--input", "etc/scripts_nz/input_cfg.yml"]
+        ["--workdir", "etc/data/test_data", "--input", "etc/scripts_nz/input_cfg.yml"]
     )  # ["--workdir", "etc/data/test_data_wellington_latest"]
     import_raw_data(args.workdir, args.input)
 
-    if args.add_proj: # it does not work for input_v2.0 yet
+    if args.add_proj:  # it does not work for input_v2.0 yet
         produce_proj_data(args.workdir, args.input)

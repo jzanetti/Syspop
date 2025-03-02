@@ -6,6 +6,7 @@ from syspop.python.input import new_zealand
 from syspop.start import create as syspop_create
 
 from warnings import filterwarnings
+
 filterwarnings("ignore")
 
 output_dir = "/tmp/syspop2"
@@ -23,23 +24,23 @@ syn_areas = [241800, 242800]
 syspop_create(
     syn_areas,
     output_dir,
-    population = {
-        "structure": nz_data["population_structure"]
-    },
-    geography = {
+    population={"structure": nz_data["population_structure"]},
+    geography={
         "hierarchy": nz_data["geography_hierarchy"],
         "location": nz_data["geography_location"],
-        "address": nz_data["geography_address"]
+        "address": nz_data["geography_address"],
     },
     household={"composition": nz_data["household_composition"]},
-    work={"employee": nz_data["work_employee"], "employer": nz_data["work_employer"], "income": nz_data["work_income"]},
-    commute={
-        "travel_to_work": nz_data["commute_travel_to_work"], 
-        "travel_to_school": nz_data["commute_travel_to_school"]},
-    education={
-        "school": nz_data["school"],
-        "kindergarten": nz_data["kindergarten"]
+    work={
+        "employee": nz_data["work_employee"],
+        "employer": nz_data["work_employer"],
+        "income": nz_data["work_income"],
     },
+    commute={
+        "travel_to_work": nz_data["commute_travel_to_work"],
+        "travel_to_school": nz_data["commute_travel_to_school"],
+    },
+    education={"school": nz_data["school"], "kindergarten": nz_data["kindergarten"]},
     shared_space={
         "hospital": nz_data["hospital"],
         "bakery": nz_data["shared_space_bakery"],
@@ -51,5 +52,5 @@ syspop_create(
         "restaurant": nz_data["shared_space_restaurant"],
         "supermarket": nz_data["shared_space_supermarket"],
         "wholesale": nz_data["shared_space_wholesale"],
-    }
+    },
 )
