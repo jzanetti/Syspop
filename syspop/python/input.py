@@ -8,6 +8,102 @@ from numpy.random import choice
 from pandas import DataFrame
 
 
+def pseudo_animal_in_antarctic(
+    TYPES: dict = {
+        "penguin": {
+            "speed_on_land": 1.2,
+            "speed_in_sea": 3.0,
+            "on_land": True,
+            "on_sea": True,
+            "food": "fish",
+            "enemy": "seal"
+        }, 
+        "fish": {
+            "speed_on_land": None,
+            "speed_in_sea": 2.0,
+            "on_land": False,
+            "on_sea": True,
+            "food": None,
+            "enemy": "penguin"
+        },
+        "seal": {
+            "speed_on_land": 1.0,
+            "speed_in_sea": 3.5,
+            "on_land": True,
+            "on_sea": True,
+            "food": "penguin",
+            "enemy": None
+        }
+    },
+    NUMS = {"penguin": 1, "fish": 3, "seal": 1}):
+    """Creates a DataFrame representing a pseudo-animal population in Antarctica.
+
+    Args:
+        TYPES (dict, optional): Dictionary of animal types and their characteristics.
+            Each animal type should have these keys:
+                - speed_on_land (float or None): Speed on land in m/s
+                - speed_in_sea (float): Speed in sea in m/s
+                - on_land (bool): Whether animal can be on land
+                - on_sea (bool): Whether animal can be in sea
+                - food (str or None): What the animal eats
+                - enemy (str or None): Animal's predator
+            Defaults to predefined penguin, fish, and seal characteristics.
+        NUMS (dict, optional): Number of each animal type in the population.
+            Keys must match TYPES keys. Defaults to {"penguin": 1, "fish": 3, "seal": 1}.
+
+    Returns:
+        dict: Dictionary containing a single key "population_structure" with a pandas
+            DataFrame value. The DataFrame has columns:
+                - type: Animal type name
+                - speed_on_land: Speed on land in m/s
+                - speed_in_sea: Speed in sea in m/s
+                - on_land: Whether animal can be on land
+                - on_sea: Whether animal can be in sea
+                - food: What the animal eats
+                - enemy: Animal's predator
+
+    Raises:
+        Exception: If any animal type in TYPES doesn't have all required characteristic keys.
+
+    Example:
+        >>> result = pseudo_animal_in_antarctic()
+        >>> print(result["population_structure"])
+           type  speed_on_land  speed_in_sea  on_land  on_sea    food  enemy
+        0  penguin          1.2          3.0     True    True    fish   seal
+        1     fish          None         2.0    False    True    None  penguin
+        2     fish          None         2.0    False    True    None  penguin
+        3     fish          None         2.0    False    True    None  penguin
+        4     seal          1.0          3.5     True    True  penguin   None
+    """
+    animal_data = {
+        "type": [],
+        "speed_on_land": [],
+        "speed_in_sea": [],
+        "on_land": [],
+        "on_sea": [],
+        "food": [],
+        "enemy": []
+    }
+
+    ref_keys = [x for x in list(animal_data.keys()) if x != "type"]
+
+    for proc_type in TYPES:
+        data_keys = list(TYPES[proc_type].keys())
+
+        if not ref_keys == data_keys:
+            raise Exception(f"Data type does not match for {proc_type}")
+
+    for proc_type in TYPES:
+        for _ in range(NUMS[proc_type]):
+            animal_data["type"].append(proc_type)
+            for proc_key in ref_keys:
+                animal_data[proc_key].append(TYPES[proc_type][proc_key])
+
+    animal_data = DataFrame.from_dict(animal_data)
+
+    return {"population_structure": animal_data}
+
+
 def new_zealand(
     data_dir: str = NZ_DATA_DEFAULT, apply_pseudo_ethnicity: bool = False
 ) -> dict:
