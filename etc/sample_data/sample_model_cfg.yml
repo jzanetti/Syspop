@@ -1,0 +1,48 @@
+tasks: industry -> occupation -> occupation_income -> industry_income -> travel_to_work -> work_hours
+cfg:
+  industry:
+    targets:
+      industry: category
+      work_status: category
+    features:
+      - age
+      - gender
+      - location
+  occupation:
+    targets:
+      occupation: category
+    features:
+      - age
+      - gender
+      - location
+      - industry
+  occupation_income:
+    targets:
+      income: category
+    features:
+      - age
+      - gender
+      - location
+      - occupation
+  industry_income:
+    targets:
+      income: category
+    features:
+      - age
+      - gender
+      - location
+      - industry
+  travel_to_work:
+    targets:
+      travel_to_work: category
+    features:
+      - age
+      - gender
+      - location
+  work_hours:
+    targets:
+      work_hours: category
+    features:
+      - age
+      - gender
+      - occupation

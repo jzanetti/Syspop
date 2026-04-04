@@ -1,0 +1,166 @@
+tables:
+  seed:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_ECI_008,1.0/2023.12+13+14+15+16+17+18+99+01+02+03+04+05+06+07+08+09.111+112+113+114+115+116+211+212+213+214+215+216+217+218+219+221+222+223+224+225+226+311+312+313+314+315+321+322+323+331+332+341+342+343+344+345+351+352+353+354+355+411+511+611+999+7777.1+2+3+4.3+2+1?dimensionAtObservation=AllDimensions
+    map:
+      CEN23_GEN_002: gender
+      CEN23_GEO_002: location
+      CEN23_ETH_006: ethnicity
+      CEN23_AGE_003: age
+      OBS_VALUE: value
+    inclusion:
+      CEN23_GEO_002:
+        - "02"
+        - "09"
+        - "13"
+    exclusion:
+      CEN23_ETH_006:
+        - "7777"
+  industry:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_WRK_007,1.0/2023.12+13+14+15+16+17+18+99+01+02+03+04+05+06+07+08+09+9999.7777+A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T+9999.2+1.2+3+4+99.3+2+1+99?dimensionAtObservation=AllDimensions
+    map:
+      CEN23_GEN_002: gender
+      CEN23_GEO_008: location
+      CEN23_IND_004: industry
+      CEN23_WLF_006: work_status
+      CEN23_AGE_007: age
+      OBS_VALUE: value
+    inclusion:
+      CEN23_YEAR_001:
+        - "2023"
+      CEN23_GEO_008:
+        - "09"
+    exclusion:
+      CEN23_AGE_007:
+        - "99"
+      CEN23_GEN_002:
+        - "99"
+      CEN23_IND_004:
+        - "7777"
+        - "9999"
+      CEN23_GEO_008:
+        - "9999"
+  industry_income:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_INC_005,1.0/2023.12+13+14+15+16+17+18+99+01+02+03+04+05+06+07+08+09+9999.1+2+3+4+5+6+7+99.7+A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T+9.4+3+2+99.3+2+1+99?dimensionAtObservation=AllDimensions
+    map:
+      CEN23_GEN_002: gender
+      CEN23_GEO_002: location
+      CEN23_TOI_003: income
+      CEN23_IND_003: industry
+      CEN23_AGE_008: age
+      OBS_VALUE: value
+    inclusion:
+      CEN23_YEAR_001:
+        - "2023"
+      CEN23_GEO_002:
+        - "09"
+    exclusion:
+      CEN23_GEN_002:
+        - "99"
+      CEN23_GEO_002:
+        - "99"
+        - "9999"
+      CEN23_TOI_003:
+        - "99"
+      CEN23_AGE_008:
+        - "99"
+  occupation:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_WRK_008,1.0/2023.9999+12+13+14+15+16+17+18+99+01+02+03+04+05+06+07+08+09.1+2+3+4+5+6+7+8+9+77.7+A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T.2+3+4+Median+99.3+2+1+99?dimensionAtObservation=AllDimensions
+    map:
+      CEN23_GEN_002: gender
+      CEN23_GEO_008: location
+      CEN23_OCC_002: occupation
+      CEN23_IND_003: industry
+      CEN23_AGE_007: age
+      OBS_VALUE: value
+    inclusion:
+      CEN23_YEAR_001:
+        - "2023"
+      CEN23_GEO_008:
+        - "09"
+    exclusion:
+      CEN23_GEN_002:
+        - "99"
+      CEN23_GEO_008:
+        - "99"
+        - "9999"
+      CEN23_OCC_002:
+        - "77"
+      CEN23_AGE_007:
+        - "99"
+        - "Median"
+  occupation_income:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_HAD_063,1.0/2023.12+13+14+15+16+17+18+99+01+02+03+04+05+06+07+08+09+9999.999.1+2+3+4+5+6+7+99.1+2+3+4+5+6+7+8+9+77+99.4+3+2+99.3+2+1+99?dimensionAtObservation=AllDimensions
+    map:
+      CEN23_GEN_002: gender
+      CEN23_GEO_008: location
+      CEN23_OCC_002: occupation
+      CEN23_TOI_003: income
+      CEN23_AGE_008: age
+      OBS_VALUE: value
+    inclusion:
+      CEN23_YEAR_001:
+        - "2023"
+      CEN23_GEO_008:
+        - "09"
+    exclusion:
+      CEN23_GEN_002:
+        - "99"
+      CEN23_GEO_008:
+        - "99"
+        - "9999"
+      CEN23_OCC_002:
+        - "77"
+        - "99"
+      CEN23_AGE_008:
+        - "99"
+      CEN23_TOI_003:
+        - "99"
+  travel_to_work:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_TRA_003,1.0/2023.12+13+14+15+16+17+18+77+88+96+97+98+99+01+02+03+04+05+06+07+08+09+9999+99999+999999.999+7777+001+002+003+004+005+006+007+009+010+012+016+9999.2+3+4+Median+99.3+2+1+99?dimensionAtObservation=AllDimensions
+    map:
+      CEN23_GEN_002: gender
+      CEN23_AGE_007: age
+      CEN23_WOA_002: location
+      CEN23_TWO_002: travel_to_work
+      OBS_VALUE: value
+    inclusion:
+      CEN23_WOA_002:
+        - "09"
+    exclusion:
+      CEN23_GEN_002:
+        - "99"
+      CEN23_AGE_007:
+        - "99"
+        - "Median"
+      CEN23_WOA_002:
+        - "77"
+        - "88"
+        - "96"
+        - "97"
+        - "98"
+        - "99"
+        - "9999"
+        - "99999"
+        - "999999"
+      CEN23_TWO_002:
+        - "7777"
+        - "999"
+        - "9999"
+  work_hours:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_WRK_002,1.0/2023.9999.7+6+5+4+3+2+1.9+8+7+6+5+4+3+2+1+99.4+3+2+99.3+2+1+99?dimensionAtObservation=AllDimensions
+    map:
+      CEN23_GEN_002: gender
+      CEN23_HOU_002: work_hours
+      CEN23_OCC_002: occupation
+      CEN23_AGE_008: age
+      OBS_VALUE: value
+    inclusion:
+    exclusion:
+      CEN23_GEN_002:
+        - "99"
+      CEN23_AGE_008:
+        - "99"
+      CEN23_OCC_002:
+        - "99"
+  household_income_data1:
+    api: https://api.data.stats.govt.nz/rest/data/STATSNZ,CEN23_FHH_033,1.0/2023.9999.10+11+12+99+777+06+07+08+09+05+04+03+02+01+00.99.9+777+69+61+5+4+3+2+1+999.4+3+2+1+99?dimensionAtObservation=AllDimensions
