@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
-from process.data.data import encode_weights, encode_sum
+from syspop.data.data import encode_weights, encode_sum
 from os.path import exists as os_path_exists
 from os import makedirs as os_makedirs
-from process.model.utils import check_deps_charts
+from syspop.model.utils import check_deps_charts
 
 
 def get_target_values(group, prob_mapping):

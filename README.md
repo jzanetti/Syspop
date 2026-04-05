@@ -38,8 +38,8 @@ Each entry in the dictionary must be a DataFrame containing:
 ```python
 from pandas import DataFrame
 from numpy import nan
-from process.model.stochastic_impute import stochastic_impute
-from process.postp.vis import plot_distribution
+from syspop.model.stochastic_impute import stochastic_impute
+from syspop.postp.vis import plot_distribution
 
 # ---------------------------------
 # 1. Define base aggregated population data (e.g., from a census)

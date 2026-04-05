@@ -1,6 +1,6 @@
-from process.data.sample import load_sample_data
-from process.model.stochastic_impute import stochastic_impute
-from process.postp.vis import plot_distribution
+from src.syspop.data.sample import load_sample_data
+from src.syspop.model.stochastic_impute import stochastic_impute
+from src.syspop.postp.vis import plot_distribution
 
 data, task_list = load_sample_data(refresh=True)
 

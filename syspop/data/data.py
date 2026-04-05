@@ -1,5 +1,5 @@
-from process.data.query import obtain_stats_data
-from process.data.utils import stats_data_proc
+from syspop.data.query import obtain_stats_data
+from syspop.data.utils import stats_data_proc
 from pandas import DataFrame as pdDataFrame
 from sklearn.preprocessing import LabelEncoder
 
