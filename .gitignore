@@ -10,3 +10,4 @@ test
 *.log
 .DS_Store
 etc/sample_data/api_keys.py
+dist
