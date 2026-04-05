@@ -20,6 +20,13 @@ The New Zealand unit records of synthetic population can be explored at [here](h
 
 ---
 
+## 📋 Installation
+The package can be installed via
+```
+pip install syspop_v2
+```
+
+
 ## 📋 Data Requirements
 
 ### 1. Population Seed
