@@ -7,9 +7,13 @@ This tool is optimized for large-scale microdata generation where individual att
 The New Zealand unit records of synthetic population can be explored at [here](https://jzanetti1985.pythonanywhere.com)
 
 [1. Key Features](#-key_features)
+
 [2. Installation](#-installation)
+
 [3. Data Requirements](#-data_requirements)
+
 [4. Examples](#-examples)
+
 [5. FAQ](#-faq)
 
 
