@@ -4,17 +4,17 @@ A Python utility designed to generate an **integreated synthetic unit record pop
 
 This tool is optimized for large-scale microdata generation where individual attributes are assigned based on conditional probability distributions.
 
-The New Zealand unit records of synthetic population can be explored at [here](https://jzanetti1985.pythonanywhere.com)
+The New Zealand unit records of synthetic population can be explored [here](https://jzanetti1985.pythonanywhere.com)
 
-[1. Key Features](#-keyfeatures)
+[1. Key Features](#keyfeatures)
 
-[2. Installation](#-installation)
+[2. Installation](#installation)
 
-[3. Data Requirements](#-datarequirements)
+[3. Data Requirements](#datarequirements)
 
-[4. Examples](#-examplesuse)
+[4. Examples](#examplesuse)
 
-[5. FAQ](#-faq)
+[5. FAQ](#faq)
 
 
 <a name="keyfeatures"></a>
