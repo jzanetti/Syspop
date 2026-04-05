@@ -13,3 +13,4 @@ etc/sample_data/api_keys.py
 dist
 README_develoer.md
 syspop.egg-info
+syspop_v2.egg-info
