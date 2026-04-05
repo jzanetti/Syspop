@@ -9,7 +9,8 @@ setup(
         "numpy",
         "pyarrow"
         "pyyaml",
-        "matplotlib"
+        "matplotlib",
+        "graphviz"
     ],
     author="Sijin Zhang",
     description="Creating synthetic population",
