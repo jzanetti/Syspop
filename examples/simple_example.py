@@ -42,12 +42,12 @@ task_list = {
         "features": ["age", "gender"],
     }
 }
-drop_list = ["income"]
+exceedance_list = ["income"]
 
 # ---------------------------------
 # 5. Run the stochastic imputation process
 # ---------------------------------
-syn_pop = stochastic_impute(data, task_list, drop_list = drop_list)
+syn_pop = stochastic_impute(data, task_list, exceedance_list = exceedance_list)
 
 # ---------------------------------
 # 6. Plot distribution

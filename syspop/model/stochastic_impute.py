@@ -25,12 +25,12 @@ def get_target_values(group, prob_mapping):
 def stochastic_impute(
     data_dict,
     task_list,
-    drop_list = [],
+    exceedance_list = [],
     output_dir="./output",
     output_filename="stochastic_imputed_data.parquet",
 ):
 
-    drop_list = encode_sum(data_dict, drop_list)
+    exceedance_list = encode_sum(data_dict, exceedance_list)
     data_dict = encode_weights(data_dict)
 
     result_df = data_dict["seed"].copy()
@@ -95,9 +95,9 @@ def stochastic_impute(
                     get_target_values, prob_mapping=prob_mapping, include_groups=False
                 )
 
-                # Drop excess rows if specified in drop_list for this task
-                if proc_task in drop_list:
-                    target_counts = drop_list[proc_task]
+                # Drop excess rows if specified in exceedance_list for this task
+                if proc_task in exceedance_list:
+                    target_counts = exceedance_list[proc_task]
 
                     if target_counts < assigned_subset.count():
                         non_nan_indices = assigned_subset[assigned_subset.notna()].index

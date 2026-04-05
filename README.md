@@ -90,7 +90,7 @@ data = {"seed": base_population_data, "income": income_data}
 #   The source datasets (e.g., income) sometimes have smaller populations 
 #   than the seed population (180 records). To maintain statistical 
 #   consistency, we introduce NaNs into the output for matching 
-#   reference data in 'drop_list'. 
+#   reference data in 'exceedance_list'. 
 #
 #   Example: If the income dataset only contains 20 records, we randomly 
 #   retain only 20 income/work_status in the output population and set the remaining 
@@ -102,11 +102,11 @@ task_list = {
         "features": ["age", "gender"],
     }
 }
-drop_list = ["income"]
+exceedance_list = ["income"]
 # ---------------------------------
 # 5. Run the stochastic imputation process
 # ---------------------------------
-syn_pop = stochastic_impute(data, task_list)
+syn_pop = stochastic_impute(data, task_list, exceedance_list=exceedance_list)
 
 # ---------------------------------
 # 6. Plot distribution
@@ -116,6 +116,9 @@ plot_distribution(syn_pop, ["age"])
 # 6.2 Plot joint distribution for gender + age
 plot_distribution(syn_pop, ["gender", "age"])
 ```
+
+Full examples can be acceessed in `./examples`
+
 
 <a name="faq"></a>
 ## 🧠 FAQ
