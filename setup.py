@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="syspop_v2",
-    version="0.4.0",  # Or whatever version is appropriate
+    version="0.4.1",  # Or whatever version is appropriate
     packages=find_packages(),
     install_requires=[
         "pandas",
