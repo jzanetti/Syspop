@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from process.data.data import encode_weights
+from process.data.data import encode_weights, encode_sum
 from os.path import exists as os_path_exists
 from os import makedirs as os_makedirs
 from process.model.utils import check_deps_charts
@@ -25,10 +25,12 @@ def get_target_values(group, prob_mapping):
 def stochastic_impute(
     data_dict,
     task_list,
+    drop_list = [],
     output_dir="./output",
     output_filename="stochastic_imputed_data.parquet",
 ):
 
+    drop_list = encode_sum(data_dict, drop_list)
     data_dict = encode_weights(data_dict)
 
     result_df = data_dict["seed"].copy()
@@ -93,8 +95,20 @@ def stochastic_impute(
                     get_target_values, prob_mapping=prob_mapping, include_groups=False
                 )
 
+                # Drop excess rows if specified in drop_list for this task
+                if proc_task in drop_list:
+                    target_counts = drop_list[proc_task]
+
+                    if target_counts < assigned_subset.count():
+                        non_nan_indices = assigned_subset[assigned_subset.notna()].index
+                        indices_to_drop = np.random.choice(
+                            non_nan_indices, size=assigned_subset.count() - target_counts, replace=False)
+                        assigned_subset.loc[indices_to_drop] = np.nan
+
                 # Update our master column with the results from this chunk
                 new_col.update(assigned_subset)
+
+                non_nan_indices = new_col[new_col.notna()].index
 
             # 4. Attach the fully processed column back to the dataframe (WITH MEAN LOGIC)
             if proc_target in result_df.columns:

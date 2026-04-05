@@ -12,11 +12,9 @@ This tool is optimized for large-scale microdata generation where individual att
 * **Dynamic Column Matching**: Automatically identifies shared features between the base population and reference data.
 * **Missingness-Aware Logic**: Handles rows with `NaN` values by dynamically re-calculating probabilities based only on the available non-null features.
 * **Stochastic Selection**: Uses weighted random sampling to preserve the natural variance and distribution of the source data.
-* **Dual-Source Integration**: If a target attribute already exists, the engine can blend the existing data with the synthetic prediction using row-wise averaging.
 * **Optimized Performance**: Processes millions rows in seconds by grouping identical "missingness patterns" rather than iterating row-by-row.
 
 > Please see the [FAQ](#-faq) for more details.
-
 
 ---
 
@@ -24,8 +22,7 @@ This tool is optimized for large-scale microdata generation where individual att
 
 ### 1. Population Seed
 The starting point for your synthetic data. 
-* Can contain existing columns you wish to "refine."
-* Can contain `NaN` values; the engine will ignore these specific columns during matching for those specific rows.
+* Contain existing columns you wish to "expand".
 
 ### 2. Reference Distributions
 Each entry in the dictionary must be a DataFrame containing:
@@ -73,17 +70,30 @@ income_data = DataFrame(
 # ---------------------------------
 data = {"seed": base_population_data, "income": income_data}
 
-# ---------------------------------
-# 4. Define the imputation tasks:
-#   - For the "income" task, we want to impute both "work_status" and "income" based on "age" and "gender
-# ---------------------------------
+# -------------------------------------------------------------------------
+# 4. Imputation Task Configuration
+#
+# OBJECTIVE:
+#   Define imputation models where 'features' (age, gender) 
+#   predict 'targets' (work_status and income).
+#
+# HANDLING SAMPLE SIZE DISCREPANCIES (Sparsity Alignment):
+#   The source datasets (e.g., income) sometimes have smaller populations 
+#   than the seed population (180 records). To maintain statistical 
+#   consistency, we introduce NaNs into the output for matching 
+#   reference data in 'drop_list'. 
+#
+#   Example: If the income dataset only contains 20 records, we randomly 
+#   retain only 20 income/work_status in the output population and set the remaining 
+#   160 to NaN
+# -------------------------------------------------------------------------
 task_list = {
     "income": {
         "targets": {"work_status": "category", "income": "numeric"},
         "features": ["age", "gender"],
     }
 }
-
+drop_list = ["income"]
 # ---------------------------------
 # 5. Run the stochastic imputation process
 # ---------------------------------

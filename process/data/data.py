@@ -78,3 +78,16 @@ def encode_weights(data_dict) -> dict:
         data_dict[key] = df
 
     return data_dict
+
+
+def encode_sum(data_dict, drop_list) -> dict:
+    
+    result_dict = {}
+
+    for key in data_dict:
+
+        if key not in drop_list:
+            continue
+        result_dict[key] = data_dict[key]["value"].sum()
+
+    return result_dict
