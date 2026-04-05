@@ -6,18 +6,18 @@ This tool is optimized for large-scale microdata generation where individual att
 
 The New Zealand unit records of synthetic population can be explored at [here](https://jzanetti1985.pythonanywhere.com)
 
-[1. Key Features](#-key_features)
+[1. Key Features](#-keyfeatures)
 
 [2. Installation](#-installation)
 
-[3. Data Requirements](#-data_requirements)
+[3. Data Requirements](#-datarequirements)
 
-[4. Examples](#-examples)
+[4. Examples](#-examplesuse)
 
 [5. FAQ](#-faq)
 
 
-<a name="key_features"></a>
+<a name="keyfeatures"></a>
 ---
 
 ## 🚀 Key Features
@@ -39,7 +39,7 @@ The package can be installed via
 pip install syspop_v2
 ```
 
-<a name="data_requirements"></a>
+<a name="datarequirements"></a>
 ## 📋 Data Requirements
 
 ### 1. Population Seed
@@ -53,7 +53,7 @@ Each entry in the dictionary must be a DataFrame containing:
 
 ---
 
-<a name="examples"></a>
+<a name="examplesuse"></a>
 ## 💻 Example Usage
 
 ```python
