@@ -6,6 +6,14 @@ This tool is optimized for large-scale microdata generation where individual att
 
 The New Zealand unit records of synthetic population can be explored at [here](https://jzanetti1985.pythonanywhere.com)
 
+[1. Key Features](#-key_features)
+[2. Installation](#-installation)
+[3. Data Requirements](#-data_requirements)
+[4. Examples](#-examples)
+[5. FAQ](#-faq)
+
+
+<a name="key_features"></a>
 ---
 
 ## 🚀 Key Features
@@ -20,13 +28,14 @@ The New Zealand unit records of synthetic population can be explored at [here](h
 
 ---
 
+<a name="installation"></a>
 ## 📋 Installation
 The package can be installed via
 ```
 pip install syspop_v2
 ```
 
-
+<a name="data_requirements"></a>
 ## 📋 Data Requirements
 
 ### 1. Population Seed
@@ -40,6 +49,7 @@ Each entry in the dictionary must be a DataFrame containing:
 
 ---
 
+<a name="examples"></a>
 ## 💻 Example Usage
 
 ```python
@@ -49,7 +59,7 @@ from syspop.model.stochastic_impute import stochastic_impute
 from syspop.postp.vis import plot_distribution
 
 # ---------------------------------
-# 1. Define base aggregated population data (e.g., from a census)
+# 1. Define base/seed aggregated population data (e.g., from a census)
 #    For example, a total of 50 + 60 + 70 people in this example
 # ---------------------------------
 base_population_data = DataFrame(
