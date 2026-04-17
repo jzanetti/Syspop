@@ -98,17 +98,17 @@ data = {"seed": base_population_data, "income": income_data}
 #
 # OBJECTIVE:
 #   Define imputation models where 'features' (age, gender) 
-#   predict 'targets' (work_status and income).
+#   predict/impute 'targets' (work_status and income).
 #
 # HANDLING SAMPLE SIZE DISCREPANCIES (Sparsity Alignment):
 #   The source datasets (e.g., income) sometimes have smaller populations 
-#   than the seed population (180 records). To maintain statistical 
+#   than the seed population (e.g., 180 records from step 1). To maintain statistical 
 #   consistency, we introduce NaNs into the output for matching 
 #   reference data in 'exceedance_list'. 
 #
 #   Example: If the income dataset only contains 20 records, we randomly 
 #   retain only 20 income/work_status in the output population and set the remaining 
-#   160 to NaN
+#   160 to NaN; 
 # -------------------------------------------------------------------------
 task_list = {
     "income": {
@@ -116,11 +116,12 @@ task_list = {
         "features": ["age", "gender"],
     }
 }
-exceedance_list = ["income"]
+maintain_counts = ["income"]
+
 # ---------------------------------
 # 5. Run the stochastic imputation process
 # ---------------------------------
-syn_pop = stochastic_impute(data, task_list, exceedance_list=exceedance_list)
+syn_pop = stochastic_impute(data, task_list, maintain_counts=maintain_counts)
 
 # ---------------------------------
 # 6. Plot distribution

@@ -80,13 +80,13 @@ def encode_weights(data_dict) -> dict:
     return data_dict
 
 
-def encode_sum(data_dict, drop_list) -> dict:
+def encode_sum(data_dict, maintain_counts) -> dict:
     
     result_dict = {}
 
     for key in data_dict:
 
-        if key not in drop_list:
+        if key not in maintain_counts:
             continue
         result_dict[key] = data_dict[key]["value"].sum()
 
