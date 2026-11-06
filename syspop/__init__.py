@@ -1,0 +1,35 @@
+from syspop.model.stochastic_impute import stochastic_impute
+from syspop.confidential import (
+    load_config,
+    resolve_data_structure,
+    rr3_round,
+    compute_pairwise_distances,
+    aggregate_unit_records,
+    aggregate_hierarchy,
+    build_raw_cluster_mapping_df,
+    build_checker_audit_df,
+    build_rules_summary_df,
+    export_datalab_checker_reports,
+    create_synthetic_dataset,
+    run_datalab_aggregation,
+    run_outside_synthesis,
+    run_confidential_synthetic_pipeline,
+)
+
+__all__ = [
+    "stochastic_impute",
+    "load_config",
+    "resolve_data_structure",
+    "rr3_round",
+    "compute_pairwise_distances",
+    "aggregate_unit_records",
+    "aggregate_hierarchy",
+    "build_raw_cluster_mapping_df",
+    "build_checker_audit_df",
+    "build_rules_summary_df",
+    "export_datalab_checker_reports",
+    "create_synthetic_dataset",
+    "run_datalab_aggregation",
+    "run_outside_synthesis",
+    "run_confidential_synthetic_pipeline",
+]

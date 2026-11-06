@@ -7,7 +7,7 @@ setup(
     install_requires=[
         "pandas",
         "numpy",
-        "pyarrow"
+        "pyarrow",
         "pyyaml",
         "matplotlib",
         "graphviz"
