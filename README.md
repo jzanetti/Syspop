@@ -1,60 +1,123 @@
-# Stochastic Impute: Synthetic Data Generation Engine
+# Syspop: Synthetic Population & Confidential Microdata Engine
 
-A Python utility designed to generate an **integreated synthetic unit record population data** using aggregated public data sources (e.g., from [Stats NZ Data Explorer](https://explore.data.stats.govt.nz)).
+A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplotlib`) providing two complementary workflows for synthetic unit-record population generation:
 
-This tool is optimized for large-scale microdata generation where individual attributes are assigned based on conditional probability distributions.
+1. **Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
+   Produces unit-record synthetic data from confidential microdata by first aggregating unit records into homogeneous clusters via a **weighted nearest-neighbour algorithm** under configurable confidentiality rules, and then recreating linked **Individual → Family → Household** synthetic unit records outside the secure environment.
+2. **Stochastic Population Imputation (`syspop.model.stochastic_impute`)**:
+   Statistically links multiple publicly published aggregated tables into a unified unit-record dataset using conditional probability distributions.
 
-The New Zealand unit records of synthetic population can be explored [here](https://jzanetti1985.pythonanywhere.com)
-
-[1. Key Features](#keyfeatures)
-
-[2. Installation](#installation)
-
-[3. Data Requirements](#datarequirements)
-
-[4. Examples](#examplesuse)
-
-[5. FAQ](#faq)
-
-
-<a name="keyfeatures"></a>
 ---
 
-## 🚀 Key Features
-
-* **Synthetic Unit Record Generation**: Transforms multiple aggregated data sources into a unified, granular unit-record dataset.
-* **Dynamic Column Matching**: Automatically identifies shared features between the base population and reference data.
-* **Missingness-Aware Logic**: Handles rows with `NaN` values by dynamically re-calculating probabilities based only on the available non-null features.
-* **Stochastic Selection**: Uses weighted random sampling to preserve the natural variance and distribution of the source data.
-* **Optimized Performance**: Processes millions rows in seconds by grouping identical "missingness patterns" rather than iterating row-by-row.
-
-> Please see the [FAQ](#-faq) for more details.
+## Table of Contents
+1. [Installation](#installation)
+2. [Method 1: Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis](#method1)
+   - [Algorithm Overview (Steps 1–3)](#algorithm-overview)
+   - [Configuration File (`output_rules` & `data_structure`)](#configuration)
+   - [Quickstart Example](#method1-example)
+3. [Method 2: Stochastic Imputation from Aggregated Tables](#method2)
 
 ---
 
 <a name="installation"></a>
-## 📋 Installation
-The package can be installed via
-```
+## 1. Installation
+
+```bash
 pip install syspop_v2
 ```
 
-<a name="datarequirements"></a>
-## 📋 Data Requirements
+---
 
-### 1. Population Seed
-The starting point for your synthetic data. 
-* Contain existing columns you wish to "expand".
+<a name="method1"></a>
+## 2. Method 1: Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis
+<a name="configuration"></a>
+### Configuration (`etc/sample_data/sample_confidential_cfg.yml`)
 
-### 2. Reference Distributions
-Each entry in the dictionary must be a DataFrame containing:
-* **Shared Features**: (e.g., `age`, `location`) to match against the seed.
-* **Target Column**: The attribute being generated.
+All confidentiality thresholds and data structures are controlled via YAML configuration (or Python `dict`), with automatic feature and hierarchy discovery when omitted:
+
+```yaml
+output_rules:
+  preset: "idi"                        # "idi", "survey", or "custom"
+  min_group_count: 20                  # Minimum units per cluster (for means & stds)
+  min_cell_count: 6                    # Minimum units per count / categorical cell
+  rounding_base: 3                     # Random rounding base (e.g. 3 for RR3; set to null / 0 / false to switch off)
+  subcell_action: "reassign_or_merge"  # "reassign_or_merge" (default), "suppress_cluster", "suppress_cell_nan", "rr3_and_suppress", "none"
+  leftover_action: "assign_nearest"    # "assign_nearest" or "suppress"
+
+data_structure:
+  hierarchy:
+    - individual
+    - family
+    - household
+  id_columns:
+    individual: "person_id"
+    family: "family_id"
+    household: "household_id"
+  features:                            # Omit or set partial weights; unspecified columns are auto-detected
+    age:
+      type: "continuous"
+      weight: 3.0
+    income:
+      type: "continuous"
+      weight: 1.0
+    sex:
+      type: "categorical"
+      weight: 1.0
+
+synthesis:
+  reconcile_counts: "auto"
+  random_seed: 42
+```
 
 ---
 
-<a name="examplesuse"></a>
-## 💻 Example Usage
+<a name="method1-example"></a>
+### Quickstart Example
+
+```python
+from syspop.confidential import (
+    run_datalab_aggregation,
+    run_outside_synthesis,
+    run_confidential_synthetic_pipeline,
+)
+
+# Option A: Run end-to-end (Steps 1, 2, and 3)
+syn_df, agg_tables, diagnostics = run_confidential_synthetic_pipeline(
+    df=raw_microdata_df,
+    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+    output_dir="./output",
+)
+
+# Option B: Run Step 1 & 2 inside the secure environment, and Step 3 outside
+# When `output_dir` is provided, `run_datalab_aggregation` automatically exports:
+#   - `{level}_aggregated.csv`: Confidentialised cluster table for release
+#   - `{level}_raw_with_cluster.csv`: Raw unit records mapped to `cluster_id` (derivation proof)
+#   - `{level}_checker_audit_report.csv`: Vertically structured cluster & feature compliance audit
+#   - `idi_rules_compliance_summary.csv`: Concise level-by-level compliance summary
+#   - `idi_output_checker_report.xlsx`: Multi-sheet Excel workbook for output checking
+agg_tables, metadata = run_datalab_aggregation(
+    df=raw_microdata_df,
+    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+    output_dir="./output/exported_tables",
+)
+
+syn_df, diagnostics = run_outside_synthesis(
+    agg_tables_or_dir="./output/exported_tables",
+    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+    output_dir="./output",
+)
+```
+
+See:
+- [`examples/Nearest_Neighbour_Synthesis/example1.py`](examples/Nearest_Neighbour_Synthesis/example1.py): Step-by-step walkthrough of [`etc/Synthetic_Data_Production_Algorithm.docx`](etc/Synthetic_Data_Production_Algorithm.docx).
+- [`examples/Nearest_Neighbour_Synthesis/example2.py`](examples/Nearest_Neighbour_Synthesis/example2.py) & [`etc/sample_data/complex_confidential_cfg.yml`](etc/sample_data/complex_confidential_cfg.yml): Multi-feature example (`age`, `sex`, `income`, `saving`, `occupation`, `location`) with vertically structured audit reports and raw-to-synthetic distribution comparisons.
+
+---
+
+<a name="method2"></a>
+## 3. Method 2: Stochastic Imputation from Aggregated Tables
+
+See [`examples/Stochastic_Imputation/simple_example.py`](examples/Stochastic_Imputation/simple_example.py) and [`examples/Stochastic_Imputation/example_nz_census.py`](examples/Stochastic_Imputation/example_nz_census.py):
 
 ```python
 from pandas import DataFrame
@@ -62,10 +125,6 @@ from numpy import nan
 from syspop.model.stochastic_impute import stochastic_impute
 from syspop.postp.vis import plot_distribution
 
-# ---------------------------------
-# 1. Define base/seed aggregated population data (e.g., from a census)
-#    For example, a total of 50 + 60 + 70 people in this example
-# ---------------------------------
 base_population_data = DataFrame(
     {
         "gender": [1, 2, 1],
@@ -74,10 +133,6 @@ base_population_data = DataFrame(
     }
 )
 
-# ---------------------------------
-# 2. Define reference aggregated data (e.g., Work Status distribution)
-#    For example, a total of 8 + 2 + 6 + 4 people in this reference data
-# ---------------------------------
 income_data = DataFrame(
     {
         "gender": [1, 1, 2, 2],
@@ -88,62 +143,15 @@ income_data = DataFrame(
     }
 )
 
-# ---------------------------------
-# 3. Combine data into a dictionary for the imputation process
-# ---------------------------------
 data = {"seed": base_population_data, "income": income_data}
-
-# -------------------------------------------------------------------------
-# 4. Imputation Task Configuration
-#
-# OBJECTIVE:
-#   Define imputation models where 'features' (age, gender) 
-#   predict/impute 'targets' (work_status and income).
-#
-# HANDLING SAMPLE SIZE DISCREPANCIES (Sparsity Alignment):
-#   The source datasets (e.g., income) sometimes have smaller populations 
-#   than the seed population (e.g., 180 records from step 1). To maintain statistical 
-#   consistency, we introduce NaNs into the output for matching 
-#   reference data in 'exceedance_list'. 
-#
-#   Example: If the income dataset only contains 20 records, we randomly 
-#   retain only 20 income/work_status in the output population and set the remaining 
-#   160 to NaN; 
-# -------------------------------------------------------------------------
 task_list = {
     "income": {
         "targets": {"work_status": "category", "income": "numeric"},
         "features": ["age", "gender"],
     }
 }
-maintain_counts = ["income"]
 
-# ---------------------------------
-# 5. Run the stochastic imputation process
-# ---------------------------------
-syn_pop = stochastic_impute(data, task_list, maintain_counts=maintain_counts)
-
-# ---------------------------------
-# 6. Plot distribution
-# ---------------------------------
-# 6.1 Plot distribution for age
+syn_pop = stochastic_impute(data, task_list, maintain_counts=["income"])
 plot_distribution(syn_pop, ["age"])
-# 6.2 Plot joint distribution for gender + age
 plot_distribution(syn_pop, ["gender", "age"])
 ```
-
-Full examples can be acceessed in `./examples`
-
-
-<a name="faq"></a>
-## 🧠 FAQ
-### Is generating synthetic unit-record data in this way actually accurate?
-Well, it depends on your use case and the quality of your inputs. Ideally, you should work with real unit-record data. However, in practice, this isn't always feasible (i.e., in New Zealand, if you live far away from a Stats NZ IDI data lab). This utility provides a method to statistically link different aggregated, published population benchmarks together. This allows you to build out full data pipelines and prototype products locally before taking your code into a restricted environment.
-
-### Maximizing accuracy?
-The accuracy of the synthetic output depends heavily on task design. The more shared variables (covariates) present in your reference data to condition the probabilities, the closer the synthetic distribution will mirror reality.
-
-Also, you can run the process multiple times to capture inherent uncertainties.
-
-### Are we doing any prediction modelling here ?
-It is out of scope at the moment. If certain covariate values are missing from the reference data to condition the probabilities, the process simply ignores those missing values when linking the reference data to the seed data (for example, if the reference data does not contain income information for children, when integrating the reference data into the seed population data, the integrated data will just set the income for children as NaN). The reason is that many covariates in these datasets are categorical, and applying simple prediction models can struggle to capture the nuances and introduce unwanted noise or uncertainty into the output data. However, you are welcome to apply your own predictive models to handle missing data prior to running this process if your use case requires it.

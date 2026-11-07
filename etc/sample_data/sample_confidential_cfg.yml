@@ -1,0 +1,59 @@
+# Sample Configuration for Nearest-Neighbour Confidential Aggregation & Synthesis
+# Reference: etc/Synthetic_Data_Production_Algorithm.docx
+
+output_rules:
+  # Choose a base preset: "idi", "survey", or "custom"
+  preset: "idi"
+
+  # Minimum units per cluster (for means and standard deviations)
+  min_group_count: 20
+
+  # Minimum units per count / categorical cell
+  min_cell_count: 6
+
+  # Random rounding base (e.g., 3 for RR3; set to null / 0 / false to switch rounding off)
+  rounding_base: 3
+
+  # Small categorical cell (< min_cell_count) handling within a cluster:
+  #   - "reassign_or_merge" (Option 1 - Default): Form compliant clusters and reassign/merge
+  #       so every non-zero category in a released cluster has count >= min_cell_count
+  #   - "suppress_cluster" (Option 2a): Suppress the entire cluster if any category has 0 < count < min_cell_count
+  #   - "suppress_cell_nan" (Option 2b): Set only the small categorical proportion (< min_cell_count) to NaN
+  #   - "rr3_and_suppress" (Option 3): Mask small categorical cells (< min_cell_count) to 0.0 and apply random rounding
+  #   - "none": Raw proportions without adjustment
+  subcell_action: "reassign_or_merge"
+
+  # Leftover records (< min_group_count) handling: "assign_nearest" or "suppress"
+  leftover_action: "assign_nearest"
+
+data_structure:
+  # Hierarchy levels from lowest (individual) to highest (household).
+  # If omitted, automatically detected from the ID columns present in the DataFrame.
+  hierarchy:
+    - individual
+    - family
+    - household
+
+  # Mapping of hierarchy level to ID column names in the unit-record dataset
+  id_columns:
+    individual: "person_id"
+    family: "family_id"
+    household: "household_id"
+
+  # Features configuration:
+  # If omitted, all non-ID columns are automatically classified as "continuous" or "categorical"
+  # with default weight 1.0.
+  features:
+    age:
+      type: "continuous"
+      weight: 3.0
+    income:
+      type: "continuous"
+      weight: 1.0
+    sex:
+      type: "categorical"
+      weight: 1.0
+
+synthesis:
+  reconcile_counts: "auto"
+  random_seed: 42

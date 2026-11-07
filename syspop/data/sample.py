@@ -1,10 +1,10 @@
-from process.data.data import obtain_data
+from syspop.data.data import obtain_data
 from logging import info as log_info
 from etc.sample_data.api_keys import STATS_API
 from yaml import safe_load
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
-from process.model.utils import obtain_all_tasks
+from syspop.model.utils import obtain_all_tasks
 
 
 def obtain_sample_data_cfg():
