@@ -59,13 +59,19 @@ data_structure:
     individual: "person_id"
     family: "family_id"
     household: "household_id"
+  hierarchy_counts:                    # Optional sub-group member counts when rolling up to family/household
+    individual_under_18:
+      condition: "age < 18"
+      weight: 2.0
   features:                            # Omit or set partial weights; unspecified columns are auto-detected
     age:
       type: "continuous"
       weight: 3.0
+      agg: "mean"                      # Roll-up rule to family/household: "mean" (default), "sum", "min", "max", "median"
     income:
       type: "continuous"
       weight: 1.0
+      agg: "sum"                       # e.g., family/household income = sum of member incomes
     sex:
       type: "categorical"
       weight: 1.0
@@ -95,10 +101,12 @@ from syspop.confidential import (
 # )
 
 # Option B: Run Step 1 & 2 inside the secure environment, and Step 3 outside
+# (Optionally pass `weight_df` in parallel to `df` if using survey weights, e.g. household_weight / family_weight / person_weight)
 agg_tables, metadata = run_datalab_aggregation(
     df=raw_microdata_df,
     config_or_path="etc/sample_data/sample_confidential_cfg.yml",
     output_dir="./output/exported_tables",
+    weight_df=None,  # Optional DataFrame with e.g. ["household_id", "household_weight"] or ["person_id", "person_weight"]
 )
 
 syn_df, diagnostics = run_outside_synthesis(
