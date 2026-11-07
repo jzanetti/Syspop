@@ -50,11 +50,15 @@ def generate_complex_microdata(seed: int = 2026) -> pd.DataFrame:
         family_id = 1
         for _ in range(n_families):
             n_members = int(rng.choice([2, 3, 4, 5], p=[0.35, 0.35, 0.20, 0.10]))
-            fam_age_center = float(rng.uniform(25.0, 62.0))
+            fam_age_center = float(rng.uniform(20.0, 58.0))
             
             person_id = 1
-            for _ in range(n_members):
-                age = float(np.clip(np.round(rng.normal(fam_age_center, 9.0), 1), 18.0, 80.0))
+            for m_idx in range(n_members):
+                if m_idx >= 2 and rng.random() < 0.55:
+                    # Child / dependent member under 18
+                    age = float(np.clip(np.round(rng.uniform(4.0, 17.5), 1), 1.0, 17.9))
+                else:
+                    age = float(np.clip(np.round(rng.normal(fam_age_center, 11.0), 1), 8.0, 80.0))
                 sex = str(rng.choice(["Male", "Female"], p=[0.49, 0.51]))
 
                 # Occupation probability varies slightly with age
@@ -113,12 +117,21 @@ def run_complex_example():
     export_dir = "./output/complex_exported_tables"
     syn_output_dir = "./output/complex_synthetic"
 
+    # Optional survey weights DataFrame (in parallel to raw_df):
+    # Can contain a single hierarchy-matched weight column such as "household_weight",
+    # "family_weight", or "person_weight" (or set weight_df = None for unweighted microdata).
+    rng_w = np.random.default_rng(2026)
+    unique_hh = raw_df[["household_id"]].drop_duplicates().reset_index(drop=True)
+    unique_hh["household_weight"] = np.round(rng_w.uniform(0.8, 3.5, size=len(unique_hh)), 2)
+    weight_df = unique_hh  # Set to None to run without survey weights
+
     # Step 1 & Step 2: Run inside the Data Lab and export confidentialised CSV tables
     # along with IDI Output Checker audit reports and raw-to-cluster derivation tables
     agg_tables, metadata = run_datalab_aggregation(
         df=raw_df,
         config_or_path=cfg_path,
         output_dir=export_dir,
+        weight_df=weight_df,
     )
 
     exported_files = metadata.get("exported_files", {})

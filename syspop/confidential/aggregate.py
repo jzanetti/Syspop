@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
-from syspop.confidential.config import load_config, resolve_data_structure
+from syspop.confidential.config import (
+    load_config,
+    resolve_data_structure,
+    resolve_weight_dataframe,
+)
 from syspop.confidential.rules import (
     apply_count_rounding,
     check_subcell_violation,
@@ -579,26 +583,66 @@ def nearest_neighbour_grouping(
     return clusters
 
 
+def _compute_weighted_mean_std(vals: np.ndarray, weights: np.ndarray or None = None) -> tuple:
+    """Compute (mean, std) with optional survey weights."""
+    if len(vals) == 0:
+        return np.nan, np.nan
+    if weights is None:
+        mean_val = float(np.mean(vals))
+        std_val = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
+        return mean_val, std_val
+
+    w = np.maximum(0.0, np.asarray(weights, dtype=float))
+    w_sum = float(np.sum(w))
+    if w_sum <= 0:
+        mean_val = float(np.mean(vals))
+        std_val = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
+        return mean_val, std_val
+
+    mean_val = float(np.sum(w * vals) / w_sum)
+    if len(vals) > 1:
+        var_val = float(np.sum(w * (vals - mean_val) ** 2) / w_sum) * (len(vals) / (len(vals) - 1.0))
+        std_val = float(np.sqrt(max(0.0, var_val)))
+    else:
+        std_val = 0.0
+    return mean_val, std_val
+
+
 def aggregate_unit_records(
     df: pd.DataFrame,
     config_or_path=None,
     features_meta: dict or None = None,
     pre_encoded_categories: dict or None = None,
+    weight_col: str or None = None,
     return_details: bool = False,
 ) -> pd.DataFrame or tuple:
     """
     Step 1 of the Synthetic Data Production Algorithm:
     Aggregate confidential unit-record microdata into clusters using the weighted
     nearest-neighbour approach while enforcing configured confidentiality rules.
+    Supports both regular unweighted unit records and survey records with survey weights.
     """
     cfg = load_config(config_or_path)
     rules = cfg["output_rules"]
     seed = cfg.get("synthesis", {}).get("random_seed", rules.get("random_seed", None))
     rng = np.random.default_rng(seed)
 
+    data_struct = resolve_data_structure(df, cfg)
     if features_meta is None:
-        data_struct = resolve_data_structure(df, cfg)
-        features_meta = data_struct["features"]
+        features_meta = {
+            k: v for k, v in data_struct["features"].items() if k != weight_col
+        }
+
+    has_weights = bool(weight_col is not None and weight_col in df.columns)
+    if has_weights:
+        all_unit_weights = (
+            pd.to_numeric(df[weight_col], errors="coerce")
+            .fillna(1.0)
+            .clip(lower=0.0)
+            .to_numpy(dtype=float)
+        )
+    else:
+        all_unit_weights = None
 
     norm_df, X_weighted, encoding_info = prepare_encoded_features(
         df, features_meta, pre_encoded_categories=pre_encoded_categories
@@ -630,13 +674,15 @@ def aggregate_unit_records(
     for c_indices in clusters:
         assigned_set.update(int(i) for i in c_indices)
         unrounded_n = len(c_indices)
+        c_weights = all_unit_weights[c_indices] if all_unit_weights is not None else None
         rounded_n = apply_count_rounding(unrounded_n, rules, rng=rng)
 
         suppressed = False
         suppression_reason = ""
+        # Confidentiality checks always evaluate UNWEIGHTED sample counts
         if unrounded_n < min_group_count:
             suppressed = True
-            suppression_reason = f"Unrounded count ({unrounded_n}) < min_group_count ({min_group_count})"
+            suppression_reason = f"Unweighted count ({unrounded_n}) < min_group_count ({min_group_count})"
         elif rounding_enabled and rounded_n < min_cell_count:
             suppressed = True
             suppression_reason = f"Rounded count ({rounded_n}) < min_cell_count ({min_cell_count})"
@@ -648,7 +694,7 @@ def aggregate_unit_records(
         ):
             suppressed = True
             suppression_reason = (
-                f"Cluster contains categorical cell with 0 < count < {min_cell_count} "
+                f"Cluster contains categorical cell with 0 < unweighted count < {min_cell_count} "
                 f"(subcell_action='suppress_cluster')"
             )
 
@@ -661,13 +707,11 @@ def aggregate_unit_records(
         for feat_name, spec in features_meta.items():
             if spec["type"] != "continuous":
                 continue
-            vals = pd.to_numeric(sub_df[feat_name], errors="coerce").dropna().to_numpy(dtype=float)
-            if len(vals) == 0:
-                raw_mean = np.nan
-                raw_std = np.nan
-            else:
-                raw_mean = float(np.mean(vals))
-                raw_std = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
+            s_num = pd.to_numeric(sub_df[feat_name], errors="coerce")
+            valid_mask = s_num.notna().to_numpy()
+            vals = s_num[valid_mask].to_numpy(dtype=float)
+            w_valid = c_weights[valid_mask] if c_weights is not None else None
+            raw_mean, raw_std = _compute_weighted_mean_std(vals, w_valid)
 
             row_data[feat_name] = raw_mean
             row_data[f"{feat_name}_std"] = raw_std
@@ -682,18 +726,38 @@ def aggregate_unit_records(
                 "status": "PASS" if not suppressed else f"SUPPRESSED ({suppression_reason})",
             }
 
-        # 2. Categorical features: confidentialised proportions
+        # Export survey weight mean & std so Step 3 synthesizes the weight column on the synthetic sample
+        if has_weights and weight_col not in row_data:
+            w_mean, w_std = _compute_weighted_mean_std(c_weights, None)
+            row_data[weight_col] = w_mean
+            row_data[f"{weight_col}_std"] = w_std
+            cont_audit[weight_col] = {
+                "raw_count": int(len(c_weights)),
+                "min_group_count": min_group_count,
+                "raw_mean": w_mean,
+                "exported_mean": w_mean if not suppressed else np.nan,
+                "raw_std": w_std,
+                "exported_std": w_std if not suppressed else np.nan,
+                "status": "PASS" if not suppressed else f"SUPPRESSED ({suppression_reason})",
+            }
+
+        # 2. Categorical features: confidentialised proportions (unweighted threshold check + weighted proportions)
         for feat_name, spec in features_meta.items():
             if spec["type"] != "categorical":
                 continue
             cat_info = encoding_info["cat_mappings"][feat_name]
             mat = encoding_info["onehot_matrices"][feat_name][c_indices]
-            raw_sums = mat.sum(axis=0)
+            if c_weights is not None:
+                raw_sums = (mat * c_weights[:, None]).sum(axis=0)
+            else:
+                raw_sums = mat.sum(axis=0)
             raw_total = float(raw_sums.sum())
             raw_props = raw_sums / raw_total if raw_total > 0 else np.zeros_like(raw_sums)
             contributing_counts = (mat > 0).sum(axis=0)
 
-            props = confidentialise_category_proportions(mat, rules, rng=rng)
+            props = confidentialise_category_proportions(
+                mat, rules, rng=rng, unit_weights=c_weights
+            )
             for col_idx, col_label in enumerate(cat_info["columns"]):
                 cat_name = cat_info["categories"][col_idx]
                 exp_prop = float(props[col_idx]) if pd.notna(props[col_idx]) else np.nan
@@ -756,16 +820,21 @@ def aggregate_unit_records(
     leftover_indices = np.array(sorted(all_indices - assigned_set), dtype=int)
     if len(leftover_indices) > 0:
         sub_df = df.iloc[leftover_indices]
+        l_weights = all_unit_weights[leftover_indices] if all_unit_weights is not None else None
         cont_audit = {}
         for feat_name, spec in features_meta.items():
             if spec["type"] == "continuous":
-                vals = pd.to_numeric(sub_df[feat_name], errors="coerce").dropna().to_numpy(dtype=float)
+                s_num = pd.to_numeric(sub_df[feat_name], errors="coerce")
+                valid_mask = s_num.notna().to_numpy()
+                vals = s_num[valid_mask].to_numpy(dtype=float)
+                w_valid = l_weights[valid_mask] if l_weights is not None else None
+                r_mean, r_std = _compute_weighted_mean_std(vals, w_valid)
                 cont_audit[feat_name] = {
                     "raw_count": int(len(vals)),
                     "min_group_count": min_group_count,
-                    "raw_mean": float(np.mean(vals)) if len(vals) else np.nan,
+                    "raw_mean": r_mean,
                     "exported_mean": np.nan,
-                    "raw_std": float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0,
+                    "raw_std": r_std,
                     "exported_std": np.nan,
                     "status": "SUPPRESSED",
                 }
@@ -774,7 +843,7 @@ def aggregate_unit_records(
             if spec["type"] == "categorical":
                 cat_info = encoding_info["cat_mappings"][feat_name]
                 mat = encoding_info["onehot_matrices"][feat_name][leftover_indices]
-                raw_sums = mat.sum(axis=0)
+                raw_sums = (mat * l_weights[:, None]).sum(axis=0) if l_weights is not None else mat.sum(axis=0)
                 raw_total = float(raw_sums.sum())
                 raw_props = raw_sums / raw_total if raw_total > 0 else np.zeros_like(raw_sums)
                 contributing_counts = (mat > 0).sum(axis=0)
@@ -820,6 +889,7 @@ def aggregate_unit_records(
             "cat_mappings": encoding_info["cat_mappings"],
             "max_values": encoding_info["max_values"],
             "output_rules": rules,
+            "weight_col": weight_col if has_weights else None,
         }
         return agg_df, details
 
@@ -833,10 +903,15 @@ def build_unit_hierarchy_table(
     cat_mappings: dict,
     child_id_col: str or None = None,
     child_count_col: str = "individual_num",
+    weight_col: str or None = None,
+    hierarchy_counts: dict or None = None,
+    level_name: str or None = None,
 ) -> tuple:
     """
     Step 2 helper: Merge individual unit records by `group_id_cols` (e.g. `[household_id, family_id]`
     or `household_id`) to form a unit-record family or household table prior to confidential clustering.
+    Supports per-feature roll-up rules (`agg`: 'mean', 'sum', 'min', 'max', 'median') and
+    conditional sub-group member counts (`hierarchy_counts`, e.g., `age < 18`).
     """
     if isinstance(group_id_cols, str):
         group_id_cols = [group_id_cols]
@@ -850,10 +925,47 @@ def build_unit_hierarchy_table(
             cat_cols_all.append(col_label)
 
     cont_cols = [f for f, spec in features_meta.items() if spec["type"] == "continuous"]
-    mean_cols = cont_cols + cat_cols_all
+    mean_cont_cols = [f for f in cont_cols if features_meta[f].get("agg", "mean") == "mean"]
+    other_cont_cols = [f for f in cont_cols if features_meta[f].get("agg", "mean") != "mean"]
+    mean_cols = mean_cont_cols + cat_cols_all
 
-    grouped = work_df.groupby(group_id_cols, as_index=False, sort=False)
-    unit_level_df = grouped[mean_cols].mean()
+    if weight_col and weight_col in work_df.columns:
+        w_series = pd.to_numeric(work_df[weight_col], errors="coerce").fillna(1.0).clip(lower=0.0)
+        weighted_work = work_df[group_id_cols].copy()
+        weighted_work["__w"] = w_series.to_numpy(dtype=float)
+        for col in mean_cols:
+            weighted_work[col] = (
+                pd.to_numeric(work_df[col], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+                * weighted_work["__w"]
+            )
+        grouped_sum = weighted_work.groupby(group_id_cols, as_index=False, sort=False).sum()
+        w_denom = np.where(grouped_sum["__w"].to_numpy() > 0, grouped_sum["__w"].to_numpy(), 1.0)
+        unit_level_df = grouped_sum[group_id_cols].copy()
+        for col in mean_cols:
+            unit_level_df[col] = grouped_sum[col].to_numpy(dtype=float) / w_denom
+        unit_level_df[weight_col] = (
+            work_df.groupby(group_id_cols, sort=False)[weight_col].mean().to_numpy(dtype=float)
+        )
+    else:
+        grouped = work_df.groupby(group_id_cols, as_index=False, sort=False)
+        if mean_cols:
+            unit_level_df = grouped[mean_cols].mean()
+        else:
+            unit_level_df = work_df[group_id_cols].drop_duplicates().reset_index(drop=True)
+
+    # Apply non-mean aggregations ('sum', 'min', 'max', 'median') for configured continuous features
+    if other_cont_cols:
+        grp_obj = work_df.groupby(group_id_cols, sort=False)
+        for col in other_cont_cols:
+            agg_mode = features_meta[col].get("agg", "mean")
+            if agg_mode == "sum":
+                unit_level_df[col] = grp_obj[col].sum().to_numpy(dtype=float)
+            elif agg_mode == "min":
+                unit_level_df[col] = grp_obj[col].min().to_numpy(dtype=float)
+            elif agg_mode == "max":
+                unit_level_df[col] = grp_obj[col].max().to_numpy(dtype=float)
+            elif agg_mode == "median":
+                unit_level_df[col] = grp_obj[col].median().to_numpy(dtype=float)
 
     if child_id_col is not None and child_id_col in work_df.columns:
         counts_series = work_df.groupby(group_id_cols, sort=False)[child_id_col].nunique().to_numpy(dtype=float)
@@ -867,7 +979,33 @@ def build_unit_hierarchy_table(
         "type": "continuous",
         "weight": float(features_meta.get(child_count_col, {}).get("weight", 1.0)),
         "non_negative": True,
+        "agg": "sum",
     }
+
+    # Evaluate and aggregate conditional sub-group member counts (e.g., individual_under_18: "age < 18")
+    if hierarchy_counts:
+        for cnt_name, cnt_spec in hierarchy_counts.items():
+            allowed_levels = cnt_spec.get("levels", ["family", "household"])
+            if level_name is not None and level_name not in allowed_levels:
+                continue
+            cond_str = str(cnt_spec.get("condition", "")).strip()
+            if not cond_str:
+                continue
+            if cond_str.lower() in ("all", "true", "1"):
+                work_df[cnt_name] = 1.0
+            else:
+                work_df[cnt_name] = work_df.eval(cond_str).astype(float)
+            unit_level_df[cnt_name] = (
+                work_df.groupby(group_id_cols, sort=False)[cnt_name].sum().to_numpy(dtype=float)
+            )
+            level_features_meta[cnt_name] = {
+                "type": "continuous",
+                "weight": float(cnt_spec.get("weight", 1.0)),
+                "non_negative": True,
+                "agg": "sum",
+                "is_hierarchy_count": True,
+                "condition": cond_str,
+            }
 
     return unit_level_df, level_features_meta
 
@@ -876,10 +1014,11 @@ def aggregate_hierarchy(
     df: pd.DataFrame,
     config_or_path=None,
     return_metadata: bool = False,
+    weight_df: pd.DataFrame or None = None,
 ) -> dict or tuple:
     """
     Execute Step 1 and Step 2 across all configured hierarchy levels
-    (e.g., individual -> family -> household).
+    (e.g., individual -> family -> household), optionally applying `weight_df`.
 
     Returns a dictionary of confidentialised aggregated DataFrames keyed by level name
     (e.g., `{"individual": ind_agg_df, "family": fam_agg_df, "household": hh_agg_df}`).
@@ -889,13 +1028,23 @@ def aggregate_hierarchy(
     hierarchy = data_struct["hierarchy"]
     id_columns = data_struct["id_columns"]
     features_meta = data_struct["features"]
+    hierarchy_counts = data_struct.get("hierarchy_counts", {})
+
+    work_df, weight_info = resolve_weight_dataframe(df, weight_df, hierarchy, id_columns)
+    weight_col = weight_info["weight_col"] if weight_info else None
+    if weight_col and weight_col in features_meta:
+        features_meta = {k: v for k, v in features_meta.items() if k != weight_col}
 
     agg_tables = {}
     meta_by_level = {}
 
     # 1. Individual level aggregation
     ind_agg, ind_details = aggregate_unit_records(
-        df, cfg, features_meta=features_meta, return_details=True
+        work_df,
+        cfg,
+        features_meta=features_meta,
+        weight_col=weight_col,
+        return_details=True,
     )
     agg_tables["individual"] = ind_agg
     meta_by_level["individual"] = ind_details
@@ -904,29 +1053,33 @@ def aggregate_hierarchy(
     # 2. Family level aggregation (if present in hierarchy)
     if "family" in hierarchy:
         fam_col = id_columns.get("family", "family_id")
-        if fam_col not in df.columns:
+        if fam_col not in work_df.columns:
             raise ValueError(
                 f"Hierarchy includes 'family', but ID column '{fam_col}' was not found in DataFrame."
             )
         hh_col = id_columns.get("household", "household_id")
-        if "household" in hierarchy and hh_col in df.columns and hh_col != fam_col:
+        if "household" in hierarchy and hh_col in work_df.columns and hh_col != fam_col:
             fam_group_cols = [hh_col, fam_col]
         else:
             fam_group_cols = [fam_col]
 
         fam_unit_df, fam_features_meta = build_unit_hierarchy_table(
-            df=df,
+            df=work_df,
             group_id_cols=fam_group_cols,
             features_meta=features_meta,
             cat_mappings=cat_mappings,
             child_id_col=None,
             child_count_col="individual_num",
+            weight_col=weight_col,
+            hierarchy_counts=hierarchy_counts,
+            level_name="family",
         )
         fam_agg, fam_details = aggregate_unit_records(
             fam_unit_df,
             cfg,
             features_meta=fam_features_meta,
             pre_encoded_categories=cat_mappings,
+            weight_col=weight_col,
             return_details=True,
         )
         fam_details["unit_table"] = fam_unit_df
@@ -936,27 +1089,31 @@ def aggregate_hierarchy(
     # 3. Household level aggregation (if present in hierarchy)
     if "household" in hierarchy:
         hh_col = id_columns.get("household", "household_id")
-        if hh_col not in df.columns:
+        if hh_col not in work_df.columns:
             raise ValueError(
                 f"Hierarchy includes 'household', but ID column '{hh_col}' was not found in DataFrame."
             )
-        has_family = "family" in hierarchy and id_columns.get("family", "family_id") in df.columns
+        has_family = "family" in hierarchy and id_columns.get("family", "family_id") in work_df.columns
         child_col = id_columns.get("family") if has_family else None
         child_count_name = "family_num" if has_family else "individual_num"
 
         hh_unit_df, hh_features_meta = build_unit_hierarchy_table(
-            df=df,
+            df=work_df,
             group_id_cols=[hh_col],
             features_meta=features_meta,
             cat_mappings=cat_mappings,
             child_id_col=child_col,
             child_count_col=child_count_name,
+            weight_col=weight_col,
+            hierarchy_counts=hierarchy_counts,
+            level_name="household",
         )
         hh_agg, hh_details = aggregate_unit_records(
             hh_unit_df,
             cfg,
             features_meta=hh_features_meta,
             pre_encoded_categories=cat_mappings,
+            weight_col=weight_col,
             return_details=True,
         )
         hh_details["unit_table"] = hh_unit_df
@@ -966,7 +1123,9 @@ def aggregate_hierarchy(
     metadata = {
         "hierarchy": hierarchy,
         "id_columns": id_columns,
+        "weight_info": weight_info,
         "features": features_meta,
+        "hierarchy_counts": hierarchy_counts,
         "cat_mappings": cat_mappings,
         "output_rules": cfg["output_rules"],
         "levels": meta_by_level,

@@ -10,21 +10,22 @@ def run_datalab_aggregation(
     df: pd.DataFrame,
     config_or_path=None,
     output_dir: str or None = None,
+    weight_df: pd.DataFrame or None = None,
 ) -> tuple:
     """
     Execute Step 1 & Step 2 (Inside Data Lab):
     Aggregate unit-record microdata across configured hierarchy levels (individual,
-    family, household) following Stats NZ Microdata Output Guide rules.
+    family, household) following confidentiality rules, with optional parallel `weight_df`.
 
     If `output_dir` is provided, automatically exports:
       - `{level}_aggregated.csv` (confidentialised table for release)
       - `{level}_raw_with_cluster.csv` (raw unit records mapped to `cluster_id`)
       - `{level}_checker_audit_report.csv` (cluster-by-cluster rule compliance audit)
-      - `idi_rules_compliance_summary.csv` (executive summary of all Stats NZ rules)
-      - `idi_output_checker_report.xlsx` (consolidated multi-sheet Excel report for IDI checkers)
+      - `idi_rules_compliance_summary.csv` (executive summary of rules)
+      - `idi_output_checker_report.xlsx` (consolidated multi-sheet Excel report for checkers)
     """
     agg_tables, metadata = aggregate_hierarchy(
-        df, config_or_path=config_or_path, return_metadata=True
+        df, config_or_path=config_or_path, return_metadata=True, weight_df=weight_df
     )
 
     if output_dir is not None:
@@ -92,6 +93,7 @@ def run_confidential_synthetic_pipeline(
     config_or_path=None,
     output_dir: str or None = None,
     output_filename: str = "synthetic_unit_records.parquet",
+    weight_df: pd.DataFrame or None = None,
 ) -> tuple:
     """
     End-to-end execution of Step 1 (Unit-Record Nearest-Neighbour Aggregation),
@@ -101,7 +103,7 @@ def run_confidential_synthetic_pipeline(
         tuple: `(synthetic_df, agg_tables, diagnostics)`
     """
     agg_tables, metadata = run_datalab_aggregation(
-        df=df, config_or_path=config_or_path, output_dir=output_dir
+        df=df, config_or_path=config_or_path, output_dir=output_dir, weight_df=weight_df
     )
     syn_df, diagnostics = run_outside_synthesis(
         agg_tables_or_dir=agg_tables,

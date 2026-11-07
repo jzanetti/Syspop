@@ -40,16 +40,26 @@ data_structure:
     family: "family_id"
     household: "household_id"
 
+  # Optional sub-group member counts when rolling up to higher hierarchy levels (family / household)
+  # (Total unit counts `individual_num` and `family_num` are always included automatically)
+  # hierarchy_counts:
+  #   individual_under_18:
+  #     condition: "age < 18"
+  #     weight: 2.0
+
   # Features configuration:
   # If omitted, all non-ID columns are automatically classified as "continuous" or "categorical"
-  # with default weight 1.0.
+  # with default weight 1.0 and default hierarchy roll-up `agg: "mean"`.
+  # For continuous features, `agg` controls how values roll up to family/household ("mean", "sum", "min", "max", "median").
   features:
     age:
       type: "continuous"
       weight: 3.0
+      agg: "mean"
     income:
       type: "continuous"
       weight: 1.0
+      agg: "mean"
     sex:
       type: "categorical"
       weight: 1.0

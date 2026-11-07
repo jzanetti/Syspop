@@ -86,7 +86,7 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
     if df is not None:
         col_lower_map = {c.lower().replace(" ", "_"): c for c in df.columns}
         for level, col_name in list(id_columns.items()):
-            if col_name and col_name not in df.columns:
+            if col_name not in df.columns:
                 norm_key = col_name.lower().replace(" ", "_")
                 if norm_key in col_lower_map:
                     id_columns[level] = col_lower_map[norm_key]
@@ -122,10 +122,12 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
 
     if isinstance(raw_features, dict):
         for feat_name, feat_spec in raw_features.items():
+            f_agg = "mean"
             if isinstance(feat_spec, dict):
                 f_type = feat_spec.get("type", raw_types.get(feat_name, None))
                 f_weight = float(feat_spec.get("weight", raw_weights.get(feat_name, 1.0)))
                 f_non_neg = feat_spec.get("non_negative", None)
+                f_agg = feat_spec.get("agg", feat_spec.get("hierarchy_agg", "mean"))
             elif isinstance(feat_spec, str):
                 f_type = feat_spec
                 f_weight = float(raw_weights.get(feat_name, 1.0))
@@ -151,6 +153,7 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
                 "type": _normalize_type_name(f_type),
                 "weight": f_weight,
                 "non_negative": True if f_non_neg is None else bool(f_non_neg),
+                "agg": _normalize_agg_name(f_agg),
             }
     else:
         if isinstance(raw_features, list):
@@ -158,7 +161,7 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
         elif df is not None:
             candidate_cols = [c for c in df.columns if c not in id_col_set]
         else:
-            candidate_cols = list(raw_types.keys())
+            candidate_cols = [c for c in raw_types.keys() if c not in id_col_set]
 
         for feat_name in candidate_cols:
             f_type = raw_types.get(feat_name, None)
@@ -176,12 +179,122 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
                 "type": _normalize_type_name(f_type),
                 "weight": f_weight,
                 "non_negative": f_non_neg,
+                "agg": "mean",
             }
+
+    # 4. Resolve optional hierarchy_counts (sub-group member counts when rolling up to family/household)
+    raw_h_counts = data_cfg.get("hierarchy_counts", {}) or {}
+    parent_levels = [lvl for lvl in hierarchy if lvl != "individual"]
+    hierarchy_counts = {}
+    if isinstance(raw_h_counts, dict):
+        for cnt_name, cnt_spec in raw_h_counts.items():
+            if isinstance(cnt_spec, str):
+                cond_str = cnt_spec.strip()
+                c_weight = 1.0
+                c_levels = list(parent_levels)
+            elif isinstance(cnt_spec, dict):
+                cond_str = str(cnt_spec.get("condition", "")).strip()
+                c_weight = float(cnt_spec.get("weight", 1.0))
+                raw_lvls = cnt_spec.get("levels", parent_levels)
+                c_levels = [str(l).lower() for l in raw_lvls] if isinstance(raw_lvls, list) else list(parent_levels)
+            else:
+                continue
+
+            if cond_str:
+                hierarchy_counts[cnt_name] = {
+                    "condition": cond_str,
+                    "weight": c_weight,
+                    "levels": c_levels,
+                }
 
     return {
         "hierarchy": hierarchy,
         "id_columns": id_columns,
         "features": features_meta,
+        "hierarchy_counts": hierarchy_counts,
+    }
+
+
+def resolve_weight_dataframe(
+    df: DataFrame,
+    weight_df: DataFrame or None,
+    hierarchy: list,
+    id_columns: dict,
+) -> tuple:
+    """
+    Validate and attach an optional parallel `weight_df` onto `df`.
+    `weight_df` must contain a single weight column named consistently with one of the
+    hierarchy levels (e.g., `individual_weight` / `person_weight`, `family_weight`, or `household_weight`).
+    """
+    if weight_df is None:
+        return df, None
+
+    if not isinstance(weight_df, DataFrame):
+        raise TypeError("weight_df must be a pandas DataFrame or None.")
+
+    id_col_values = {v for v in id_columns.values() if v is not None}
+    weight_candidates = [c for c in weight_df.columns if c not in id_col_values]
+
+    if len(weight_candidates) != 1:
+        raise ValueError(
+            f"weight_df must contain exactly one weight column (found {weight_candidates}). "
+            f"Use a single weight column matching a hierarchy level, such as "
+            f"'individual_weight' (or 'person_weight'), 'family_weight', or 'household_weight'."
+        )
+
+    weight_col = weight_candidates[0]
+    col_norm = weight_col.strip().lower().replace(" ", "_")
+
+    # Match weight_col name to one of the hierarchy levels
+    matched_level = None
+    level_prefixes = {
+        "individual": ["individual", "person", "ind"],
+        "family": ["family", "fam"],
+        "household": ["household", "hh"],
+    }
+    for lvl, id_col in id_columns.items():
+        if id_col:
+            prefix = id_col.lower().replace("_id", "").strip()
+            if prefix and prefix not in level_prefixes.get(lvl, []):
+                level_prefixes.setdefault(lvl, []).append(prefix)
+
+    for lvl, prefixes in level_prefixes.items():
+        for p in prefixes:
+            if col_norm in (f"{p}_weight", f"{p}_weights", f"{p}weight"):
+                matched_level = lvl
+                break
+        if matched_level is not None:
+            break
+
+    if matched_level is None or matched_level not in hierarchy:
+        raise ValueError(
+            f"Weight column '{weight_col}' in weight_df must match one of the active hierarchy "
+            f"levels {hierarchy} (e.g. 'individual_weight'/'person_weight', 'family_weight', or 'household_weight')."
+        )
+
+    work_df = df.copy()
+    shared_id_cols = [c for c in weight_df.columns if c in id_col_values and c in work_df.columns]
+
+    if shared_id_cols:
+        w_dedup = weight_df[shared_id_cols + [weight_col]].groupby(shared_id_cols, as_index=False, sort=False)[weight_col].mean()
+        work_df = work_df.merge(w_dedup, on=shared_id_cols, how="left")
+    elif len(weight_df) == len(work_df):
+        work_df[weight_col] = weight_df[weight_col].to_numpy(dtype=float)
+    else:
+        lvl_id_col = id_columns.get(matched_level)
+        if lvl_id_col and lvl_id_col in work_df.columns and len(weight_df) == work_df[lvl_id_col].nunique():
+            unique_ids = work_df[lvl_id_col].unique()
+            id_to_w = dict(zip(unique_ids, weight_df[weight_col].to_numpy(dtype=float)))
+            work_df[weight_col] = work_df[lvl_id_col].map(id_to_w)
+        else:
+            raise ValueError(
+                f"Cannot align weight_df (len={len(weight_df)}) with df (len={len(work_df)}). "
+                f"Include ID column(s) {list(id_columns.values())} in weight_df or match row count."
+            )
+
+    return work_df, {
+        "weight_col": weight_col,
+        "weight_level": matched_level,
     }
 
 
@@ -205,3 +318,22 @@ def _normalize_type_name(type_str: str) -> str:
     if t in ("categorical", "category", "cat", "string", "str", "bool"):
         return "categorical"
     raise ValueError(f"Unsupported feature type '{type_str}'. Use 'continuous' or 'categorical'.")
+
+
+def _normalize_agg_name(agg_val) -> str:
+    if agg_val is None:
+        return "mean"
+    a = str(agg_val).strip().lower()
+    if a in ("mean", "avg", "average"):
+        return "mean"
+    if a in ("sum", "total"):
+        return "sum"
+    if a == "min":
+        return "min"
+    if a == "max":
+        return "max"
+    if a == "median":
+        return "median"
+    raise ValueError(
+        f"Unsupported hierarchy aggregation '{agg_val}'. Use 'mean', 'sum', 'min', 'max', or 'median'."
+    )

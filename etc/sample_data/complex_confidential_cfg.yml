@@ -28,6 +28,13 @@ data_structure:
     family: "family_id"
     household: "household_id"
 
+  # Sub-group member counts when rolling up from individual to family / household
+  # (Total unit counts `individual_num` and `family_num` are always included automatically)
+  hierarchy_counts:
+    individual_under_18:
+      condition: "age < 18"
+      weight: 2.5
+
   features:
     location:
       type: "categorical"
@@ -35,15 +42,18 @@ data_structure:
     age:
       type: "continuous"
       weight: 2.5
+      agg: "mean"        # Roll-up rule to family/household: "mean" (default), "sum", "min", "max", "median"
     income:
       type: "continuous"
       weight: 2.0
+      agg: "sum"         # Family/household income = sum of member incomes
     occupation:
       type: "categorical"
       weight: 1.5
     saving:
       type: "continuous"
       weight: 1.2
+      agg: "sum"         # Family/household saving = sum of member savings
     sex:
       type: "categorical"
       weight: 1.0

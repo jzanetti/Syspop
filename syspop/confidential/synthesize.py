@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
-from syspop.confidential.config import load_config
+from syspop.confidential.config import (
+    load_config,
+    resolve_data_structure,
+    _normalize_agg_name,
+)
 
 
 HIERARCHY_COUNT_ALIASES = {
@@ -106,6 +110,7 @@ def infer_synthesis_schema(
                     "type": "continuous",
                     "weight": float(f_spec.get("weight", 1.0)),
                     "non_negative": bool(f_spec.get("non_negative", True)),
+                    "agg": _normalize_agg_name(f_spec.get("agg", "mean")),
                     "mean_col": m_col,
                     "std_col": s_col,
                 }
@@ -115,6 +120,21 @@ def infer_synthesis_schema(
                     "weight": float(f_spec.get("weight", 1.0)),
                 }
         cat_mappings = metadata["cat_mappings"]
+        # Also include any additional continuous columns present in std_col_map
+        # (e.g., exported survey weight column)
+        known_mean_cols = {
+            v.get("mean_col") for v in features_meta.values() if v.get("type") == "continuous"
+        }
+        for m_col, s_col in std_col_map.items():
+            if m_col not in known_mean_cols and m_col not in features_meta:
+                features_meta[m_col] = {
+                    "type": "continuous",
+                    "weight": 1.0,
+                    "non_negative": bool((ind_df[m_col].dropna() >= 0).all()),
+                    "agg": "mean",
+                    "mean_col": m_col,
+                    "std_col": s_col,
+                }
     else:
         # Auto-infer from aggregated table and config
         raw_features = data_cfg.get("features", {}) or {}
@@ -134,22 +154,26 @@ def infer_synthesis_schema(
             canon_name = m_col
             if m_col.lower().startswith("ave "):
                 canon_name = m_col[4:].strip()
+            f_cfg = (
+                raw_features.get(canon_name, {})
+                if isinstance(raw_features, dict) and isinstance(raw_features.get(canon_name), dict)
+                else {}
+            )
             weight = float(
                 raw_weights.get(
                     canon_name,
-                    raw_weights.get(
-                        m_col,
-                        raw_features.get(canon_name, {}).get("weight", 1.0)
-                        if isinstance(raw_features, dict) and isinstance(raw_features.get(canon_name), dict)
-                        else 1.0,
-                    ),
+                    raw_weights.get(m_col, f_cfg.get("weight", 1.0)),
                 )
+            )
+            agg_mode = _normalize_agg_name(
+                f_cfg.get("agg", f_cfg.get("hierarchy_agg", "mean"))
             )
             non_neg = bool((ind_df[m_col].dropna() >= 0).all())
             features_meta[canon_name] = {
                 "type": "continuous",
                 "weight": weight,
                 "non_negative": non_neg,
+                "agg": agg_mode,
                 "mean_col": m_col,
                 "std_col": s_col,
             }
@@ -254,10 +278,16 @@ def infer_synthesis_schema(
                     "weight": f_weight,
                 }
 
+    if metadata and "hierarchy_counts" in metadata:
+        hierarchy_counts = metadata["hierarchy_counts"]
+    else:
+        hierarchy_counts = resolve_data_structure(None, cfg).get("hierarchy_counts", {})
+
     return {
         "hierarchy": hierarchy,
         "id_columns": id_columns,
         "features": features_meta,
+        "hierarchy_counts": hierarchy_counts,
         "cat_mappings": cat_mappings,
         "count_col": count_col,
     }
@@ -322,6 +352,7 @@ def recreate_individuals_from_agg(
 
     features_meta = schema["features"]
     cat_mappings = schema["cat_mappings"]
+    hierarchy_counts = schema.get("hierarchy_counts", {})
 
     chunks = []
     for row_idx, (_, row) in enumerate(ind_agg_df.iterrows()):
@@ -363,9 +394,47 @@ def recreate_individuals_from_agg(
         return pd.DataFrame()
 
     ind_records = pd.concat(chunks, ignore_index=True)
+
+    # Evaluate any configured hierarchy_counts conditions (e.g. "age < 18") on synthetic individuals
+    for cnt_name, cnt_spec in hierarchy_counts.items():
+        cond_str = str(cnt_spec.get("condition", "")).strip()
+        if not cond_str:
+            continue
+        if cond_str.lower() in ("all", "true", "1"):
+            ind_records[f"__hcount_{cnt_name}"] = 1.0
+        else:
+            ind_records[f"__hcount_{cnt_name}"] = ind_records.eval(cond_str).astype(float)
+
     ind_id_col = schema["id_columns"].get("individual", "person_id")
     ind_records.insert(0, ind_id_col, np.arange(1, len(ind_records) + 1, dtype=int))
     return ind_records
+
+
+def _sample_integer_count_column(
+    row: pd.Series,
+    col_name: str,
+    std_col_name: str or None,
+    n_p: int,
+    rng: np.random.Generator,
+    min_val: int = 0,
+    max_vals: np.ndarray or None = None,
+) -> np.ndarray:
+    """Sample integer counts per parent unit from cluster mean and std."""
+    mean_c = max(float(min_val), float(row[col_name]))
+    std_c = float(row[std_col_name]) if std_col_name and pd.notna(row[std_col_name]) else 0.0
+    if std_c > 0:
+        sampled = np.maximum(float(min_val), np.round(rng.normal(mean_c, std_c, size=n_p))).astype(int)
+    else:
+        base_sz = int(np.floor(mean_c))
+        frac = mean_c - base_sz
+        n_up = int(round(frac * n_p))
+        sampled = np.full(n_p, max(min_val, base_sz), dtype=int)
+        if n_up > 0:
+            sampled[:n_up] += 1
+            rng.shuffle(sampled)
+    if max_vals is not None:
+        sampled = np.minimum(sampled, max_vals.astype(int))
+    return sampled
 
 
 def _generate_parent_targets(
@@ -406,6 +475,8 @@ def _generate_parent_targets(
 
     features_meta = schema["features"]
     cat_mappings = schema["cat_mappings"]
+    hierarchy_counts = schema.get("hierarchy_counts", {})
+    is_direct_individual_parent = child_num_col.lower().startswith("ind")
 
     parent_chunks = []
     for row_idx, (_, row) in enumerate(parent_agg_df.iterrows()):
@@ -414,12 +485,43 @@ def _generate_parent_targets(
             continue
 
         chunk = {}
+        # Sample number of children per parent unit first so sum-aggregated features condition on unit size K
+        mean_c = max(1.0, float(row[child_num_col]))
+        std_c = float(row[child_num_std_col]) if child_num_std_col and pd.notna(row[child_num_std_col]) else 0.0
+        raw_sizes = _sample_integer_count_column(
+            row, child_num_col, child_num_std_col, n_p, rng, min_val=1
+        )
+        chunk["__child_count"] = raw_sizes.astype(int)
+
         for feat_name, f_spec in features_meta.items():
             if f_spec["type"] != "continuous":
                 continue
-            chunk[feat_name] = _sample_continuous_column(
-                row, feat_name, f_spec, n_p, rng, parent_agg_df
-            )
+            if f_spec.get("agg", "mean") == "sum":
+                # Condition sum target S on realized unit size K using Law of Total Variance:
+                # E[S | K] = K * (mean_S / mean_K), Var(S | K) = max(0, std_S^2 - (mean_S / mean_K)^2 * std_K^2)
+                m_col = _match_column_case_insensitive(
+                    parent_agg_df, [f_spec.get("mean_col", feat_name), feat_name]
+                )
+                s_col = _match_column_case_insensitive(
+                    parent_agg_df, [f_spec.get("std_col", f"{feat_name}_std"), f"{feat_name}_std"]
+                )
+                mean_s = float(row[m_col]) if m_col and pd.notna(row[m_col]) else 0.0
+                std_s = max(0.0, float(row[s_col])) if s_col and pd.notna(row[s_col]) else 0.0
+                mean_per_unit = mean_s / mean_c
+                cond_var = max(0.0, (std_s ** 2) - (mean_per_unit ** 2) * (std_c ** 2))
+                cond_std = float(np.sqrt(cond_var))
+                cond_means = raw_sizes.astype(float) * mean_per_unit
+                if cond_std > 0:
+                    sampled_vals = rng.normal(loc=cond_means, scale=cond_std, size=n_p)
+                else:
+                    sampled_vals = cond_means
+                if f_spec.get("non_negative", True):
+                    sampled_vals = np.maximum(0.0, sampled_vals)
+                chunk[feat_name] = sampled_vals
+            else:
+                chunk[feat_name] = _sample_continuous_column(
+                    row, feat_name, f_spec, n_p, rng, parent_agg_df
+                )
 
         for feat_name, cat_info in cat_mappings.items():
             cols = [
@@ -432,21 +534,18 @@ def _generate_parent_targets(
             for col_idx, col_label in enumerate(cat_info["columns"]):
                 chunk[f"__onehot_{col_label}"] = np.full(n_p, probs[col_idx], dtype=float)
 
-        # Sample or assign number of children per parent unit
-        mean_c = max(1.0, float(row[child_num_col]))
-        std_c = float(row[child_num_std_col]) if child_num_std_col and pd.notna(row[child_num_std_col]) else 0.0
-        if std_c > 0:
-            raw_sizes = np.maximum(1.0, np.round(rng.normal(mean_c, std_c, size=n_p)))
-        else:
-            base_sz = int(np.floor(mean_c))
-            frac = mean_c - base_sz
-            n_up = int(round(frac * n_p))
-            raw_sizes = np.full(n_p, max(1, base_sz), dtype=int)
-            if n_up > 0:
-                raw_sizes[:n_up] += 1
-                rng.shuffle(raw_sizes)
+        # Sample any configured sub-group member counts (e.g., individual_under_18)
+        for cnt_name in hierarchy_counts:
+            c_col = _match_column_case_insensitive(parent_agg_df, [cnt_name])
+            if c_col is not None:
+                c_std_col = _match_column_case_insensitive(
+                    parent_agg_df, [f"{c_col}_std", f"{c_col} std"]
+                )
+                cap_vals = raw_sizes if is_direct_individual_parent else None
+                chunk[f"__hcount_{cnt_name}"] = _sample_integer_count_column(
+                    row, c_col, c_std_col, n_p, rng, min_val=0, max_vals=cap_vals
+                ).astype(float)
 
-        chunk["__child_count"] = raw_sizes.astype(int)
         parent_chunks.append(pd.DataFrame(chunk))
 
     if not parent_chunks:
@@ -459,13 +558,19 @@ def _build_matching_vectors(
     df: pd.DataFrame,
     schema: dict,
     max_values: dict,
+    is_parent: bool = False,
+    child_counts: np.ndarray or None = None,
+    active_hcounts: list or None = None,
 ) -> np.ndarray:
     """
     Construct weighted normalized feature vectors for greedy nearest-neighbour matching
     between child units and parent targets.
+    For features with `agg == 'sum'` (and `hierarchy_counts`), parent targets are divided by
+    `child_counts` so that per-child targets are on the same per-child scale as child records.
     """
     features_meta = schema["features"]
     cat_mappings = schema["cat_mappings"]
+    hierarchy_counts = schema.get("hierarchy_counts", {})
     n_rows = len(df)
     cols = []
 
@@ -473,13 +578,27 @@ def _build_matching_vectors(
         w = float(f_spec.get("weight", 1.0))
         if f_spec["type"] == "continuous":
             max_v = max_values.get(feat_name, 1.0)
-            norm_v = df[feat_name].to_numpy(dtype=float) / max_v
+            vals = df[feat_name].to_numpy(dtype=float)
+            if is_parent and f_spec.get("agg", "mean") == "sum" and child_counts is not None:
+                vals = vals / np.maximum(1.0, child_counts)
+            norm_v = vals / max_v
             cols.append(norm_v[:, None] * np.sqrt(w))
         elif f_spec["type"] == "categorical":
             cat_info = cat_mappings[feat_name]
             onehot_cols = [f"__onehot_{c}" for c in cat_info["columns"]]
             mat = df[onehot_cols].to_numpy(dtype=float)
             cols.append(mat * np.sqrt(w * 0.5))
+
+    if active_hcounts:
+        for cnt_name in active_hcounts:
+            hc_col = f"__hcount_{cnt_name}"
+            w = float(hierarchy_counts.get(cnt_name, {}).get("weight", 1.0))
+            max_v = max_values.get(hc_col, 1.0)
+            vals = df[hc_col].to_numpy(dtype=float)
+            if is_parent and child_counts is not None:
+                vals = vals / np.maximum(1.0, child_counts)
+            norm_v = vals / max_v
+            cols.append(norm_v[:, None] * np.sqrt(w))
 
     if not cols:
         return np.zeros((n_rows, 1), dtype=float)
@@ -499,30 +618,69 @@ def assign_children_to_parents_greedy(
     """
     features_meta = schema["features"]
     cat_mappings = schema["cat_mappings"]
-
-    max_values = {}
-    for feat_name, f_spec in features_meta.items():
-        if f_spec["type"] == "continuous":
-            m_child = float(np.max(np.abs(children_df[feat_name].to_numpy(dtype=float)))) if len(children_df) else 1.0
-            m_parent = float(np.max(np.abs(parents_df[feat_name].to_numpy(dtype=float)))) if len(parents_df) else 1.0
-            max_v = max(m_child, m_parent)
-            max_values[feat_name] = max_v if max_v > 0 else 1.0
-
-    X_child = _build_matching_vectors(children_df, schema, max_values)
-    X_parent_target = _build_matching_vectors(parents_df, schema, max_values)
+    hierarchy_counts = schema.get("hierarchy_counts", {})
 
     n_children = len(children_df)
     n_parents = len(parents_df)
     child_counts = parents_df["__child_count"].to_numpy(dtype=int)
 
-    available_mask = np.ones(n_children, dtype=bool)
-    available_indices = np.arange(n_children, dtype=int)
-    assigned_parent_ids = np.zeros(n_children, dtype=int)
+    active_hcounts = [
+        cnt_name
+        for cnt_name in hierarchy_counts
+        if f"__hcount_{cnt_name}" in children_df.columns and f"__hcount_{cnt_name}" in parents_df.columns
+    ]
 
+    max_values = {}
+    for feat_name, f_spec in features_meta.items():
+        if f_spec["type"] == "continuous":
+            m_child = float(np.max(np.abs(children_df[feat_name].to_numpy(dtype=float)))) if n_children else 1.0
+            p_vals = parents_df[feat_name].to_numpy(dtype=float)
+            if f_spec.get("agg", "mean") == "sum" and n_parents:
+                p_vals = p_vals / np.maximum(1.0, child_counts)
+            m_parent = float(np.max(np.abs(p_vals))) if n_parents else 1.0
+            max_v = max(m_child, m_parent)
+            max_values[feat_name] = max_v if max_v > 0 else 1.0
+
+    for cnt_name in active_hcounts:
+        hc_col = f"__hcount_{cnt_name}"
+        m_child = float(np.max(np.abs(children_df[hc_col].to_numpy(dtype=float)))) if n_children else 1.0
+        p_vals = parents_df[hc_col].to_numpy(dtype=float) / np.maximum(1.0, child_counts) if n_parents else np.array([1.0])
+        max_v = max(m_child, float(np.max(np.abs(p_vals))))
+        max_values[hc_col] = max_v if max_v > 0 else 1.0
+
+    X_child = _build_matching_vectors(
+        children_df, schema, max_values, is_parent=False, active_hcounts=active_hcounts
+    )
+    X_parent_target = _build_matching_vectors(
+        parents_df,
+        schema,
+        max_values,
+        is_parent=True,
+        child_counts=child_counts,
+        active_hcounts=active_hcounts,
+    )
+
+    available_mask = np.ones(n_children, dtype=bool)
+    assigned_parent_ids = np.zeros(n_children, dtype=int)
     parent_running_sums = np.zeros_like(X_parent_target)
 
+    hc_start_col = X_child.shape[1] - len(active_hcounts)
+    hc_weights_scaled = []
+    hc_is_binary = []
+    hc_child_raw = []
+    hc_target_raw = []
+    for cnt_name in active_hcounts:
+        hc_col = f"__hcount_{cnt_name}"
+        w = float(hierarchy_counts.get(cnt_name, {}).get("weight", 1.0))
+        max_v = max_values.get(hc_col, 1.0)
+        hc_weights_scaled.append(np.sqrt(w) / max_v)
+        c_arr = children_df[hc_col].to_numpy(dtype=float)
+        hc_child_raw.append(c_arr)
+        hc_target_raw.append(parents_df[hc_col].to_numpy(dtype=float))
+        hc_is_binary.append(bool(np.all((c_arr == 0.0) | (c_arr == 1.0))))
+    parent_hc_running = np.zeros((n_parents, len(active_hcounts)), dtype=float)
+
     # Assign member by member across parents (round-robin by slot depth r = 1..max_m)
-    # so no single parent monopolizes all best matches before other parents get their first member.
     max_members = int(np.max(child_counts)) if n_parents > 0 else 0
     for slot_r in range(1, max_members + 1):
         for p_idx in range(n_parents):
@@ -532,9 +690,12 @@ def assign_children_to_parents_greedy(
             if len(avail_pos) == 0:
                 break
 
-            # Desired child vector to bring running average (s + x_i) / r as close as possible to target t_p:
-            # d_r = r * t_p - s
             desired_vec = slot_r * X_parent_target[p_idx] - parent_running_sums[p_idx]
+            for hc_i in range(len(active_hcounts)):
+                if hc_is_binary[hc_i]:
+                    need_one = parent_hc_running[p_idx, hc_i] < hc_target_raw[hc_i][p_idx]
+                    desired_vec[hc_start_col + hc_i] = hc_weights_scaled[hc_i] if need_one else 0.0
+
             X_avail = X_child[avail_pos]
             dists = np.sum((X_avail - desired_vec) ** 2, axis=1)
             best_local = int(np.argmin(dists))
@@ -543,20 +704,47 @@ def assign_children_to_parents_greedy(
             available_mask[chosen_child_idx] = False
             assigned_parent_ids[chosen_child_idx] = p_idx + 1
             parent_running_sums[p_idx] += X_child[chosen_child_idx]
+            for hc_i in range(len(active_hcounts)):
+                parent_hc_running[p_idx, hc_i] += hc_child_raw[hc_i][chosen_child_idx]
 
     linked_children = children_df.copy()
     linked_children[parent_id_col] = assigned_parent_ids
 
-    # Build realized parent summary table & residual diagnostics
+    # Build realized parent summary table & residual diagnostics respecting each feature's `agg` rule
     cont_cols = [f for f, s in features_meta.items() if s["type"] == "continuous"]
     onehot_cols = [
         f"__onehot_{col_label}"
         for cat_info in cat_mappings.values()
         for col_label in cat_info["columns"]
     ]
-    agg_cols = cont_cols + onehot_cols
+    hc_cols = [f"__hcount_{cnt_name}" for cnt_name in active_hcounts]
 
-    realized_parents = linked_children.groupby(parent_id_col, as_index=False)[agg_cols].mean()
+    grp = linked_children.groupby(parent_id_col, as_index=False)
+    realized_parents = pd.DataFrame({parent_id_col: np.arange(1, n_parents + 1, dtype=int)})
+
+    for col in cont_cols:
+        agg_mode = features_meta[col].get("agg", "mean")
+        if agg_mode == "sum":
+            realized_parents[col] = grp[col].sum()[col].to_numpy(dtype=float)
+        elif agg_mode == "min":
+            realized_parents[col] = grp[col].min()[col].to_numpy(dtype=float)
+        elif agg_mode == "max":
+            realized_parents[col] = grp[col].max()[col].to_numpy(dtype=float)
+        elif agg_mode == "median":
+            realized_parents[col] = grp[col].median()[col].to_numpy(dtype=float)
+        else:
+            realized_parents[col] = grp[col].mean()[col].to_numpy(dtype=float)
+
+    if onehot_cols:
+        oh_means = grp[onehot_cols].mean()
+        for col in onehot_cols:
+            realized_parents[col] = oh_means[col].to_numpy(dtype=float)
+
+    if hc_cols:
+        hc_sums = grp[hc_cols].sum()
+        for col in hc_cols:
+            realized_parents[col] = hc_sums[col].to_numpy(dtype=float)
+
     realized_parents["__child_count"] = linked_children.groupby(parent_id_col).size().to_numpy(dtype=int)
 
     # Compute residual error summary (target - realized)
@@ -564,6 +752,11 @@ def assign_children_to_parents_greedy(
     for col in cont_cols:
         residuals[f"{col}_mae"] = float(
             np.mean(np.abs(parents_df[col].to_numpy() - realized_parents[col].to_numpy()))
+        )
+    for cnt_name in active_hcounts:
+        hc_col = f"__hcount_{cnt_name}"
+        residuals[f"{cnt_name}_mae"] = float(
+            np.mean(np.abs(parents_df[hc_col].to_numpy() - realized_parents[hc_col].to_numpy()))
         )
     for cat_info in cat_mappings.values():
         for col_label in cat_info["columns"]:
@@ -738,6 +931,15 @@ def create_synthetic_dataset(
     ind_id_col = id_columns.get("individual", "person_id")
     if ind_id_col in ind_df.columns:
         ind_df[ind_id_col] = np.arange(1, len(ind_df) + 1, dtype=int)
+
+    # Ensure household-level or family-level weight columns are consistent within each household/family
+    for col in ind_df.columns:
+        col_norm = col.strip().lower().replace(" ", "_")
+        if col_norm in ("household_weight", "household_weights", "hh_weight") and hh_id_col in ind_df.columns:
+            ind_df[col] = ind_df.groupby(hh_id_col)[col].transform("mean").round(4)
+        elif col_norm in ("family_weight", "family_weights", "fam_weight") and fam_id_col in ind_df.columns:
+            grp_cols = [hh_id_col, fam_id_col] if hh_id_col in ind_df.columns else [fam_id_col]
+            ind_df[col] = ind_df.groupby(grp_cols)[col].transform("mean").round(4)
 
     if return_diagnostics:
         return ind_df, diagnostics

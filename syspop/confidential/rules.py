@@ -79,31 +79,25 @@ def confidentialise_category_proportions(
     cat_matrix: np.ndarray,
     rules: dict,
     rng: np.random.Generator or None = None,
+    unit_weights: np.ndarray or None = None,
 ) -> np.ndarray:
     """
     Compute confidentialised category proportions for a single categorical variable within a cluster.
     `cat_matrix` has shape `(n_group_records, n_categories)`.
-
-    Supported `subcell_action` options:
-      - 'reassign_or_merge' or 'merge' (Option 1 - Default):
-        Clusters are formed/merged so non-zero categories meet `min_cell_count`.
-      - 'suppress_cluster' (Option 2a):
-        Returns raw proportions here; the caller suppresses the entire cluster if any sub-cell violates `min_cell_count`.
-      - 'suppress_cell_nan' (Option 2b):
-        Sets any violating sub-cell (0 < count < `min_cell_count`) to `np.nan`.
-      - 'rr3_and_suppress' (Option 3):
-        Masks any sub-cell with 0 < count < `min_cell_count` to 0.0, applies random rounding to remaining
-        sub-cells >= `min_cell_count`, and re-normalizes proportions to sum to 1.0.
-      - 'none':
-        Raw proportions without modification.
+    When `unit_weights` is provided, confidentiality thresholds (`min_cell_count`) are checked on
+    UNWEIGHTED contributing counts, while proportions are computed from SURVEY-WEIGHTED sums.
     """
     mat = np.asarray(cat_matrix, dtype=float)
     if mat.ndim == 1:
         counts = mat.copy()
         contributing = counts.copy()
     else:
-        counts = mat.sum(axis=0)
         contributing = (mat > 0).sum(axis=0)
+        if unit_weights is not None:
+            w = np.asarray(unit_weights, dtype=float)[:, None]
+            counts = (mat * w).sum(axis=0)
+        else:
+            counts = mat.sum(axis=0)
 
     action = str(rules.get("subcell_action", "reassign_or_merge")).strip().lower()
     min_cell = int(rules.get("min_cell_count", 6))
@@ -127,7 +121,7 @@ def confidentialise_category_proportions(
     if action == "rr3_and_suppress":
         for i in range(len(counts)):
             if counts[i] > 0:
-                if abs(counts[i] - round(counts[i])) > 1e-6 and contributing[i] > 0:
+                if (unit_weights is not None or abs(counts[i] - round(counts[i])) > 1e-6) and contributing[i] > 0:
                     rounded_contrib = float(apply_count_rounding(int(contributing[i]), rules, rng=rng))
                     counts[i] = counts[i] * (rounded_contrib / float(contributing[i]))
                 else:

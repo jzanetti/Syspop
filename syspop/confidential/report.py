@@ -9,9 +9,15 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
     Build a concise '0_Checker_Guide' cover sheet explaining each sheet and configured rule.
     """
     rules = metadata.get("output_rules", {})
+    weight_info = metadata.get("weight_info", None)
     hierarchy = metadata.get("hierarchy", ["individual"])
     r_base = rules.get("rounding_base", None)
     rounding_str = f"Base {r_base}" if (r_base is not None and int(r_base) > 1) else "Off (exact counts)"
+    weight_str = (
+        f"Applied from weight_df (column='{weight_info.get('weight_col')}', level='{weight_info.get('weight_level')}')"
+        if weight_info
+        else "None (regular unweighted microdata)"
+    )
 
     rows = [
         {
@@ -29,7 +35,7 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
             "Sheet / Item": "*_Checker_Audit (*_checker_audit_report.csv)",
             "Description": (
                 "Vertically structured audit table (one row per cluster and feature/category) "
-                "comparing raw counts/values against configured thresholds and released values."
+                "comparing raw unweighted respondent counts against configured thresholds and released values."
             ),
         },
         {
@@ -48,6 +54,10 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
                 f"subcell_action='{rules.get('subcell_action', 'reassign_or_merge')}', "
                 f"leftover_action='{rules.get('leftover_action', 'assign_nearest')}'."
             ),
+        },
+        {
+            "Sheet / Item": "Survey Weights (weight_df)",
+            "Description": weight_str,
         },
     ]
     return pd.DataFrame(rows)
