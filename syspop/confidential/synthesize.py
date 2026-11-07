@@ -91,18 +91,6 @@ def infer_synthesis_schema(
             if mean_col is not None:
                 std_col_map[mean_col] = col
 
-    # Identify percentile columns (e.g. age_p25, age_p50, age_p75)
-    percentile_col_map = {}
-    for col in ind_df.columns:
-        c_low = col.strip().lower()
-        for p in (1, 5, 10, 25, 50, 75, 90, 95, 99):
-            suffix = f"_p{p}"
-            if c_low.endswith(suffix):
-                base_col = col[: -len(suffix)]
-                mean_col = _match_column_case_insensitive(ind_df, [base_col])
-                if mean_col:
-                    percentile_col_map.setdefault(mean_col, {})[p] = col
-
     if metadata and "features" in metadata and "cat_mappings" in metadata:
         features_meta = {}
         for f_name, f_spec in metadata["features"].items():
@@ -120,7 +108,6 @@ def infer_synthesis_schema(
                     "non_negative": bool(f_spec.get("non_negative", True)),
                     "mean_col": m_col,
                     "std_col": s_col,
-                    "percentile_cols": percentile_col_map.get(m_col, {}),
                 }
             else:
                 features_meta[f_name] = {
@@ -142,8 +129,6 @@ def infer_synthesis_schema(
         for m_col, s_col in std_col_map.items():
             used_cols.add(m_col)
             used_cols.add(s_col)
-            for p_col in percentile_col_map.get(m_col, {}).values():
-                used_cols.add(p_col)
 
             # Determine canonical feature name
             canon_name = m_col
@@ -167,7 +152,6 @@ def infer_synthesis_schema(
                 "non_negative": non_neg,
                 "mean_col": m_col,
                 "std_col": s_col,
-                "percentile_cols": percentile_col_map.get(m_col, {}),
             }
 
         # Remaining columns in ind_df are categorical proportion columns
@@ -284,11 +268,10 @@ def _sample_continuous_column(
     feat_name: str,
     f_spec: dict,
     n_samples: int,
-    use_percentiles: bool,
     rng: np.random.Generator,
     table_df: pd.DataFrame,
 ) -> np.ndarray:
-    """Sample `n_samples` continuous values for a cluster row using normal or percentile distribution."""
+    """Sample `n_samples` continuous values for a cluster row using normal distribution."""
     m_col = _match_column_case_insensitive(
         table_df, [f_spec.get("mean_col", feat_name), feat_name, f"ave {feat_name}", f"avg {feat_name}"]
     )
@@ -301,33 +284,10 @@ def _sample_continuous_column(
     std_val = float(row[s_col]) if s_col and pd.notna(row[s_col]) else 0.0
     std_val = max(0.0, std_val)
 
-    p_cols = f_spec.get("percentile_cols", {})
-    valid_p = {}
-    if use_percentiles and p_cols:
-        for p, col_name in sorted(p_cols.items()):
-            actual_col = _match_column_case_insensitive(table_df, [col_name, f"{feat_name}_p{p}"])
-            if actual_col and pd.notna(row[actual_col]):
-                valid_p[int(p)] = float(row[actual_col])
-
-    if len(valid_p) >= 2:
-        # Piecewise quantile sampling using exported percentiles
-        ps = np.array(sorted(valid_p.keys()), dtype=float) / 100.0
-        qs = np.array([valid_p[int(p * 100)] for p in ps], dtype=float)
-        u = rng.uniform(0.0, 1.0, size=n_samples)
-        samples = np.interp(u, ps, qs)
-        # Add subtle tail variation beyond the outermost exported percentiles using std_val
-        low_mask = u < ps[0]
-        high_mask = u > ps[-1]
-        if std_val > 0:
-            if low_mask.any():
-                samples[low_mask] = qs[0] - np.abs(rng.normal(0.0, std_val * 0.5, size=int(low_mask.sum())))
-            if high_mask.any():
-                samples[high_mask] = qs[-1] + np.abs(rng.normal(0.0, std_val * 0.5, size=int(high_mask.sum())))
+    if std_val > 0:
+        samples = rng.normal(loc=mean_val, scale=std_val, size=n_samples)
     else:
-        if std_val > 0:
-            samples = rng.normal(loc=mean_val, scale=std_val, size=n_samples)
-        else:
-            samples = np.full(n_samples, mean_val, dtype=float)
+        samples = np.full(n_samples, mean_val, dtype=float)
 
     if f_spec.get("non_negative", True):
         samples = np.maximum(0.0, samples)
@@ -360,7 +320,6 @@ def recreate_individuals_from_agg(
     else:
         cluster_counts = np.round(raw_counts).astype(int)
 
-    use_percentiles = bool(cfg.get("output_rules", {}).get("use_percentiles", False))
     features_meta = schema["features"]
     cat_mappings = schema["cat_mappings"]
 
@@ -376,7 +335,7 @@ def recreate_individuals_from_agg(
             if f_spec["type"] != "continuous":
                 continue
             chunk[feat_name] = _sample_continuous_column(
-                row, feat_name, f_spec, n_g, use_percentiles, rng, ind_agg_df
+                row, feat_name, f_spec, n_g, rng, ind_agg_df
             )
 
         # Categorical features
@@ -445,7 +404,6 @@ def _generate_parent_targets(
         parent_agg_df, [f"{child_num_col}_std", f"{child_num_col} std"]
     )
 
-    use_percentiles = bool(cfg.get("output_rules", {}).get("use_percentiles", False))
     features_meta = schema["features"]
     cat_mappings = schema["cat_mappings"]
 
@@ -460,7 +418,7 @@ def _generate_parent_targets(
             if f_spec["type"] != "continuous":
                 continue
             chunk[feat_name] = _sample_continuous_column(
-                row, feat_name, f_spec, n_p, use_percentiles, rng, parent_agg_df
+                row, feat_name, f_spec, n_p, rng, parent_agg_df
             )
 
         for feat_name, cat_info in cat_mappings.items():

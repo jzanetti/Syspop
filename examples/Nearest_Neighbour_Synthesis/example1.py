@@ -1,7 +1,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 import numpy as np
 import pandas as pd
@@ -34,7 +34,7 @@ def run_docx_walkthrough():
             "preset": "custom",
             "min_group_count": 2,
             "min_cell_count": 2,
-            "rounding_method": "none",
+            "rounding_base": None,
             "subcell_action": "none",
             "leftover_action": "suppress",
         },
@@ -132,7 +132,7 @@ def run_docx_walkthrough():
 
 def run_automated_pipeline_example():
     print("\n" + "=" * 70)
-    print("PART 2: End-to-End Automated Pipeline with Stats NZ IDI Config File")
+    print("PART 2: End-to-End Automated Pipeline with Configuration File")
     print("=" * 70)
 
     rng = np.random.default_rng(123)
@@ -187,9 +187,9 @@ def run_complex_multi_feature_example():
     """
     PART 3: Complex multi-feature example with continuous features (age, income, saving)
     and categorical features (sex, occupation, location) across Individual -> Family -> Household.
-    See also `examples/complex_confidential_example.py`.
+    See also `examples/Nearest_Neighbour_Synthesis/example2.py`.
     """
-    from examples.complex_confidential_example import run_complex_example
+    from examples.Nearest_Neighbour_Synthesis.example2 import run_complex_example
 
     print("\n")
     run_complex_example()

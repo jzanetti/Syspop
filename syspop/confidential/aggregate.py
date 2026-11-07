@@ -5,7 +5,6 @@ from syspop.confidential.rules import (
     apply_count_rounding,
     check_subcell_violation,
     confidentialise_category_proportions,
-    get_percentile_min_count,
 )
 
 
@@ -113,16 +112,16 @@ def compute_pairwise_distances(df: pd.DataFrame, config_or_path=None) -> np.ndar
 def _count_record_subcell_violations(
     cluster_indices: np.ndarray,
     onehot_matrices: dict,
-    min_subcell_count: int,
+    min_cell_count: int,
     global_cat_counts: dict or None = None,
 ) -> int:
-    """Count how many categorical columns in `cluster_indices` have 0 < count < min_subcell_count."""
+    """Count how many categorical columns in `cluster_indices` have 0 < count < min_cell_count."""
     violations = 0
     for feat_name, mat in onehot_matrices.items():
         counts = (mat[cluster_indices] > 0).sum(axis=0)
         for col_idx, c_val in enumerate(counts):
-            if 0 < c_val < min_subcell_count:
-                if global_cat_counts is not None and global_cat_counts[feat_name][col_idx] < min_subcell_count:
+            if 0 < c_val < min_cell_count:
+                if global_cat_counts is not None and global_cat_counts[feat_name][col_idx] < min_cell_count:
                     continue
                 violations += 1
     return violations
@@ -132,12 +131,12 @@ def _record_fits_cluster_categories(
     rec_idx: int,
     cluster_indices: np.ndarray,
     onehot_matrices: dict,
-    min_subcell_count: int,
+    min_cell_count: int,
 ) -> bool:
     """
     Return True if adding `rec_idx` to `cluster_indices` does NOT introduce any new
     small sub-cell (i.e. for every category that `rec_idx` has > 0, the cluster already
-    has >= `min_subcell_count` contributing records, or adding `rec_idx` brings it to >= `min_subcell_count`).
+    has >= `min_cell_count` contributing records, or adding `rec_idx` brings it to >= `min_cell_count`).
     """
     for mat in onehot_matrices.values():
         rec_cats = np.flatnonzero(mat[rec_idx] > 0)
@@ -145,7 +144,7 @@ def _record_fits_cluster_categories(
             continue
         cluster_counts = (mat[cluster_indices] > 0).sum(axis=0)
         for col_idx in rec_cats:
-            if cluster_counts[col_idx] + 1 < min_subcell_count:
+            if cluster_counts[col_idx] + 1 < min_cell_count:
                 return False
     return True
 
@@ -155,21 +154,21 @@ def _resolve_small_subcells_by_reassignment(
     X_weighted: np.ndarray,
     onehot_matrices: dict,
     min_count: int,
-    min_subcell_count: int,
+    min_cell_count: int,
     global_cat_counts: dict,
     max_passes: int = 5,
 ) -> list:
     """
     Option 1 ('reassign_or_merge') helper:
-    Eliminate small categorical sub-cells (0 < count < min_subcell_count) across clusters by:
+    Eliminate small categorical sub-cells (0 < count < min_cell_count) across clusters by:
       1. Moving records that belong to a small sub-cell out of clusters with > min_count
-         into the nearest cluster where those categories are already >= min_subcell_count.
+         into the nearest cluster where those categories are already >= min_cell_count.
       2. Swapping minority-category records between clusters when doing so strictly reduces
          the number of small sub-cell violations.
       3. Merging any remaining clusters that share the same small sub-cell category so their
-         combined sub-cell count reaches >= min_subcell_count.
+         combined sub-cell count reaches >= min_cell_count.
     """
-    if not onehot_matrices or min_subcell_count <= 1 or len(clusters) < 2:
+    if not onehot_matrices or min_cell_count <= 1 or len(clusters) < 2:
         return clusters
 
     for _ in range(max_passes):
@@ -179,40 +178,42 @@ def _resolve_small_subcells_by_reassignment(
         for c_idx in range(len(clusters)):
             c_arr = clusters[c_idx]
             cur_v_a = _count_record_subcell_violations(
-                c_arr, onehot_matrices, min_subcell_count, global_cat_counts
+                c_arr, onehot_matrices, min_cell_count, global_cat_counts
             )
             if cur_v_a == 0:
                 continue
 
-            # Find records in cluster c_idx that contribute to any small sub-cell (0 < count < min_subcell_count)
+            # Find records in cluster c_idx that contribute to any small sub-cell (0 < count < min_cell_count)
             small_positions = set()
             for feat_name, mat in onehot_matrices.items():
                 sub_mat = mat[c_arr] > 0
                 counts = sub_mat.sum(axis=0)
-                for col_k in np.flatnonzero((counts > 0) & (counts < min_subcell_count)):
-                    if global_cat_counts[feat_name][col_k] < min_subcell_count:
+                for col_k in np.flatnonzero((counts > 0) & (counts < min_cell_count)):
+                    if global_cat_counts[feat_name][col_k] < min_cell_count:
                         continue
                     for pos in np.flatnonzero(sub_mat[:, col_k]):
                         small_positions.add(int(pos))
 
             d_other = np.sum((centroids - centroids[c_idx]) ** 2, axis=1)
             d_other[c_idx] = np.inf
-            other_order = np.argsort(d_other)
+            other_order = [int(i) for i in np.argsort(d_other) if int(i) != c_idx]
 
-            for pos_a in sorted(small_positions):
-                if pos_a >= len(clusters[c_idx]):
-                    continue
+            small_records = [int(c_arr[p]) for p in sorted(small_positions)]
+            for rec_a in small_records:
                 cur_a = clusters[c_idx]
+                pos_matches = np.flatnonzero(cur_a == rec_a)
+                if len(pos_matches) == 0:
+                    continue
+                pos_a = int(pos_matches[0])
                 cur_v_a = _count_record_subcell_violations(
-                    cur_a, onehot_matrices, min_subcell_count, global_cat_counts
+                    cur_a, onehot_matrices, min_cell_count, global_cat_counts
                 )
                 if cur_v_a == 0:
                     break
 
-                rec_a = cur_a[pos_a]
                 without_a = np.delete(cur_a, pos_a)
                 v_without_a = _count_record_subcell_violations(
-                    without_a, onehot_matrices, min_subcell_count, global_cat_counts
+                    without_a, onehot_matrices, min_cell_count, global_cat_counts
                 )
 
                 # Step A: If cluster A has > min_count records, move rec_a to a nearby compatible cluster B
@@ -221,11 +222,11 @@ def _resolve_small_subcells_by_reassignment(
                     for b_idx in other_order:
                         cur_b = clusters[b_idx]
                         v_b_before = _count_record_subcell_violations(
-                            cur_b, onehot_matrices, min_subcell_count, global_cat_counts
+                            cur_b, onehot_matrices, min_cell_count, global_cat_counts
                         )
                         with_a_in_b = np.append(cur_b, rec_a)
                         v_b_after = _count_record_subcell_violations(
-                            with_a_in_b, onehot_matrices, min_subcell_count, global_cat_counts
+                            with_a_in_b, onehot_matrices, min_cell_count, global_cat_counts
                         )
                         if v_without_a + v_b_after < cur_v_a + v_b_before:
                             clusters[c_idx] = without_a
@@ -243,7 +244,7 @@ def _resolve_small_subcells_by_reassignment(
                 for b_idx in other_order:
                     cur_b = clusters[b_idx]
                     v_b_before = _count_record_subcell_violations(
-                        cur_b, onehot_matrices, min_subcell_count, global_cat_counts
+                        cur_b, onehot_matrices, min_cell_count, global_cat_counts
                     )
                     for pos_b in range(len(cur_b)):
                         rec_b = cur_b[pos_b]
@@ -251,10 +252,10 @@ def _resolve_small_subcells_by_reassignment(
                         new_b = np.append(np.delete(cur_b, pos_b), rec_a)
 
                         v_a_after = _count_record_subcell_violations(
-                            new_a, onehot_matrices, min_subcell_count, global_cat_counts
+                            new_a, onehot_matrices, min_cell_count, global_cat_counts
                         )
                         v_b_after = _count_record_subcell_violations(
-                            new_b, onehot_matrices, min_subcell_count, global_cat_counts
+                            new_b, onehot_matrices, min_cell_count, global_cat_counts
                         )
                         if v_a_after + v_b_after < cur_v_a + v_b_before:
                             clusters[c_idx] = new_a
@@ -277,7 +278,7 @@ def _resolve_small_subcells_by_reassignment(
         merged_any = False
         for idx, c_indices in enumerate(clusters):
             v_cur = _count_record_subcell_violations(
-                c_indices, onehot_matrices, min_subcell_count, global_cat_counts
+                c_indices, onehot_matrices, min_cell_count, global_cat_counts
             )
             if v_cur > 0:
                 centroids = np.array([X_weighted[c].mean(axis=0) for c in clusters])
@@ -291,11 +292,11 @@ def _resolve_small_subcells_by_reassignment(
                     if other_idx == idx:
                         continue
                     v_other = _count_record_subcell_violations(
-                        clusters[other_idx], onehot_matrices, min_subcell_count, global_cat_counts
+                        clusters[other_idx], onehot_matrices, min_cell_count, global_cat_counts
                     )
                     combined = np.concatenate([c_indices, clusters[other_idx]])
                     v_comb = _count_record_subcell_violations(
-                        combined, onehot_matrices, min_subcell_count, global_cat_counts
+                        combined, onehot_matrices, min_cell_count, global_cat_counts
                     )
                     # Score by (resulting violations, distance)
                     cand_score = (v_comb, float(d_to_others[other_idx]))
@@ -321,22 +322,22 @@ def _form_subcell_compliant_clusters(
     min_count: int,
     leftover_action: str,
     onehot_matrices: dict,
-    min_subcell_count: int,
+    min_cell_count: int,
     candidate_pool_size: int = 500,
 ) -> list:
     """
     Form clusters of size >= `min_count` where every categorical sub-cell has either 0
-    or >= `min_subcell_count` records (Option 1: 'reassign_or_merge').
+    or >= `min_cell_count` records (Option 1: 'reassign_or_merge').
 
     Strategy:
       1. Partition records by their exact categorical signature into homogeneous blocks
-         of size >= `min_subcell_count` (using nearest-neighbour on continuous features).
+         of size >= `min_cell_count` (using nearest-neighbour on continuous features).
       2. Combine these homogeneous micro-blocks by nearest centroid distance into clusters
-         of size >= `min_count`. Because every micro-block has >= `min_subcell_count` identical
-         categorical records, any sum of micro-blocks is guaranteed to have 0 or >= `min_subcell_count`
+         of size >= `min_count`. Because every micro-block has >= `min_cell_count` identical
+         categorical records, any sum of micro-blocks is guaranteed to have 0 or >= `min_cell_count`
          records in every category!
-      3. Assign any leftover records from small categorical cells (< `min_subcell_count`) to
-         existing clusters that already have >= `min_subcell_count` in each of that record's
+      3. Assign any leftover records from small categorical cells (< `min_cell_count`) to
+         existing clusters that already have >= `min_cell_count` in each of that record's
          individual categories, or resolve via reassignment/merging.
     """
     n_rows = X_weighted.shape[0]
@@ -355,7 +356,7 @@ def _form_subcell_compliant_clusters(
             X_weighted, min_count, leftover_action, candidate_pool_size
         )
         return _resolve_small_subcells_by_reassignment(
-            base_clusters, X_weighted, onehot_matrices, min_count, min_subcell_count, global_cat_counts
+            base_clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
         )
 
     # Build categorical signature per row
@@ -371,19 +372,19 @@ def _form_subcell_compliant_clusters(
 
     for sig, idx_list in sig_groups.items():
         idx_arr = np.array(idx_list, dtype=int)
-        if len(idx_arr) < min_subcell_count:
+        if len(idx_arr) < min_cell_count:
             leftover_pool.extend(idx_list)
             continue
 
-        # Split large homogeneous cells into nearest-neighbour micro-blocks of size >= min_subcell_count
+        # Split large homogeneous cells into nearest-neighbour micro-blocks of size >= min_cell_count
         # If len(idx_arr) >= min_count, we can directly form full clusters of size min_count!
         u = idx_arr.copy()
-        while len(u) >= min_subcell_count:
-            if len(u) < 2 * min_subcell_count:
+        while len(u) >= min_cell_count:
+            if len(u) < 2 * min_cell_count:
                 micro_blocks.append(u.copy())
                 u = np.array([], dtype=int)
                 break
-            target_sz = min_count if len(u) >= min_count + min_subcell_count else min_subcell_count
+            target_sz = min_count if len(u) >= min_count + min_cell_count else min_cell_count
             X_u = X_weighted[u]
             dists = np.sum((X_u[0:1] - X_u) ** 2, axis=-1)[0]
             chosen_local = np.argsort(dists)[:target_sz]
@@ -427,7 +428,7 @@ def _form_subcell_compliant_clusters(
             X_weighted, min_count, leftover_action, candidate_pool_size
         )
         return _resolve_small_subcells_by_reassignment(
-            base_clusters, X_weighted, onehot_matrices, min_count, min_subcell_count, global_cat_counts
+            base_clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
         )
 
     # Handle leftover records from rare categorical cells
@@ -439,7 +440,7 @@ def _form_subcell_compliant_clusters(
             compatible_clusters = [
                 c_i
                 for c_i, c_indices in enumerate(ready_clusters)
-                if _record_fits_cluster_categories(rec_idx, c_indices, onehot_matrices, min_subcell_count)
+                if _record_fits_cluster_categories(rec_idx, c_indices, onehot_matrices, min_cell_count)
             ]
             if compatible_clusters:
                 comp_centroids = ready_centroids[compatible_clusters]
@@ -458,7 +459,7 @@ def _form_subcell_compliant_clusters(
             ready_centroids[chosen_c] = X_weighted[ready_clusters[chosen_c]].mean(axis=0)
 
     return _resolve_small_subcells_by_reassignment(
-        ready_clusters, X_weighted, onehot_matrices, min_count, min_subcell_count, global_cat_counts
+        ready_clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
     )
 
 
@@ -528,19 +529,19 @@ def nearest_neighbour_grouping(
     leftover_action: str = "assign_nearest",
     onehot_matrices: dict or None = None,
     subcell_action: str = "reassign_or_merge",
-    min_subcell_count: int = 6,
+    min_cell_count: int = 6,
     candidate_pool_size: int = 500,
 ) -> list:
     """
     Group unit records into clusters of size >= `min_count` using Nearest Neighbour distances.
-    Supports configurable `subcell_action` for Rule 4.5 small categorical sub-cells:
-      - 'reassign_or_merge' (Option 1 - Default): Form sub-cell-compliant clusters and reassign/merge
-        so no released cluster has 0 < subcell_count < min_subcell_count.
-      - 'merge': Standard NN clustering followed by merging clusters with small sub-cells.
-      - 'suppress_cluster' (Option 2a): Suppress entire cluster if any sub-cell < min_subcell_count.
-      - 'suppress_cell_nan' (Option 2b): Suppress only the small sub-cell proportion to NaN.
-      - 'rr3_and_suppress' (Option 3): Mask small sub-cells (< min_subcell_count) to 0.0 and apply RR3.
-      - 'none': No sub-cell adjustment.
+    Supports configurable `subcell_action` for small categorical cells (< `min_cell_count`):
+      - 'reassign_or_merge' (Option 1 - Default): Form compliant clusters and reassign/merge
+        so no released cluster has 0 < category_count < min_cell_count.
+      - 'merge': Standard NN clustering followed by merging clusters with small categorical cells.
+      - 'suppress_cluster' (Option 2a): Suppress entire cluster if any category < min_cell_count.
+      - 'suppress_cell_nan' (Option 2b): Suppress only the small category proportion to NaN.
+      - 'rr3_and_suppress' (Option 3): Mask small categories (< min_cell_count) to 0.0 and apply random rounding.
+      - 'none': No adjustment.
     """
     n_rows = X_weighted.shape[0]
     min_count = max(1, int(min_count))
@@ -550,13 +551,13 @@ def nearest_neighbour_grouping(
 
     action = str(subcell_action).strip().lower()
 
-    if action == "reassign_or_merge" and onehot_matrices and min_subcell_count > 1:
+    if action == "reassign_or_merge" and onehot_matrices and min_cell_count > 1:
         return _form_subcell_compliant_clusters(
             X_weighted=X_weighted,
             min_count=min_count,
             leftover_action=leftover_action,
             onehot_matrices=onehot_matrices,
-            min_subcell_count=min_subcell_count,
+            min_cell_count=min_cell_count,
             candidate_pool_size=candidate_pool_size,
         )
 
@@ -567,12 +568,12 @@ def nearest_neighbour_grouping(
         candidate_pool_size=candidate_pool_size,
     )
 
-    if action == "merge" and onehot_matrices and min_subcell_count > 1 and len(clusters) > 1:
+    if action == "merge" and onehot_matrices and min_cell_count > 1 and len(clusters) > 1:
         global_cat_counts = {
             f: (mat > 0).sum(axis=0) for f, mat in onehot_matrices.items()
         }
         return _resolve_small_subcells_by_reassignment(
-            clusters, X_weighted, onehot_matrices, min_count, min_subcell_count, global_cat_counts
+            clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
         )
 
     return clusters
@@ -588,7 +589,7 @@ def aggregate_unit_records(
     """
     Step 1 of the Synthetic Data Production Algorithm:
     Aggregate confidential unit-record microdata into clusters using the weighted
-    nearest-neighbour approach while enforcing Stats NZ Microdata Output Guide rules.
+    nearest-neighbour approach while enforcing configured confidentiality rules.
     """
     cfg = load_config(config_or_path)
     rules = cfg["output_rules"]
@@ -603,23 +604,21 @@ def aggregate_unit_records(
         df, features_meta, pre_encoded_categories=pre_encoded_categories
     )
 
-    min_count = int(rules["effective_min_count"])
+    min_group_count = int(rules["min_group_count"])
+    min_cell_count = int(rules.get("min_cell_count", 6))
     subcell_action = str(rules.get("subcell_action", "reassign_or_merge")).strip().lower()
-    min_subcell_count = int(rules.get("min_subcell_count", 6))
 
     clusters = nearest_neighbour_grouping(
         X_weighted=X_weighted,
-        min_count=min_count,
+        min_count=min_group_count,
         leftover_action=rules.get("leftover_action", "assign_nearest"),
         onehot_matrices=encoding_info["onehot_matrices"],
         subcell_action=subcell_action,
-        min_subcell_count=min_subcell_count,
+        min_cell_count=min_cell_count,
     )
 
-    use_percentiles = bool(rules.get("use_percentiles", False))
-    percentiles_list = [int(p) for p in rules.get("percentiles", [25, 50, 75])]
-    min_cell_count = int(rules.get("min_cell_count", 6))
-    rounding_method = str(rules.get("rounding_method", "rr3")).strip().lower()
+    rounding_base = rules.get("rounding_base", 3)
+    rounding_enabled = rounding_base is not None and int(rounding_base) > 1
 
     rows = []
     kept_clusters = []
@@ -635,21 +634,21 @@ def aggregate_unit_records(
 
         suppressed = False
         suppression_reason = ""
-        if unrounded_n < min_count:
+        if unrounded_n < min_group_count:
             suppressed = True
-            suppression_reason = f"Unrounded count ({unrounded_n}) < required minimum ({min_count})"
-        elif rounding_method != "none" and rounded_n < min_cell_count:
+            suppression_reason = f"Unrounded count ({unrounded_n}) < min_group_count ({min_group_count})"
+        elif rounding_enabled and rounded_n < min_cell_count:
             suppressed = True
-            suppression_reason = f"RR3 rounded count ({rounded_n}) < min_cell_count ({min_cell_count})"
+            suppression_reason = f"Rounded count ({rounded_n}) < min_cell_count ({min_cell_count})"
         elif rounded_n <= 0:
             suppressed = True
             suppression_reason = f"Rounded count ({rounded_n}) <= 0"
         elif subcell_action == "suppress_cluster" and check_subcell_violation(
-            c_indices, encoding_info["onehot_matrices"], min_subcell_count
+            c_indices, encoding_info["onehot_matrices"], min_cell_count
         ):
             suppressed = True
             suppression_reason = (
-                f"Cluster contains categorical sub-cell with 0 < count < {min_subcell_count} "
+                f"Cluster contains categorical cell with 0 < count < {min_cell_count} "
                 f"(subcell_action='suppress_cluster')"
             )
 
@@ -658,7 +657,7 @@ def aggregate_unit_records(
         cont_audit = {}
         cat_audit = {}
 
-        # 1. Continuous features: resume un-normalized scale inside Data Lab (Rule 4.6)
+        # 1. Continuous features: resume un-normalized scale inside Data Lab (mean & std only; min/max are never exported)
         for feat_name, spec in features_meta.items():
             if spec["type"] != "continuous":
                 continue
@@ -666,47 +665,21 @@ def aggregate_unit_records(
             if len(vals) == 0:
                 raw_mean = np.nan
                 raw_std = np.nan
-                raw_min = np.nan
-                raw_max = np.nan
             else:
                 raw_mean = float(np.mean(vals))
                 raw_std = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
-                raw_min = float(np.min(vals))
-                raw_max = float(np.max(vals))
 
             row_data[feat_name] = raw_mean
             row_data[f"{feat_name}_std"] = raw_std
 
-            p_audit = {}
-            if use_percentiles and len(vals) > 0:
-                for p in percentiles_list:
-                    req_n = get_percentile_min_count(p, rules)
-                    raw_p_val = float(np.percentile(vals, p))
-                    if unrounded_n >= req_n:
-                        row_data[f"{feat_name}_p{p}"] = raw_p_val
-                        p_audit[p] = {
-                            "raw": raw_p_val,
-                            "exported": raw_p_val,
-                            "req_count": req_n,
-                            "status": f"PASS (count {unrounded_n} >= {req_n})",
-                        }
-                    else:
-                        row_data[f"{feat_name}_p{p}"] = np.nan
-                        p_audit[p] = {
-                            "raw": raw_p_val,
-                            "exported": np.nan,
-                            "req_count": req_n,
-                            "status": f"SUPPRESSED (count {unrounded_n} < {req_n})",
-                        }
-
             cont_audit[feat_name] = {
+                "raw_count": int(len(vals)),
+                "min_group_count": min_group_count,
                 "raw_mean": raw_mean,
                 "exported_mean": raw_mean if not suppressed else np.nan,
                 "raw_std": raw_std,
                 "exported_std": raw_std if not suppressed else np.nan,
-                "raw_min": raw_min,
-                "raw_max": raw_max,
-                "percentiles": p_audit,
+                "status": "PASS" if not suppressed else f"SUPPRESSED ({suppression_reason})",
             }
 
         # 2. Categorical features: confidentialised proportions
@@ -722,34 +695,30 @@ def aggregate_unit_records(
 
             props = confidentialise_category_proportions(mat, rules, rng=rng)
             for col_idx, col_label in enumerate(cat_info["columns"]):
+                cat_name = cat_info["categories"][col_idx]
                 exp_prop = float(props[col_idx]) if pd.notna(props[col_idx]) else np.nan
                 row_data[col_label] = exp_prop
                 c_cnt = int(contributing_counts[col_idx])
 
                 if suppressed:
-                    sub_status = f"SUPPRESSED ({suppression_reason})"
-                elif c_cnt == 0:
-                    sub_status = "PASS (Zero cell: count = 0)"
-                elif c_cnt >= min_subcell_count:
-                    sub_status = f"PASS (contributing count {c_cnt} >= {min_subcell_count})"
-                elif subcell_action == "none":
-                    sub_status = f"PASS (raw count = {c_cnt}, subcell_action='none')"
+                    sub_status = "SUPPRESSED"
+                elif c_cnt == 0 or c_cnt >= min_cell_count or subcell_action == "none":
+                    sub_status = "PASS"
                 elif subcell_action == "suppress_cell_nan" and pd.isna(exp_prop):
-                    sub_status = f"PASS (Small sub-cell count={c_cnt} < {min_subcell_count} suppressed to NaN in Released Output)"
+                    sub_status = "SUPPRESSED (NaN)"
                 elif exp_prop == 0.0:
-                    sub_status = (
-                        f"PASS (Small sub-cell count={c_cnt} < {min_subcell_count} masked to 0.0 in Released Output)"
-                    )
+                    sub_status = "SUPPRESSED (0.0)"
                 else:
-                    sub_status = f"PASS (Fallback retained: all categories in cluster < {min_subcell_count})"
+                    sub_status = "PASS"
 
                 cat_audit[col_label] = {
                     "feature": feat_name,
+                    "category": str(cat_name),
                     "unrounded_contributing_count": c_cnt,
                     "raw_sum": float(raw_sums[col_idx]),
                     "raw_proportion": float(raw_props[col_idx]),
                     "exported_proportion": exp_prop if not suppressed else np.nan,
-                    "min_subcell_count": min_subcell_count,
+                    "min_cell_count": min_cell_count,
                     "status": sub_status,
                 }
 
@@ -773,10 +742,10 @@ def aggregate_unit_records(
                 "suppression_reason": suppression_reason,
                 "indices": c_indices,
                 "unrounded_count": int(unrounded_n),
-                "required_min_count": int(min_count),
+                "min_group_count": int(min_group_count),
                 "min_cell_count": int(min_cell_count),
                 "rounded_count": int(rounded_n) if not suppressed else 0,
-                "rounding_method": rounding_method,
+                "rounding_base": rounding_base,
                 "continuous_audit": cont_audit,
                 "categorical_audit": cat_audit,
             }
@@ -792,13 +761,13 @@ def aggregate_unit_records(
             if spec["type"] == "continuous":
                 vals = pd.to_numeric(sub_df[feat_name], errors="coerce").dropna().to_numpy(dtype=float)
                 cont_audit[feat_name] = {
+                    "raw_count": int(len(vals)),
+                    "min_group_count": min_group_count,
                     "raw_mean": float(np.mean(vals)) if len(vals) else np.nan,
                     "exported_mean": np.nan,
                     "raw_std": float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0,
                     "exported_std": np.nan,
-                    "raw_min": float(np.min(vals)) if len(vals) else np.nan,
-                    "raw_max": float(np.max(vals)) if len(vals) else np.nan,
-                    "percentiles": {},
+                    "status": "SUPPRESSED",
                 }
         cat_audit = {}
         for feat_name, spec in features_meta.items():
@@ -812,27 +781,28 @@ def aggregate_unit_records(
                 for col_idx, col_label in enumerate(cat_info["columns"]):
                     cat_audit[col_label] = {
                         "feature": feat_name,
+                        "category": str(cat_info["categories"][col_idx]),
                         "unrounded_contributing_count": int(contributing_counts[col_idx]),
                         "raw_sum": float(raw_sums[col_idx]),
                         "raw_proportion": float(raw_props[col_idx]),
                         "exported_proportion": np.nan,
-                        "min_subcell_count": min_subcell_count,
-                        "status": "SUPPRESSED (Leftover group < min_count)",
+                        "min_cell_count": min_cell_count,
+                        "status": "SUPPRESSED",
                     }
         cluster_audit_records.append(
             {
                 "cluster_id": "SUPPRESSED_LEFTOVER",
                 "status": "SUPPRESSED",
                 "suppression_reason": (
-                    f"Leftover records ({len(leftover_indices)}) < required minimum ({min_count}) "
+                    f"Leftover records ({len(leftover_indices)}) < min_group_count ({min_group_count}) "
                     f"with leftover_action='suppress'"
                 ),
                 "indices": leftover_indices,
                 "unrounded_count": int(len(leftover_indices)),
-                "required_min_count": int(min_count),
+                "min_group_count": int(min_group_count),
                 "min_cell_count": int(min_cell_count),
                 "rounded_count": 0,
-                "rounding_method": rounding_method,
+                "rounding_base": rounding_base,
                 "continuous_audit": cont_audit,
                 "categorical_audit": cat_audit,
             }

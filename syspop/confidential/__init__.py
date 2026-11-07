@@ -2,7 +2,6 @@ from syspop.confidential.config import load_config, resolve_data_structure
 from syspop.confidential.rules import (
     rr3_round,
     apply_count_rounding,
-    get_percentile_min_count,
     confidentialise_category_proportions,
 )
 from syspop.confidential.aggregate import (
@@ -33,7 +32,6 @@ __all__ = [
     "resolve_data_structure",
     "rr3_round",
     "apply_count_rounding",
-    "get_percentile_min_count",
     "confidentialise_category_proportions",
     "prepare_encoded_features",
     "compute_pairwise_distances",

@@ -1,75 +1,27 @@
 # Default configuration presets for the Nearest-Neighbour Confidential Aggregation
 # and Synthetic Data Production Algorithm.
-#
-# Output rules are based on:
-# Stats NZ Microdata Output Guide (Fifth Edition, September 2022 update)
-# https://www.stats.govt.nz/assets/Methods/Microdata-Output-Guide-2020-v5-Sept22update.pdf
 
 presets:
   idi:
-    description: "Stats NZ Integrated Data Infrastructure (IDI) / LBD rules (Section 4)"
-    min_cell_count: 6            # Rule 4.1: Unweighted counts < 6 must be suppressed
-    min_count_mean: 20           # Rule 4.3: IDI totals and means require unweighted count >= 20
-    min_count_std: 20            # Rule 4.3: Dispersion (std) alongside means requires count >= 20
-    rounding_method: "rr3"       # Rule 4.1: Random Rounding to base 3 (RR3)
-    rounding_base: 3
-    suppress_min_max: true       # Rule 4.6: Sample minimums and maximums must not be exported
-    use_percentiles: false       # Rule 4.4: Optional percentiles instead of / in addition to mean & std
-    percentiles: [25, 50, 75]
-    percentile_min_counts:       # Rule 4.4: Minimum unweighted count for quantiles/percentiles
-      1: 500
-      5: 100
-      10: 50
-      25: 20
-      50: 10
-      75: 20
-      90: 50
-      95: 100
-      99: 500
-    subcell_action: "reassign_or_merge"  # Rule 4.5: Option 1 default ("reassign_or_merge", "suppress_cluster", "suppress_cell_nan", "rr3_and_suppress", "merge", "none")
-    min_subcell_count: 6         # Rule 4.5: Minimum count for a non-zero categorical sub-cell in a group
-    leftover_action: "assign_nearest"  # "assign_nearest" or "suppress"
+    description: "Confidentiality rules for administrative microdata (e.g. IDI)"
+    min_group_count: 20          # Minimum units per cluster (for means & stds)
+    min_cell_count: 6            # Minimum units per count / categorical cell
+    rounding_base: 3             # Random rounding base (e.g., 3 for RR3; set to null/0 to turn off rounding)
+    subcell_action: "reassign_or_merge"  # Options: "reassign_or_merge" (default), "suppress_cluster", "suppress_cell_nan", "rr3_and_suppress", "none"
+    leftover_action: "assign_nearest"    # "assign_nearest" or "suppress"
 
   survey:
-    description: "Stats NZ Social & Household Survey microdata rules (Section 4)"
-    min_cell_count: 6            # Rule 4.1 / 4.2: Unweighted cell count threshold
-    min_count_mean: 5            # Rule 4.3: Survey means require unweighted count >= 5
-    min_count_std: 5             # Rule 4.3: Survey std threshold
-    rounding_method: "rr3"       # Rule 4.1: Random Rounding to base 3 (RR3)
+    description: "Confidentiality rules for survey microdata"
+    min_group_count: 6
+    min_cell_count: 6
     rounding_base: 3
-    suppress_min_max: true       # Rule 4.6: Sample minimums and maximums must not be exported
-    use_percentiles: false
-    percentiles: [25, 50, 75]
-    percentile_min_counts:       # Rule 4.4: Minimum unweighted count for quantiles/percentiles
-      1: 500
-      5: 100
-      10: 50
-      25: 20
-      50: 10
-      75: 20
-      90: 50
-      95: 100
-      99: 500
     subcell_action: "reassign_or_merge"
-    min_subcell_count: 6
     leftover_action: "assign_nearest"
 
   custom:
     description: "Custom user-defined confidentiality rules"
+    min_group_count: 2
     min_cell_count: 2
-    min_count_mean: 2
-    min_count_std: 2
-    rounding_method: "none"
-    rounding_base: 3
-    suppress_min_max: true
-    use_percentiles: false
-    percentiles: [25, 50, 75]
-    percentile_min_counts:
-      10: 50
-      25: 20
-      50: 10
-      75: 20
-      90: 50
+    rounding_base: null          # null / 0 / false switches count rounding off
     subcell_action: "none"
-    min_subcell_count: 2
     leftover_action: "assign_nearest"

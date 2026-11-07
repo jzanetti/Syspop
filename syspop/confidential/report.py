@@ -6,84 +6,47 @@ import pandas as pd
 
 def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
     """
-    Build a '0_Checker_Guide' cover sheet for IDI Output Checkers explaining
-    the purpose of every file/sheet and how to verify each Stats NZ Output Guide rule.
+    Build a concise '0_Checker_Guide' cover sheet explaining each sheet and configured rule.
     """
     rules = metadata.get("output_rules", {})
     hierarchy = metadata.get("hierarchy", ["individual"])
+    r_base = rules.get("rounding_base", None)
+    rounding_str = f"Base {r_base}" if (r_base is not None and int(r_base) > 1) else "Off (exact counts)"
 
     rows = [
         {
-            "Section": "1. OVERVIEW",
-            "Item / Sheet / Rule": "Purpose of this Workbook",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                "This workbook documents the Nearest-Neighbour Confidential Aggregation process "
-                "and provides full unrounded audit trails alongside the confidentialised output tables "
-                "requested for release."
+            "Sheet / Item": "1_Summary",
+            "Description": (
+                f"Overview of cluster counts, rounding ({rounding_str}), "
+                f"and sub-cell thresholds across hierarchy levels ({', '.join(hierarchy)})."
             ),
         },
         {
-            "Section": "2. FILES FOR RELEASE",
-            "Item / Sheet / Rule": "*_Released_Output sheets / *_aggregated.csv",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                f"Active hierarchy levels: {', '.join(hierarchy)}. ONLY the `*_aggregated.csv` files "
-                "(corresponding to `Ind_Released_Output`, `Fam_Released_Output`, `HH_Released_Output`) "
-                "are requested for release outside the Data Lab."
+            "Sheet / Item": "*_Released_Output (*_aggregated.csv)",
+            "Description": "Confidentialised cluster tables requested for release outside the Data Lab.",
+        },
+        {
+            "Sheet / Item": "*_Checker_Audit (*_checker_audit_report.csv)",
+            "Description": (
+                "Vertically structured audit table (one row per cluster and feature/category) "
+                "comparing raw counts/values against configured thresholds and released values."
             ),
         },
         {
-            "Section": "3. CHECKER-ONLY FILES",
-            "Item / Sheet / Rule": "1_Rules_Summary, *_Checker_Audit, *_Raw_Derivation",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                "These sheets/CSVs remain strictly inside the Data Lab for output checking. "
-                "Every released row has a `cluster_id` (1, 2, ...) that links directly to `*_Checker_Audit` "
-                "(showing unrounded counts, sub-cell counts, and withheld min/max) and `*_Raw_Derivation` "
-                "(showing the exact underlying unit records that were averaged to form that cluster)."
+            "Sheet / Item": "*_Raw_Derivation (*_raw_with_cluster.csv)",
+            "Description": (
+                "Unit-record mapping showing the exact raw records and normalized values "
+                "assigned to each cluster_id."
             ),
         },
         {
-            "Section": "4. STATS NZ RULES APPLIED",
-            "Item / Sheet / Rule": "Rule 4.1: Unweighted Counts & RR3",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                f"Minimum cell count threshold = {rules.get('min_cell_count', 6)}. "
-                f"Count rounding method = {str(rules.get('rounding_method', 'rr3')).upper()} "
-                f"(base {rules.get('rounding_base', 3)}). Check column `rule_4_1_and_4_3_count_check` in `*_Checker_Audit`."
-            ),
-        },
-        {
-            "Section": "4. STATS NZ RULES APPLIED",
-            "Item / Sheet / Rule": "Rule 4.3: Totals, Means & Standard Deviations",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                f"Minimum unrounded group count for means = {rules.get('min_count_mean', 20)} "
-                f"and std = {rules.get('min_count_std', 20)} "
-                f"(effective minimum cluster size = {rules.get('effective_min_count', 20)}). "
-                "Every cluster in `*_Released_Output` is formed from at least this many unit records."
-            ),
-        },
-        {
-            "Section": "4. STATS NZ RULES APPLIED",
-            "Item / Sheet / Rule": "Rule 4.4: Medians, Quartiles & Percentiles",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                f"Use percentiles = {rules.get('use_percentiles', False)}. "
-                f"When enabled, enforces minimum unrounded counts: {rules.get('percentile_min_counts', {})}."
-            ),
-        },
-        {
-            "Section": "4. STATS NZ RULES APPLIED",
-            "Item / Sheet / Rule": "Rule 4.5: Categorical Proportions & Small Sub-Cells",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                f"Minimum contributing units per non-zero category in a cluster = {rules.get('min_subcell_count', 6)} "
-                f"(subcell_action = '{rules.get('subcell_action', 'merge')}'). "
-                "Check `*_unrounded_subcell_count` and `*_rule_4_5_subcell_check` in `*_Checker_Audit`."
-            ),
-        },
-        {
-            "Section": "4. STATS NZ RULES APPLIED",
-            "Item / Sheet / Rule": "Rule 4.6: Maximum & Minimum Values Suppression",
-            "Details for Stats NZ IDI / Data Lab Output Checkers": (
-                f"Suppress min/max = {rules.get('suppress_min_max', True)}. "
-                "Max-normalization is used strictly inside the Data Lab to compute nearest-neighbour distances. "
-                "True sample minimums and maximums are withheld (shown only in `*_Checker_Audit` as `*_WITHHELD`)."
+            "Sheet / Item": "Configured Thresholds",
+            "Description": (
+                f"min_group_count={rules.get('min_group_count', 20)}, "
+                f"min_cell_count={rules.get('min_cell_count', 6)}, "
+                f"rounding_base={rounding_str}, "
+                f"subcell_action='{rules.get('subcell_action', 'reassign_or_merge')}', "
+                f"leftover_action='{rules.get('leftover_action', 'assign_nearest')}'."
             ),
         },
     ]
@@ -93,11 +56,7 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
 def build_raw_cluster_mapping_df(level_details: dict) -> pd.DataFrame:
     """
     Construct a unit-record table showing the exact raw records (along with their
-    normalized values and assigned `cluster_id`) used to derive each row of the
-    confidentialised `{level}_aggregated.csv` table.
-
-    This allows an IDI Output Checker to filter by `cluster_id` (e.g. `cluster_id == 1`)
-    and immediately verify the exact underlying records, their raw means/stds, and counts.
+    normalized values and assigned `cluster_id`) used to derive each row of `{level}_aggregated.csv`.
     """
     raw_df = level_details["raw_df"].copy().reset_index(drop=True)
     norm_df = level_details["normalized_df"].copy().reset_index(drop=True)
@@ -123,8 +82,8 @@ def build_raw_cluster_mapping_df(level_details: dict) -> pd.DataFrame:
         {
             "cluster_id": cluster_ids,
             "cluster_status": cluster_statuses,
-            "cluster_unrounded_count": unrounded_counts,
-            "cluster_exported_rr3_count": exported_counts,
+            "cluster_raw_count": unrounded_counts,
+            "cluster_released_count": exported_counts,
         }
     )
 
@@ -146,86 +105,110 @@ def build_raw_cluster_mapping_df(level_details: dict) -> pd.DataFrame:
 
 def build_checker_audit_df(level_name: str, level_details: dict) -> pd.DataFrame:
     """
-    Build a cluster-by-cluster Output Rule Compliance Audit DataFrame for IDI Output Checkers.
-    Compares unrounded vs. rounded counts, raw vs. exported continuous statistics, withheld
-    sample min/max values (Rule 4.6), and categorical sub-cell counts/proportions (Rule 4.5).
+    Build a vertically structured audit DataFrame where each row corresponds to
+    one (cluster_id, feature, metric_or_category) entry.
+    Columns remain fixed regardless of how many features exist in the dataset.
     """
     audit_records = level_details.get("cluster_audit_records", [])
-    rules = level_details.get("output_rules", {})
     rows = []
 
     for rec in audit_records:
         cid = rec["cluster_id"]
         status = rec["status"]
-        unrounded_n = rec["unrounded_count"]
-        req_min = rec["required_min_count"]
-        min_cell = rec["min_cell_count"]
-        rounded_n = rec["rounded_count"]
-        r_method = str(rec["rounding_method"]).upper()
+        unrounded_n = int(rec["unrounded_count"])
+        req_min = int(rec["min_group_count"])
+        rounded_n = int(rec["rounded_count"])
 
-        if status == "RELEASED":
-            count_check = (
-                f"PASS: unrounded={unrounded_n} (>= {req_min}), "
-                f"{r_method} exported={rounded_n} (>= {min_cell})"
-            )
-            overall = "PASS - COMPLIANT FOR RELEASE"
-        else:
-            count_check = f"SUPPRESSED: {rec['suppression_reason']}"
-            overall = f"SUPPRESSED ({rec['suppression_reason']})"
+        # 1. Cluster total count row
+        rows.append(
+            {
+                "level": level_name,
+                "cluster_id": cid,
+                "feature": "cluster_count",
+                "metric_or_category": "total_units",
+                "raw_count": unrounded_n,
+                "min_required": req_min,
+                "raw_value": float(unrounded_n),
+                "released_value": float(rounded_n) if status == "RELEASED" else np.nan,
+                "status": "PASS" if status == "RELEASED" else "SUPPRESSED",
+            }
+        )
 
-        row = {
-            "level": level_name,
-            "cluster_id": cid,
-            "release_status": status,
-            "unrounded_count": unrounded_n,
-            "required_min_group_count": req_min,
-            "exported_count": rounded_n,
-            "rounding_method": r_method,
-            "rule_4_1_and_4_3_count_check": count_check,
-        }
-
+        # 2. Continuous features (mean and std rows)
         for feat_name, c_info in rec["continuous_audit"].items():
-            row[f"{feat_name}_raw_mean"] = c_info["raw_mean"]
-            row[f"{feat_name}_exported_mean"] = c_info["exported_mean"]
-            row[f"{feat_name}_raw_std"] = c_info["raw_std"]
-            row[f"{feat_name}_exported_std"] = c_info["exported_std"]
-            row[f"{feat_name}_raw_min_WITHHELD"] = c_info["raw_min"]
-            row[f"{feat_name}_raw_max_WITHHELD"] = c_info["raw_max"]
-            row[f"{feat_name}_rule_4_6_min_max_check"] = (
-                "PASS: True min/max withheld inside Data Lab (not in exported CSV)"
-                if rules.get("suppress_min_max", True)
-                else "Min/max suppression disabled in config"
+            f_cnt = int(c_info.get("raw_count", unrounded_n))
+            f_status = "PASS" if status == "RELEASED" else "SUPPRESSED"
+            rows.append(
+                {
+                    "level": level_name,
+                    "cluster_id": cid,
+                    "feature": feat_name,
+                    "metric_or_category": "mean",
+                    "raw_count": f_cnt,
+                    "min_required": int(c_info.get("min_group_count", req_min)),
+                    "raw_value": round(float(c_info["raw_mean"]), 6) if pd.notna(c_info["raw_mean"]) else np.nan,
+                    "released_value": (
+                        round(float(c_info["exported_mean"]), 6)
+                        if pd.notna(c_info["exported_mean"])
+                        else np.nan
+                    ),
+                    "status": f_status,
+                }
             )
-            for p, p_info in c_info.get("percentiles", {}).items():
-                row[f"{feat_name}_p{p}_exported"] = p_info["exported"]
-                row[f"{feat_name}_p{p}_rule_4_4_check"] = p_info["status"]
+            rows.append(
+                {
+                    "level": level_name,
+                    "cluster_id": cid,
+                    "feature": feat_name,
+                    "metric_or_category": "std",
+                    "raw_count": f_cnt,
+                    "min_required": int(c_info.get("min_group_count", req_min)),
+                    "raw_value": round(float(c_info["raw_std"]), 6) if pd.notna(c_info["raw_std"]) else np.nan,
+                    "released_value": (
+                        round(float(c_info["exported_std"]), 6)
+                        if pd.notna(c_info["exported_std"])
+                        else np.nan
+                    ),
+                    "status": f_status,
+                }
+            )
 
+        # 3. Categorical features (one row per category)
         for col_label, cat_info in rec["categorical_audit"].items():
-            row[f"{col_label}_unrounded_subcell_count"] = cat_info["unrounded_contributing_count"]
-            row[f"{col_label}_min_subcell_required"] = cat_info["min_subcell_count"]
-            row[f"{col_label}_raw_proportion"] = round(cat_info["raw_proportion"], 6)
-            row[f"{col_label}_exported_proportion"] = (
-                round(cat_info["exported_proportion"], 6)
-                if pd.notna(cat_info["exported_proportion"])
-                else np.nan
+            rows.append(
+                {
+                    "level": level_name,
+                    "cluster_id": cid,
+                    "feature": cat_info["feature"],
+                    "metric_or_category": cat_info.get("category", col_label),
+                    "raw_count": int(cat_info["unrounded_contributing_count"]),
+                    "min_required": int(cat_info["min_cell_count"]),
+                    "raw_value": round(float(cat_info["raw_proportion"]), 6),
+                    "released_value": (
+                        round(float(cat_info["exported_proportion"]), 6)
+                        if pd.notna(cat_info["exported_proportion"])
+                        else np.nan
+                    ),
+                    "status": cat_info["status"],
+                }
             )
-            row[f"{col_label}_rule_4_5_subcell_check"] = cat_info["status"]
-
-        row["overall_compliance_status"] = overall
-        rows.append(row)
 
     return pd.DataFrame(rows)
 
 
 def build_rules_summary_df(agg_tables: dict, metadata: dict) -> pd.DataFrame:
     """
-    Create an executive checklist summarizing how each hierarchy level complies with
-    the Stats NZ Microdata Output Guide (2020 v5, Sept 2022 update).
+    Create a concise summary table with one row per hierarchy level.
     """
     rules = metadata.get("output_rules", {})
     levels_meta = metadata.get("levels", {})
-    summary_rows = []
+    r_base = rules.get("rounding_base", None)
+    rounding_label = int(r_base) if (r_base is not None and int(r_base) > 1) else "Off"
+    min_cell = int(rules.get("min_cell_count", 6))
+    sub_action = str(rules.get("subcell_action", "reassign_or_merge"))
+    req_min = int(rules.get("min_group_count", 20))
 
+    summary_rows = []
     for level_name, lvl_details in levels_meta.items():
         audit_recs = lvl_details.get("cluster_audit_records", [])
         released_recs = [r for r in audit_recs if r["status"] == "RELEASED"]
@@ -234,103 +217,30 @@ def build_rules_summary_df(agg_tables: dict, metadata: dict) -> pd.DataFrame:
         total_raw_records = len(lvl_details.get("raw_df", []))
         min_unrounded = min((r["unrounded_count"] for r in released_recs), default=0)
         min_exported = min((r["rounded_count"] for r in released_recs), default=0)
-        all_rr3 = all((r["rounded_count"] % int(rules.get("rounding_base", 3)) == 0) for r in released_recs)
 
-        summary_rows.append(
-            {
-                "hierarchy_level": level_name,
-                "stats_nz_rule": "Section 4.1: Unweighted Counts & RR3",
-                "requirement": (
-                    f"Min cell count >= {rules.get('min_cell_count', 6)}; "
-                    f"Rounding = {str(rules.get('rounding_method', 'rr3')).upper()} (base {rules.get('rounding_base', 3)})"
-                ),
-                "observed_in_output": (
-                    f"{len(released_recs)} released clusters (from {total_raw_records} raw unit records, "
-                    f"{len(suppressed_recs)} suppressed); min exported count = {min_exported}; "
-                    f"all multiples of {rules.get('rounding_base', 3)} = {all_rr3}"
-                ),
-                "compliance_status": "PASS",
-            }
-        )
-
-        summary_rows.append(
-            {
-                "hierarchy_level": level_name,
-                "stats_nz_rule": "Section 4.3: Means & Standard Deviations Threshold",
-                "requirement": (
-                    f"Min unrounded count for mean >= {rules.get('min_count_mean', 20)} "
-                    f"(std >= {rules.get('min_count_std', 20)}); "
-                    f"effective min group count = {rules.get('effective_min_count', 20)}"
-                ),
-                "observed_in_output": (
-                    f"Min unrounded cluster count across all released rows = {min_unrounded} "
-                    f"(required >= {rules.get('effective_min_count', 20)})"
-                ),
-                "compliance_status": "PASS" if (not released_recs or min_unrounded >= rules.get("effective_min_count", 20)) else "CHECK",
-            }
-        )
-
-        use_p = bool(rules.get("use_percentiles", False))
-        summary_rows.append(
-            {
-                "hierarchy_level": level_name,
-                "stats_nz_rule": "Section 4.4: Medians, Quartiles & Percentiles",
-                "requirement": (
-                    f"Enabled percentiles: {rules.get('percentiles', [])} with thresholds {rules.get('percentile_min_counts', {})}"
-                    if use_p
-                    else "Percentiles disabled (only mean and std exported)"
-                ),
-                "observed_in_output": (
-                    f"Min unrounded count = {min_unrounded} meets all active percentile thresholds"
-                    if use_p
-                    else "No percentiles exported (N/A)"
-                ),
-                "compliance_status": "PASS",
-            }
-        )
-
-        min_sub = int(rules.get("min_subcell_count", 6))
-        sub_action = str(rules.get("subcell_action", "merge"))
-        small_subcells_suppressed = 0
         min_active_subcell = None
         for r in released_recs:
             for c_audit in r["categorical_audit"].values():
                 cnt = c_audit["unrounded_contributing_count"]
                 exp_p = c_audit["exported_proportion"]
-                if 0 < cnt < min_sub and exp_p == 0.0:
-                    small_subcells_suppressed += 1
-                elif exp_p and exp_p > 0:
+                if exp_p is not None and pd.notna(exp_p) and exp_p > 0:
                     if min_active_subcell is None or cnt < min_active_subcell:
                         min_active_subcell = cnt
 
         summary_rows.append(
             {
                 "hierarchy_level": level_name,
-                "stats_nz_rule": "Section 4.5: Categorical Proportions & Sub-Cell Threshold",
-                "requirement": (
-                    f"Non-zero categorical sub-cells must have >= {min_sub} contributing units "
-                    f"(subcell_action = '{sub_action}')"
-                ),
-                "observed_in_output": (
-                    f"Min contributing units in any exported non-zero category = "
-                    f"{min_active_subcell if min_active_subcell is not None else 'N/A'}; "
-                    f"small sub-cells (< {min_sub}) suppressed to 0 = {small_subcells_suppressed}"
-                ),
-                "compliance_status": "PASS",
-            }
-        )
-
-        agg_cols = list(agg_tables.get(level_name, pd.DataFrame()).columns)
-        has_min_max_col = any(c.endswith("_min") or c.endswith("_max") for c in agg_cols)
-        summary_rows.append(
-            {
-                "hierarchy_level": level_name,
-                "stats_nz_rule": "Section 4.6: Maximum and Minimum Values Suppression",
-                "requirement": "Sample minimums and maximums must not be exported; max-normalization resumed inside Data Lab",
-                "observed_in_output": (
-                    f"No min/max columns in exported CSV ({agg_cols}); max-normalization used strictly inside Data Lab"
-                ),
-                "compliance_status": "PASS" if not has_min_max_col else "FAIL",
+                "raw_units": total_raw_records,
+                "released_clusters": len(released_recs),
+                "suppressed_clusters": len(suppressed_recs),
+                "min_raw_cluster_count": min_unrounded,
+                "min_group_count": req_min,
+                "min_released_count": min_exported,
+                "rounding_base": rounding_label,
+                "min_nonzero_cell_count": min_active_subcell if min_active_subcell is not None else "N/A",
+                "min_cell_count": min_cell,
+                "subcell_action": sub_action,
+                "status": "PASS" if (not released_recs or min_unrounded >= req_min) else "CHECK",
             }
         )
 
@@ -378,12 +288,10 @@ def export_datalab_checker_reports(
     """
     Reusable exporter that saves:
       1. `{output_dir}/{level}_aggregated.csv`: The confidentialised table for release.
-      2. `{output_dir}/{level}_raw_with_cluster.csv`: The raw unit records mapped to `cluster_id`
-         showing how each cluster row in `{level}_aggregated.csv` was derived.
-      3. `{output_dir}/{level}_checker_audit_report.csv`: Cluster-by-cluster output rule verification.
-      4. `{output_dir}/idi_rules_compliance_summary.csv`: High-level rule compliance checklist.
-      5. `{output_dir}/idi_output_checker_report.xlsx`: Multi-sheet Excel workbook combining the
-         checker guide, rules summary, released outputs, rule audits, and raw derivation tables.
+      2. `{output_dir}/{level}_raw_with_cluster.csv`: The raw unit records mapped to `cluster_id`.
+      3. `{output_dir}/{level}_checker_audit_report.csv`: Vertically structured cluster/feature audit table.
+      4. `{output_dir}/idi_rules_compliance_summary.csv`: Concise level-by-level compliance summary.
+      5. `{output_dir}/idi_output_checker_report.xlsx`: Multi-sheet Excel workbook.
     """
     if not exists(output_dir):
         makedirs(output_dir)
@@ -404,7 +312,7 @@ def export_datalab_checker_reports(
 
     excel_sheets = {
         "0_Checker_Guide": guide_df,
-        "1_Rules_Summary": summary_df,
+        "1_Summary": summary_df,
     }
     levels_meta = metadata.get("levels", {})
 

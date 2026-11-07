@@ -1,7 +1,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ from syspop.confidential import (
     run_datalab_aggregation,
     run_outside_synthesis,
 )
-from syspop.postp.vis import plot_distribution, plot_comparison
+from syspop.postp.vis import plot_distribution, plot_comparison, plot_cross_comparison
 
 
 def generate_complex_microdata(seed: int = 2026) -> pd.DataFrame:
@@ -133,17 +133,21 @@ def run_complex_example():
         )
 
     summary_df = pd.read_csv(exported_files["summary_csv"])
-    print("\n  [2a] IDI Rules Compliance Summary (first 5 rows):")
-    print(summary_df[["hierarchy_level", "stats_nz_rule", "observed_in_output", "compliance_status"]].head(5))
+    print("\n  [2a] Compliance Summary across Hierarchy Levels:")
+    print(summary_df)
+
+    ind_audit_df = pd.read_csv(exported_files["checker_audit_csvs"]["individual"])
+    print("\n  [2b] Vertically Structured Audit Report for Cluster 1 (first 15 rows):")
+    print(ind_audit_df[ind_audit_df["cluster_id"].astype(str) == "1"].head(15))
 
     ind_raw_map_df = pd.read_csv(exported_files["raw_derivation_csvs"]["individual"])
-    print("\n  [2b] Sample of Raw Individual Records Mapped to Cluster 1 (showing derivation of Row 1):")
+    print("\n  [2c] Sample of Raw Individual Records Mapped to Cluster 1 (showing derivation of Row 1):")
     print(
         ind_raw_map_df[ind_raw_map_df["cluster_id"].astype(str) == "1"][
             [
                 "cluster_id",
-                "cluster_unrounded_count",
-                "cluster_exported_rr3_count",
+                "cluster_raw_count",
+                "cluster_released_count",
                 "household_id",
                 "family_id",
                 "person_id",
@@ -193,23 +197,38 @@ def run_complex_example():
         print(f"\n  Categorical Feature '{cat_col}' Proportions:")
         print(cat_comp.round(3))
 
+    print("\n  Cross-Occupation Comparison (Continuous Means by Occupation: Raw vs. Synthetic):")
+    raw_occ_means = raw_df.groupby("occupation")[["age", "income", "saving"]].mean().add_prefix("Raw_")
+    syn_occ_means = syn_df.groupby("occupation")[["age", "income", "saving"]].mean().add_prefix("Syn_")
+    occ_cross_df = pd.concat([raw_occ_means, syn_occ_means], axis=1)[
+        ["Raw_age", "Syn_age", "Raw_income", "Syn_income", "Raw_saving", "Syn_saving"]
+    ]
+    print(occ_cross_df.round(2))
+
     print("\n[5] Hierarchy Matching Residual Errors (MAE):")
     for lvl, res in diagnostics["residuals"].items():
         print(f"  {lvl.capitalize()} level:", {k: round(v, 3) for k, v in res.items()})
 
-    # Plot distributions of the recreated synthetic dataset and side-by-side comparison
-    plot_distribution(syn_df, ["age"], output_dir=syn_output_dir)
-    plot_distribution(syn_df, ["income"], output_dir=syn_output_dir)
-    plot_distribution(syn_df, ["saving"], output_dir=syn_output_dir)
-    plot_distribution(syn_df, ["occupation"], output_dir=syn_output_dir)
-    plot_distribution(syn_df, ["location", "occupation"], output_dir=syn_output_dir)
+    # Plot 1D and all pairwise 2D cross-feature comparisons (Raw vs. Synthetic)
+    feature_cols = ["age", "sex", "income", "saving", "occupation", "location"]
     comp_plot = plot_comparison(
         raw_df,
         syn_df,
-        columns=["age", "income", "saving", "sex", "occupation", "location"],
+        columns=feature_cols,
         output_dir=syn_output_dir,
     )
-    print(f"\n[6] Distribution and comparison plots saved to '{syn_output_dir}/' ({comp_plot}).")
+    cross_plots = plot_cross_comparison(
+        raw_df,
+        syn_df,
+        columns=feature_cols,
+        output_dir=syn_output_dir,
+    )
+    print(
+        f"\n[6] Saved 1D comparison ({comp_plot}) and {len(cross_plots)} pairwise "
+        f"Raw vs. Synthetic cross-feature comparison plots to '{syn_output_dir}/':"
+    )
+    for cp in cross_plots:
+        print(f"    - {cp}")
 
 
 if __name__ == "__main__":

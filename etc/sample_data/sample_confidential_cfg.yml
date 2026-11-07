@@ -1,59 +1,29 @@
 # Sample Configuration for Nearest-Neighbour Confidential Aggregation & Synthesis
-# Reference:
-#   - etc/Synthetic_Data_Production_Algorithm.docx
-#   - Stats NZ Microdata Output Guide (2020 v5, Sept 2022 update):
-#     https://www.stats.govt.nz/assets/Methods/Microdata-Output-Guide-2020-v5-Sept22update.pdf
+# Reference: etc/Synthetic_Data_Production_Algorithm.docx
 
 output_rules:
-  # Choose a base preset: "idi" (min_count_mean=20, min_cell_count=6, rr3),
-  # "survey" (min_count_mean=5, min_cell_count=6, rr3), or "custom"
+  # Choose a base preset: "idi", "survey", or "custom"
   preset: "idi"
 
-  # Rule 4.1 / 4.2: Minimum unweighted cell count
+  # Minimum units per cluster (for means and standard deviations)
+  min_group_count: 20
+
+  # Minimum units per count / categorical cell
   min_cell_count: 6
 
-  # Rule 4.3: Minimum unweighted count to release means and standard deviations
-  # (20 for IDI, 5 for Stats NZ surveys)
-  min_count_mean: 20
-  min_count_std: 20
-
-  # Optional explicit minimum group size override (if omitted, automatically computed
-  # as max of min_cell_count, min_count_mean, min_count_std, and active percentile thresholds)
-  # min_group_count: 20
-
-  # Rule 4.1: Count rounding method ("rr3" for Random Rounding to base 3, "deterministic", or "none")
-  rounding_method: "rr3"
+  # Random rounding base (e.g., 3 for RR3; set to null / 0 / false to switch rounding off)
   rounding_base: 3
 
-  # Rule 4.6: Never export true sample minimums or maximums
-  suppress_min_max: true
-
-  # Rule 4.4: Optional percentiles export & minimum observation counts per percentile
-  use_percentiles: false
-  percentiles: [25, 50, 75]
-  percentile_min_counts:
-    1: 500
-    10: 50
-    25: 20
-    50: 10
-    75: 20
-    90: 50
-    99: 500
-
-  # Rule 4.5: Small sub-cell protection for categorical proportions within a group
-  # Options:
-  #   - "reassign_or_merge" (Option 1 - Default): Form sub-cell-compliant clusters and reassign/merge
-  #       minority sub-cells so every non-zero category in a released cluster has count >= min_subcell_count
-  #   - "suppress_cluster" (Option 2a): Suppress the entire cluster if any category has 0 < count < min_subcell_count
-  #   - "suppress_cell_nan" (Option 2b): Set only the small sub-cell proportion (< min_subcell_count) to NaN
-  #   - "rr3_and_suppress" (Option 3): Mask small sub-cells (< min_subcell_count) to 0.0 and apply RR3
-  #   - "none": Raw proportions without sub-cell adjustment
+  # Small categorical cell (< min_cell_count) handling within a cluster:
+  #   - "reassign_or_merge" (Option 1 - Default): Form compliant clusters and reassign/merge
+  #       so every non-zero category in a released cluster has count >= min_cell_count
+  #   - "suppress_cluster" (Option 2a): Suppress the entire cluster if any category has 0 < count < min_cell_count
+  #   - "suppress_cell_nan" (Option 2b): Set only the small categorical proportion (< min_cell_count) to NaN
+  #   - "rr3_and_suppress" (Option 3): Mask small categorical cells (< min_cell_count) to 0.0 and apply random rounding
+  #   - "none": Raw proportions without adjustment
   subcell_action: "reassign_or_merge"
-  min_subcell_count: 6
 
-  # Leftover records (< effective_min_count) handling:
-  #   - "assign_nearest": assign leftover records to the nearest existing cluster
-  #   - "suppress": drop leftover records
+  # Leftover records (< min_group_count) handling: "assign_nearest" or "suppress"
   leftover_action: "assign_nearest"
 
 data_structure:
@@ -72,7 +42,7 @@ data_structure:
 
   # Features configuration:
   # If omitted, all non-ID columns are automatically classified as "continuous" or "categorical"
-  # with default weight 1.0. You can specify weights or types for all or a subset of features.
+  # with default weight 1.0.
   features:
     age:
       type: "continuous"
@@ -85,6 +55,5 @@ data_structure:
       weight: 1.0
 
 synthesis:
-  # Automatically reconcile total individual/family counts across RR3-rounded tables
   reconcile_counts: "auto"
   random_seed: 42

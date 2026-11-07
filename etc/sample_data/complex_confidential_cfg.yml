@@ -1,28 +1,20 @@
 # Configuration for Complex Multi-Feature Confidential Aggregation & Synthesis
 # Individual features: age, sex, income, saving, occupation, location
 # Hierarchy: individual -> family -> household
-# Output rules: Stats NZ Microdata Output Guide (2020 v5, Sept 2022 update) - IDI preset
 
 output_rules:
   preset: "idi"
-  min_cell_count: 6            # Rule 4.1: Minimum unweighted cell count
-  min_count_mean: 20           # Rule 4.3: Minimum unweighted count for IDI means
-  min_count_std: 20            # Rule 4.3: Minimum unweighted count for IDI std
-  rounding_method: "rr3"       # Rule 4.1: Random Rounding to base 3
-  rounding_base: 3
-  suppress_min_max: true       # Rule 4.6: Never export sample minimums or maximums
-  use_percentiles: false       # Set true to also export percentiles under Rule 4.4
-  percentiles: [25, 50, 75]
-  # Rule 4.5: Small sub-cell protection for categorical proportions within a group
-  # Options:
-  #   - "reassign_or_merge" (Option 1 - Default): Form sub-cell-compliant clusters and reassign/merge
-  #       so every non-zero category in a released cluster has count >= min_subcell_count (6)
-  #   - "suppress_cluster" (Option 2a): Suppress the entire cluster if any category has 0 < count < min_subcell_count
-  #   - "suppress_cell_nan" (Option 2b): Set only the small sub-cell proportion (< min_subcell_count) to NaN
-  #   - "rr3_and_suppress" (Option 3): Mask small sub-cells (< min_subcell_count) to 0.0 and apply RR3
-  #   - "none": Raw proportions without sub-cell adjustment
+  min_group_count: 20          # Minimum units per cluster (for means & stds)
+  min_cell_count: 6            # Minimum units per count / categorical cell
+  rounding_base: 3             # Random rounding base (set to 3 for RR3, or null / 0 / false to switch off)
+  # Small categorical cell (< min_cell_count) handling within a cluster:
+  #   - "reassign_or_merge" (Option 1 - Default): Form compliant clusters and reassign/merge
+  #       so every non-zero category in a released cluster has count >= min_cell_count
+  #   - "suppress_cluster" (Option 2a): Suppress the entire cluster if any category has 0 < count < min_cell_count
+  #   - "suppress_cell_nan" (Option 2b): Set only the small categorical proportion (< min_cell_count) to NaN
+  #   - "rr3_and_suppress" (Option 3): Mask small categorical cells (< min_cell_count) to 0.0 and apply random rounding
+  #   - "none": Raw proportions without adjustment
   subcell_action: "reassign_or_merge"
-  min_subcell_count: 6
   leftover_action: "assign_nearest"
 
 data_structure:

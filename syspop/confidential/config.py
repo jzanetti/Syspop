@@ -12,6 +12,19 @@ DEFAULT_ID_COLUMNS = {
 }
 
 
+def _normalize_rounding_base(val) -> int or None:
+    """Return integer rounding base (>= 2), or None if rounding is switched off."""
+    if val is None or val is False:
+        return None
+    if isinstance(val, str):
+        s = val.strip().lower()
+        if s in ("none", "null", "false", "off", "0", "1", ""):
+            return None
+        val = int(s)
+    base = int(val)
+    return base if base > 1 else None
+
+
 def load_config(config_or_path=None) -> dict:
     """
     Load configuration from a YAML file path, a dictionary, or return default structure.
@@ -36,51 +49,17 @@ def load_config(config_or_path=None) -> dict:
 
     resolved_rules = deepcopy(presets[preset_name])
     resolved_rules["preset"] = preset_name
+    resolved_rules.update(rules_cfg)
 
-    # Merge percentile_min_counts carefully if partially overridden
-    if "percentile_min_counts" in rules_cfg and isinstance(rules_cfg["percentile_min_counts"], dict):
-        merged_p_counts = deepcopy(resolved_rules["percentile_min_counts"])
-        for k, v in rules_cfg["percentile_min_counts"].items():
-            merged_p_counts[int(k)] = int(v)
-        resolved_rules.update({k: v for k, v in rules_cfg.items() if k != "percentile_min_counts"})
-        resolved_rules["percentile_min_counts"] = merged_p_counts
-    else:
-        resolved_rules.update(rules_cfg)
-
-    # Compute effective minimum group count required by Stats NZ rules (Sections 4.1, 4.3, 4.4)
-    required_counts = [
-        int(resolved_rules.get("min_cell_count", 6)),
-        int(resolved_rules.get("min_count_mean", 5)),
-        int(resolved_rules.get("min_count_std", 5)),
-    ]
-    if resolved_rules.get("use_percentiles", False):
-        p_list = resolved_rules.get("percentiles", [25, 50, 75])
-        p_map = {int(k): int(v) for k, v in resolved_rules.get("percentile_min_counts", {}).items()}
-        for p in p_list:
-            p_int = int(p)
-            if p_int in (0, 100) and resolved_rules.get("suppress_min_max", True):
-                raise ValueError(
-                    "Percentile 0 or 100 (sample min/max) is not permitted when suppress_min_max "
-                    "(Stats NZ Rule 4.6) is enabled."
-                )
-            # Default fallback threshold based on tail depth if exact percentile key not in map
-            tail = min(p_int, 100 - p_int)
-            if p_int in p_map:
-                req = p_map[p_int]
-            elif tail < 5:
-                req = 500
-            elif tail <= 10:
-                req = 50
-            elif tail <= 25:
-                req = 20
-            else:
-                req = 10
-            required_counts.append(req)
-
-    if "min_group_count" in rules_cfg and rules_cfg["min_group_count"] is not None:
-        resolved_rules["effective_min_count"] = int(rules_cfg["min_group_count"])
-    else:
-        resolved_rules["effective_min_count"] = max(required_counts)
+    # Normalize rounding_base (None means rounding is switched off)
+    resolved_rules["rounding_base"] = _normalize_rounding_base(
+        resolved_rules.get("rounding_base", 3)
+    )
+    resolved_rules["min_cell_count"] = int(resolved_rules.get("min_cell_count", 6))
+    resolved_rules["min_group_count"] = max(
+        int(resolved_rules.get("min_group_count", 20)),
+        resolved_rules["min_cell_count"],
+    )
 
     data_cfg = deepcopy(raw_cfg.get("data_structure", {}))
     synthesis_cfg = deepcopy(raw_cfg.get("synthesis", {}))
@@ -104,7 +83,6 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
     if "id_columns" in data_cfg and isinstance(data_cfg["id_columns"], dict):
         id_columns.update(data_cfg["id_columns"])
 
-    # Also support case-insensitive matching against df columns if df is provided
     if df is not None:
         col_lower_map = {c.lower().replace(" ", "_"): c for c in df.columns}
         for level, col_name in list(id_columns.items()):
@@ -130,7 +108,6 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
         for lvl in hierarchy
         if lvl in id_columns and id_columns[lvl] is not None
     }
-    # Also exclude any known ID columns present in df so they aren't treated as features
     for col_name in id_columns.values():
         if col_name:
             id_col_set.add(col_name)
@@ -144,7 +121,6 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
     features_meta = {}
 
     if isinstance(raw_features, dict):
-        # Format: features: {age: {type: continuous, weight: 3.0}, sex: {type: categorical}}
         for feat_name, feat_spec in raw_features.items():
             if isinstance(feat_spec, dict):
                 f_type = feat_spec.get("type", raw_types.get(feat_name, None))
@@ -177,7 +153,6 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
                 "non_negative": True if f_non_neg is None else bool(f_non_neg),
             }
     else:
-        # Format: features is a list of column names, or None/"auto" (infer from df)
         if isinstance(raw_features, list):
             candidate_cols = [c for c in raw_features if c not in id_col_set]
         elif df is not None:
@@ -214,7 +189,6 @@ def _infer_feature_type(series, max_cat_unique: int = 10) -> str:
     """Automatically infer whether a pandas Series is continuous or categorical."""
     if is_bool_dtype(series) or not is_numeric_dtype(series):
         return "categorical"
-    # Numeric column: check if integer with very few unique values (e.g. gender coded 1/2)
     non_na = series.dropna()
     if len(non_na) == 0:
         return "continuous"
