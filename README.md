@@ -10,12 +10,13 @@ A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplot
 ---
 
 ## Table of Contents
-1. [Installation](#installation)
-2. [Method 1: Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis](#method1)
-   - [Algorithm Overview (Steps 1–3)](#algorithm-overview)
-   - [Configuration File (`output_rules` & `data_structure`)](#configuration)
-   - [Quickstart Example](#method1-example)
-3. [Method 2: Stochastic Imputation from Aggregated Tables](#method2)
+- [Syspop: Synthetic Population \& Confidential Microdata Engine](#syspop-synthetic-population--confidential-microdata-engine)
+  - [Table of Contents](#table-of-contents)
+  - [1. Installation](#1-installation)
+  - [2. Method 1: Nearest-Neighbour Confidential Aggregation \& Hierarchical Synthesis](#2-method-1-nearest-neighbour-confidential-aggregation--hierarchical-synthesis)
+    - [Configuration (`etc/sample_data/sample_confidential_cfg.yml`)](#configuration-etcsample_datasample_confidential_cfgyml)
+    - [Quickstart Example](#quickstart-example)
+  - [3. Method 2: Stochastic Imputation from Aggregated Tables](#3-method-2-stochastic-imputation-from-aggregated-tables)
 
 ---
 
@@ -82,19 +83,13 @@ from syspop.confidential import (
 )
 
 # Option A: Run end-to-end (Steps 1, 2, and 3)
-syn_df, agg_tables, diagnostics = run_confidential_synthetic_pipeline(
-    df=raw_microdata_df,
-    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
-    output_dir="./output",
-)
+# syn_df, agg_tables, diagnostics = run_confidential_synthetic_pipeline(
+#    df=raw_microdata_df,
+#    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+#    output_dir="./output",
+# )
 
 # Option B: Run Step 1 & 2 inside the secure environment, and Step 3 outside
-# When `output_dir` is provided, `run_datalab_aggregation` automatically exports:
-#   - `{level}_aggregated.csv`: Confidentialised cluster table for release
-#   - `{level}_raw_with_cluster.csv`: Raw unit records mapped to `cluster_id` (derivation proof)
-#   - `{level}_checker_audit_report.csv`: Vertically structured cluster & feature compliance audit
-#   - `idi_rules_compliance_summary.csv`: Concise level-by-level compliance summary
-#   - `idi_output_checker_report.xlsx`: Multi-sheet Excel workbook for output checking
 agg_tables, metadata = run_datalab_aggregation(
     df=raw_microdata_df,
     config_or_path="etc/sample_data/sample_confidential_cfg.yml",
