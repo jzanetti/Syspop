@@ -1,5 +1,7 @@
 # Syspop: Synthetic Population & Confidential Microdata Engine
 
+**Contact**: _Sijin Zhang (zsjzyhzp@gmail.com)_
+
 A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplotlib`) providing two complementary workflows for synthetic unit-record population generation:
 
 1. **Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
@@ -17,6 +19,7 @@ A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplot
     - [Configuration (`etc/sample_data/sample_confidential_cfg.yml`)](#configuration-etcsample_datasample_confidential_cfgyml)
     - [Quickstart Example](#quickstart-example)
   - [3. Method 2: Stochastic Imputation from Aggregated Tables](#3-method-2-stochastic-imputation-from-aggregated-tables)
+  - [Develper via Pip](#develper-via-pip)
 
 ---
 
@@ -149,4 +152,16 @@ task_list = {
 syn_pop = stochastic_impute(data, task_list, maintain_counts=["income"])
 plot_distribution(syn_pop, ["age"])
 plot_distribution(syn_pop, ["gender", "age"])
+```
+
+## Develper via Pip
+```
+# 1. Make sure build and twine are installed
+pip install --upgrade build twine
+# 2. Clean old build artifacts
+rm -rf dist/ build/ *.egg-info
+# 3. Build the new wheel (.whl) and source distribution (.tar.gz) for v0.5.0
+python -m build
+# 4. Upload to PyPI (will prompt for your PyPI API token)
+python -m twine upload dist/*
 ```

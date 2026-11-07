@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "syspop_v2"
-version = "0.4.3"
+version = "0.5.0"
 authors = [
   { name="Sijin Zhang", email="zsjzyhzp@gmail.com" },
 ]
-description = "A package for stochastic population imputation"
+description = "Synthetic population generation via confidential nearest-neighbour aggregation and stochastic imputation"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -16,13 +16,13 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-# List the external libraries your package needs to run
 dependencies = [
     "pandas",
     "numpy",
     "matplotlib",
     "pyyaml",
     "pyarrow",
+    "openpyxl",
     "graphviz"
 ]
 
@@ -30,7 +30,13 @@ dependencies = [
 "Homepage" = "https://github.com/jzanetti/Syspop"
 "Bug Tracker" = "https://github.com/jzanetti/Syspop/issues"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
-where = ["."]          # Tells it to look in the current root directory
-include = ["syspop*"]  # Grabs your 'syspop' folder and everything inside it
-exclude = ["examples*"] # Ensures the 'examples' folder doesn't get published
+where = ["."]
+include = ["syspop*"]
+exclude = ["examples*", "test*", "output*"]
+
+[tool.setuptools.package-data]
+"syspop" = ["config/*.yml", "data/*.yml"]
