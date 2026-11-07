@@ -5,9 +5,9 @@
 A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplotlib`) providing two complementary workflows for synthetic unit-record population generation:
 
 1. **Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
-   Produces unit-record synthetic data from confidential microdata by first aggregating unit records into homogeneous clusters via a **weighted nearest-neighbour algorithm** under configurable confidentiality rules, and then recreating linked **Individual → Family → Household** synthetic unit records outside the secure environment.
+   Produces unit-record synthetic data from confidential microdata (e.g., IDI data from Stats NZ) by first aggregating unit records into homogeneous clusters via a _weighted nearest-neighbour algorithm_ under configurable confidentiality rules, and then recreating linked structured synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
 2. **Stochastic Population Imputation (`syspop.model.stochastic_impute`)**:
-   Statistically links multiple publicly published aggregated tables into a unified unit-record dataset using conditional probability distributions.
+   Statistically links multiple publicly published aggregated tables (e.g., from Stats Data Explorer) into a unified unit-record dataset using conditional probability distributions.
 
 ---
 
@@ -16,10 +16,10 @@ A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplot
   - [Table of Contents](#table-of-contents)
   - [1. Installation](#1-installation)
   - [2. Method 1: Nearest-Neighbour Confidential Aggregation \& Hierarchical Synthesis](#2-method-1-nearest-neighbour-confidential-aggregation--hierarchical-synthesis)
-    - [Configuration (`etc/sample_data/sample_confidential_cfg.yml`)](#configuration-etcsample_datasample_confidential_cfgyml)
+    - [Configuration](#configuration)
     - [Quickstart Example](#quickstart-example)
   - [3. Method 2: Stochastic Imputation from Aggregated Tables](#3-method-2-stochastic-imputation-from-aggregated-tables)
-  - [Develper via Pip](#develper-via-pip)
+- [For Develpers](#for-develpers)
 
 ---
 
@@ -35,7 +35,9 @@ pip install syspop_v2
 <a name="method1"></a>
 ## 2. Method 1: Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis
 <a name="configuration"></a>
-### Configuration (`etc/sample_data/sample_confidential_cfg.yml`)
+### Configuration
+
+Example configuration file can be found `etc/sample_data/sample_confidential_cfg.yml`
 
 All confidentiality thresholds and data structures are controlled via YAML configuration (or Python `dict`), with automatic feature and hierarchy discovery when omitted:
 
@@ -107,7 +109,7 @@ syn_df, diagnostics = run_outside_synthesis(
 ```
 
 See:
-- [`examples/Nearest_Neighbour_Synthesis/example1.py`](examples/Nearest_Neighbour_Synthesis/example1.py): Step-by-step walkthrough of [`etc/Synthetic_Data_Production_Algorithm.docx`](etc/Synthetic_Data_Production_Algorithm.docx).
+- [`examples/Nearest_Neighbour_Synthesis/example1.py`](examples/Nearest_Neighbour_Synthesis/example1.py)
 - [`examples/Nearest_Neighbour_Synthesis/example2.py`](examples/Nearest_Neighbour_Synthesis/example2.py) & [`etc/sample_data/complex_confidential_cfg.yml`](etc/sample_data/complex_confidential_cfg.yml): Multi-feature example (`age`, `sex`, `income`, `saving`, `occupation`, `location`) with vertically structured audit reports and raw-to-synthetic distribution comparisons.
 
 ---
@@ -154,7 +156,7 @@ plot_distribution(syn_pop, ["age"])
 plot_distribution(syn_pop, ["gender", "age"])
 ```
 
-## Develper via Pip
+# For Develpers
 ```
 # 1. Make sure build and twine are installed
 pip install --upgrade build twine
