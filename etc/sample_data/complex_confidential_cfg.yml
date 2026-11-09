@@ -3,7 +3,6 @@
 # Hierarchy: individual -> family -> household
 
 output_rules:
-  preset: "idi"
   min_group_count: 20          # Minimum units per cluster (for means & stds)
   min_cell_count: 6            # Minimum units per count / categorical cell
   rounding_base: 3             # Random rounding base (set to 3 for RR3, or null / 0 / false to switch off)

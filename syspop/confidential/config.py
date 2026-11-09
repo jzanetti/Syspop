@@ -2,7 +2,7 @@ from copy import deepcopy
 from pandas import DataFrame
 from pandas.api.types import is_numeric_dtype, is_bool_dtype
 from yaml import safe_load
-from syspop.config import load_default_presets
+from syspop.config import load_default_rules
 
 
 DEFAULT_ID_COLUMNS = {
@@ -39,16 +39,9 @@ def load_config(config_or_path=None) -> dict:
     else:
         raise TypeError("config_or_path must be a YAML file path (str), a dict, or None.")
 
-    presets = load_default_presets()
-    rules_cfg = raw_cfg.get("output_rules", {})
-    preset_name = str(rules_cfg.get("preset", "idi")).lower()
-    if preset_name not in presets:
-        raise ValueError(
-            f"Unknown output_rules preset '{preset_name}'. Choose from {list(presets.keys())}."
-        )
-
-    resolved_rules = deepcopy(presets[preset_name])
-    resolved_rules["preset"] = preset_name
+    resolved_rules = deepcopy(load_default_rules())
+    rules_cfg = deepcopy(raw_cfg.get("output_rules", {})) or {}
+    rules_cfg.pop("preset", None)
     resolved_rules.update(rules_cfg)
 
     # Normalize rounding_base (None means rounding is switched off)

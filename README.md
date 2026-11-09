@@ -43,7 +43,6 @@ All confidentiality thresholds and data structures are controlled via YAML confi
 
 ```yaml
 output_rules:
-  preset: "idi"                        # "idi", "survey", or "custom"
   min_group_count: 20                  # Minimum units per cluster (for means & stds)
   min_cell_count: 6                    # Minimum units per count / categorical cell
   rounding_base: 3                     # Random rounding base (e.g. 3 for RR3; set to null / 0 / false to switch off)
