@@ -2,9 +2,6 @@
 # Reference: etc/Synthetic_Data_Production_Algorithm.docx
 
 output_rules:
-  # Choose a base preset: "idi", "survey", or "custom"
-  preset: "idi"
-
   # Minimum units per cluster (for means and standard deviations)
   min_group_count: 20
 

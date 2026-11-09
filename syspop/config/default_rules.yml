@@ -1,27 +1,9 @@
-# Default configuration presets for the Nearest-Neighbour Confidential Aggregation
+# Default output_rules configuration for Nearest-Neighbour Confidential Aggregation
 # and Synthetic Data Production Algorithm.
 
-presets:
-  idi:
-    description: "Confidentiality rules for administrative microdata (e.g. IDI)"
-    min_group_count: 20          # Minimum units per cluster (for means & stds)
-    min_cell_count: 6            # Minimum units per count / categorical cell
-    rounding_base: 3             # Random rounding base (e.g., 3 for RR3; set to null/0 to turn off rounding)
-    subcell_action: "reassign_or_merge"  # Options: "reassign_or_merge" (default), "suppress_cluster", "suppress_cell_nan", "rr3_and_suppress", "none"
-    leftover_action: "assign_nearest"    # "assign_nearest" or "suppress"
-
-  survey:
-    description: "Confidentiality rules for survey microdata"
-    min_group_count: 6
-    min_cell_count: 6
-    rounding_base: 3
-    subcell_action: "reassign_or_merge"
-    leftover_action: "assign_nearest"
-
-  custom:
-    description: "Custom user-defined confidentiality rules"
-    min_group_count: 2
-    min_cell_count: 2
-    rounding_base: null          # null / 0 / false switches count rounding off
-    subcell_action: "none"
-    leftover_action: "assign_nearest"
+output_rules:
+  min_group_count: 20                  # Minimum units per cluster (for means & stds)
+  min_cell_count: 6                    # Minimum units per count / categorical cell
+  rounding_base: 3                     # Random rounding base (e.g., 3 for RR3; set to null/0 to turn off rounding)
+  subcell_action: "reassign_or_merge"  # Options: "reassign_or_merge" (default), "suppress_cluster", "suppress_cell_nan", "rr3_and_suppress", "none"
+  leftover_action: "assign_nearest"    # "assign_nearest" or "suppress"

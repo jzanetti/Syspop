@@ -31,7 +31,6 @@ def run_docx_walkthrough():
 
     cfg_unweighted = {
         "output_rules": {
-            "preset": "custom",
             "min_group_count": 2,
             "min_cell_count": 2,
             "rounding_base": None,
