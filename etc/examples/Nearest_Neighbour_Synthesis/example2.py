@@ -30,7 +30,14 @@ def generate_complex_microdata(seed: int = 2026) -> pd.DataFrame:
         "Hamilton": 0.95,
     }
 
-    occupations = ["Manager", "Professional", "Technician", "Trade", "Clerical", "Sales"]
+    occupations = [
+        "Manager",
+        "Professional",
+        "Technician",
+        "Trade",
+        "Clerical",
+        "Sales",
+    ]
     occ_base_income = {
         "Manager": 95000.0,
         "Professional": 85000.0,
@@ -51,14 +58,18 @@ def generate_complex_microdata(seed: int = 2026) -> pd.DataFrame:
         for _ in range(n_families):
             n_members = int(rng.choice([2, 3, 4, 5], p=[0.35, 0.35, 0.20, 0.10]))
             fam_age_center = float(rng.uniform(20.0, 58.0))
-            
+
             person_id = 1
             for m_idx in range(n_members):
                 if m_idx >= 2 and rng.random() < 0.55:
                     # Child / dependent member under 18
                     age = float(np.clip(np.round(rng.uniform(4.0, 17.5), 1), 1.0, 17.9))
                 else:
-                    age = float(np.clip(np.round(rng.normal(fam_age_center, 11.0), 1), 8.0, 80.0))
+                    age = float(
+                        np.clip(
+                            np.round(rng.normal(fam_age_center, 11.0), 1), 8.0, 80.0
+                        )
+                    )
                 sex = str(rng.choice(["Male", "Female"], p=[0.49, 0.51]))
 
                 # Occupation probability varies slightly with age
@@ -70,13 +81,24 @@ def generate_complex_microdata(seed: int = 2026) -> pd.DataFrame:
 
                 # Income depends on occupation, location, and age experience
                 age_factor = 1.0 + 0.008 * max(0.0, min(age - 22.0, 30.0))
-                mean_inc = occ_base_income[occupation] * loc_income_mult[hh_location] * age_factor
+                mean_inc = (
+                    occ_base_income[occupation]
+                    * loc_income_mult[hh_location]
+                    * age_factor
+                )
                 income = float(max(15000.0, np.round(rng.normal(mean_inc, 9500.0), 2)))
 
                 # Saving correlates with income and age
                 saving_rate = float(rng.uniform(0.08, 0.35))
                 saving = float(
-                    max(0.0, np.round(income * saving_rate * (age / 35.0) + rng.normal(0.0, 3000.0), 2))
+                    max(
+                        0.0,
+                        np.round(
+                            income * saving_rate * (age / 35.0)
+                            + rng.normal(0.0, 3000.0),
+                            2,
+                        ),
+                    )
                 )
 
                 records.append(
@@ -113,7 +135,7 @@ def run_complex_example():
     )
     print(raw_df.head(8))
 
-    cfg_path = "etc/sample_data/complex_confidential_cfg.yml"
+    cfg_path = "etc/examples/Nearest_Neighbour_Synthesis/example2.yml"
     export_dir = "./output/complex_exported_tables"
     syn_output_dir = "./output/complex_synthetic"
 
@@ -122,7 +144,9 @@ def run_complex_example():
     # "family_weight", or "person_weight" (or set weight_df = None for unweighted microdata).
     rng_w = np.random.default_rng(2026)
     unique_hh = raw_df[["household_id"]].drop_duplicates().reset_index(drop=True)
-    unique_hh["household_weight"] = np.round(rng_w.uniform(0.8, 3.5, size=len(unique_hh)), 2)
+    unique_hh["household_weight"] = np.round(
+        rng_w.uniform(0.8, 3.5, size=len(unique_hh)), 2
+    )
     weight_df = unique_hh  # Set to None to run without survey weights
 
     # Step 1 & Step 2: Run inside the Data Lab and export confidentialised CSV tables
@@ -135,7 +159,9 @@ def run_complex_example():
     )
 
     exported_files = metadata.get("exported_files", {})
-    print(f"\n[2] Exported Data Lab Files & IDI Output Checker Reports (in '{export_dir}'):")
+    print(
+        f"\n[2] Exported Data Lab Files & IDI Output Checker Reports (in '{export_dir}'):"
+    )
     print(f"    - Rules Compliance Summary CSV : {exported_files.get('summary_csv')}")
     print(f"    - Consolidated Excel Workbook  : {exported_files.get('excel_report')}")
     for lvl in ("individual", "family", "household"):
@@ -154,7 +180,9 @@ def run_complex_example():
     print(ind_audit_df[ind_audit_df["cluster_id"].astype(str) == "1"].head(15))
 
     ind_raw_map_df = pd.read_csv(exported_files["raw_derivation_csvs"]["individual"])
-    print("\n  [2c] Sample of Raw Individual Records Mapped to Cluster 1 (showing derivation of Row 1):")
+    print(
+        "\n  [2c] Sample of Raw Individual Records Mapped to Cluster 1 (showing derivation of Row 1):"
+    )
     print(
         ind_raw_map_df[ind_raw_map_df["cluster_id"].astype(str) == "1"][
             [
@@ -205,14 +233,26 @@ def run_complex_example():
 
     for cat_col in ["sex", "occupation", "location"]:
         raw_p = raw_df[cat_col].value_counts(normalize=True).rename("Raw Proportion")
-        syn_p = syn_df[cat_col].value_counts(normalize=True).rename("Synthetic Proportion")
+        syn_p = (
+            syn_df[cat_col].value_counts(normalize=True).rename("Synthetic Proportion")
+        )
         cat_comp = pd.concat([raw_p, syn_p], axis=1).fillna(0.0)
         print(f"\n  Categorical Feature '{cat_col}' Proportions:")
         print(cat_comp.round(3))
 
-    print("\n  Cross-Occupation Comparison (Continuous Means by Occupation: Raw vs. Synthetic):")
-    raw_occ_means = raw_df.groupby("occupation")[["age", "income", "saving"]].mean().add_prefix("Raw_")
-    syn_occ_means = syn_df.groupby("occupation")[["age", "income", "saving"]].mean().add_prefix("Syn_")
+    print(
+        "\n  Cross-Occupation Comparison (Continuous Means by Occupation: Raw vs. Synthetic):"
+    )
+    raw_occ_means = (
+        raw_df.groupby("occupation")[["age", "income", "saving"]]
+        .mean()
+        .add_prefix("Raw_")
+    )
+    syn_occ_means = (
+        syn_df.groupby("occupation")[["age", "income", "saving"]]
+        .mean()
+        .add_prefix("Syn_")
+    )
     occ_cross_df = pd.concat([raw_occ_means, syn_occ_means], axis=1)[
         ["Raw_age", "Syn_age", "Raw_income", "Syn_income", "Raw_saving", "Syn_saving"]
     ]

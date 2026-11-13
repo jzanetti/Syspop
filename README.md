@@ -2,10 +2,10 @@
 
 **Contact**: _Sijin Zhang (zsjzyhzp@gmail.com)_
 
-A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplotlib`) providing two complementary workflows for synthetic unit-record population generation:
+A Python package providing two complementary workflows for synthetic unit-record population generation:
 
 1. **Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
-   Produces unit-record synthetic data from confidential microdata (e.g., IDI data from Stats NZ) by first aggregating unit records into homogeneous clusters via a _weighted nearest-neighbour algorithm_ under configurable confidentiality rules, and then recreating linked structured synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
+   Produces unit-record synthetic data from confidential microdata (e.g., IDI data from Stats NZ) by first aggregating unit records into homogeneous clusters under configurable confidentiality rules, and then recreating linked hierarchical synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
 2. **Stochastic Population Imputation (`syspop.model.stochastic_impute`)**:
    Statistically links multiple publicly published aggregated tables (e.g., from Stats Data Explorer) into a unified unit-record dataset using conditional probability distributions.
 
@@ -37,7 +37,7 @@ pip install syspop_v2
 <a name="configuration"></a>
 ### Configuration
 
-Example configuration file can be found `etc/sample_data/sample_confidential_cfg.yml`
+Example configuration file can be found `etc/examples/Nearest_Neighbour_Synthesis/example1.yml`
 
 All confidentiality thresholds and data structures are controlled via YAML configuration (or Python `dict`), with automatic feature and hierarchy discovery when omitted:
 
@@ -95,7 +95,7 @@ from syspop.confidential import (
 # Option A: Run end-to-end (Steps 1, 2, and 3)
 # syn_df, agg_tables, diagnostics = run_confidential_synthetic_pipeline(
 #    df=raw_microdata_df,
-#    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+#    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
 #    output_dir="./output",
 # )
 
@@ -103,28 +103,28 @@ from syspop.confidential import (
 # (Optionally pass `weight_df` in parallel to `df` if using survey weights, e.g. household_weight / family_weight / person_weight)
 agg_tables, metadata = run_datalab_aggregation(
     df=raw_microdata_df,
-    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
     output_dir="./output/exported_tables",
     weight_df=None,  # Optional DataFrame with e.g. ["household_id", "household_weight"] or ["person_id", "person_weight"]
 )
 
 syn_df, diagnostics = run_outside_synthesis(
     agg_tables_or_dir="./output/exported_tables",
-    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
     output_dir="./output",
 )
 ```
 
 See:
-- [`examples/Nearest_Neighbour_Synthesis/example1.py`](examples/Nearest_Neighbour_Synthesis/example1.py)
-- [`examples/Nearest_Neighbour_Synthesis/example2.py`](examples/Nearest_Neighbour_Synthesis/example2.py) & [`etc/sample_data/complex_confidential_cfg.yml`](etc/sample_data/complex_confidential_cfg.yml): Multi-feature example (`age`, `sex`, `income`, `saving`, `occupation`, `location`) with vertically structured audit reports and raw-to-synthetic distribution comparisons.
+- [`etc/examples/Nearest_Neighbour_Synthesis/example1.py`](etc/examples/Nearest_Neighbour_Synthesis/example1.py)
+- [`etc/examples/Nearest_Neighbour_Synthesis/example2.py`](etc/examples/Nearest_Neighbour_Synthesis/example2.py) & [`etc/examples/Nearest_Neighbour_Synthesis/example2.yml`](etc/examples/Nearest_Neighbour_Synthesis/example2.yml): Multi-feature example (`age`, `sex`, `income`, `saving`, `occupation`, `location`) with vertically structured audit reports and raw-to-synthetic distribution comparisons.
 
 ---
 
 <a name="method2"></a>
 ## 3. Method 2: Stochastic Imputation from Aggregated Tables
 
-See [`examples/Stochastic_Imputation/simple_example.py`](examples/Stochastic_Imputation/simple_example.py) and [`examples/Stochastic_Imputation/example_nz_census.py`](examples/Stochastic_Imputation/example_nz_census.py):
+See [`etc/examples/Stochastic_Imputation/simple_example.py`](etc/examples/Stochastic_Imputation/simple_example.py) and [`etc/examples/Stochastic_Imputation/example_nz_census.py`](etc/examples/Stochastic_Imputation/example_nz_census.py):
 
 ```python
 from pandas import DataFrame
@@ -165,12 +165,14 @@ plot_distribution(syn_pop, ["gender", "age"])
 
 # For Develpers
 ```
-# 1. Make sure build and twine are installed
-pip install --upgrade build twine
-# 2. Clean old build artifacts
-rm -rf dist/ build/ *.egg-info
-# 3. Build the new wheel (.whl) and source distribution (.tar.gz) for v0.5.0
-python -m build
-# 4. Upload to PyPI (will prompt for your PyPI API token)
-python -m twine upload dist/*
+# 1. Test the package
+`python -m unittest discover -s test -p "test_*.py" -v`
+# 2. Make sure build and twine are installed
+`pip install --upgrade build twine`
+# 3. Clean old build artifacts
+`rm -rf dist/ build/ *.egg-info`
+# 4. Build the new wheel (.whl) and source distribution (.tar.gz) for v0.5.0
+`python -m build`
+# 5. Upload to PyPI (will prompt for your PyPI API token)
+`python -m twine upload dist/*`
 ```
