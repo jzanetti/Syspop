@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="syspop_v2",
-    version="0.5.2",
+    version="0.5.3",
     packages=find_packages(include=["syspop", "syspop.*"]),
     include_package_data=True,
     package_data={
