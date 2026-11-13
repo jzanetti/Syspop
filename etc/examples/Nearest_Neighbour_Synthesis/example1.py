@@ -64,7 +64,9 @@ def run_docx_walkthrough():
         },
     }
     dist_matrix_w = compute_pairwise_distances(df_step1, cfg_weighted)
-    print(f"  d(Person 2, Person 3) with age weight=3: {dist_matrix_w[1, 2]:.2f} (expected 1.12)")
+    print(
+        f"  d(Person 2, Person 3) with age weight=3: {dist_matrix_w[1, 2]:.2f} (expected 1.12)"
+    )
 
     agg_suppressed = aggregate_unit_records(df_step1, cfg_unweighted)
     print("\n1.2 Aggregated table (min_count=2, leftover suppressed):")
@@ -72,7 +74,9 @@ def run_docx_walkthrough():
 
     # Assign leftover Person 3 to nearest group
     cfg_assign = dict(cfg_unweighted)
-    cfg_assign["output_rules"] = dict(cfg_unweighted["output_rules"], leftover_action="assign_nearest")
+    cfg_assign["output_rules"] = dict(
+        cfg_unweighted["output_rules"], leftover_action="assign_nearest"
+    )
     agg_assigned = aggregate_unit_records(df_step1, cfg_assign)
     print("\n1.3 Aggregated table (min_count=2, leftover assigned to nearest group):")
     print(agg_assigned)
@@ -121,11 +125,15 @@ def run_docx_walkthrough():
         config_or_path={"synthesis": {"random_seed": 42}},
         return_diagnostics=True,
     )
-    print("\n1.4 Recreated hierarchical synthetic dataset from Step 3 tables (first 10 rows):")
+    print(
+        "\n1.4 Recreated hierarchical synthetic dataset from Step 3 tables (first 10 rows):"
+    )
     print(syn_from_docx.head(10))
-    print(f"Total synthetic individuals: {len(syn_from_docx)}, "
-          f"Families: {syn_from_docx['family_id'].nunique()}, "
-          f"Households: {syn_from_docx['household_id'].nunique()}")
+    print(
+        f"Total synthetic individuals: {len(syn_from_docx)}, "
+        f"Families: {syn_from_docx['family_id'].nunique()}, "
+        f"Households: {syn_from_docx['household_id'].nunique()}"
+    )
     print("Residual diagnostics (MAE):", diag["residuals"])
 
 
@@ -160,18 +168,22 @@ def run_automated_pipeline_example():
             family_id += 1
 
     raw_microdata = pd.DataFrame(records)
-    print(f"\nRaw unit-record microdata: {len(raw_microdata)} individuals, "
-          f"{raw_microdata['family_id'].nunique()} families, "
-          f"{raw_microdata['household_id'].nunique()} households.")
+    print(
+        f"\nRaw unit-record microdata: {len(raw_microdata)} individuals, "
+        f"{raw_microdata['family_id'].nunique()} families, "
+        f"{raw_microdata['household_id'].nunique()} households."
+    )
 
     syn_df, agg_tables, diagnostics = run_confidential_synthetic_pipeline(
         df=raw_microdata,
-        config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+        config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
         output_dir="./output",
         output_filename="confidential_synthetic_population.parquet",
     )
 
-    print("\nConfidentialised Individual Aggregated Table (IDI rules, min_count=20, RR3):")
+    print(
+        "\nConfidentialised Individual Aggregated Table (IDI rules, min_count=20, RR3):"
+    )
     print(agg_tables["individual"])
     print("\nConfidentialised Family Aggregated Table:")
     print(agg_tables["family"])
@@ -196,5 +208,5 @@ def run_complex_multi_feature_example():
 
 if __name__ == "__main__":
     run_docx_walkthrough()
-    run_automated_pipeline_example()
-    run_complex_multi_feature_example()
+    # run_automated_pipeline_example()
+    # run_complex_multi_feature_example()

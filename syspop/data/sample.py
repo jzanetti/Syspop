@@ -1,6 +1,6 @@
 from syspop.data.data import obtain_data
 from logging import info as log_info
-from etc.sample_data.api_keys import STATS_API
+from etc.examples.Stochastic_Imputation.api_keys import STATS_API
 from yaml import safe_load
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
@@ -8,7 +8,7 @@ from syspop.model.utils import obtain_all_tasks
 
 
 def obtain_sample_data_cfg():
-    with open("etc/sample_data/sample_data_cfg.yml", "r") as fid:
+    with open("etc/examples/Stochastic_Imputation/sample_data_cfg.yml", "r") as fid:
         cfg = safe_load(fid)
 
     return cfg["tables"]
@@ -58,7 +58,9 @@ def load_sample_data(
     """
 
     if not refresh:
-        data_dict = pickle_load(open("etc/sample_data/sample_data.pkl", "rb"))
+        data_dict = pickle_load(
+            open("etc/examples/Stochastic_Imputation/sample_data.pkl", "rb")
+        )
     else:
         api_key = obtain_sample_api_key()
         cfg_data = obtain_sample_data_cfg()
@@ -70,9 +72,11 @@ def load_sample_data(
 
             data_dict[data_type] = obtain_data(cfg_data[data_type], api_key)
 
-        pickle_dump(data_dict, open("etc/sample_data/sample_data.pkl", "wb"))
+        pickle_dump(
+            data_dict, open("etc/examples/Stochastic_Imputation/sample_data.pkl", "wb")
+        )
 
-    with open("etc/sample_data/sample_model_cfg.yml", "r") as fid:
+    with open("etc/examples/Stochastic_Imputation/sample_model_cfg.yml", "r") as fid:
         model_cfg = safe_load(fid)
 
     task_list = obtain_all_tasks(model_cfg["tasks"], model_cfg["cfg"])
