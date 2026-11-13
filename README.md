@@ -2,10 +2,10 @@
 
 **Contact**: _Sijin Zhang (zsjzyhzp@gmail.com)_
 
-A lightweight Python package (built on `numpy`, `pandas`, `pyyaml`, and `matplotlib`) providing two complementary workflows for synthetic unit-record population generation:
+A Python package providing two complementary workflows for synthetic unit-record population generation:
 
 1. **Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
-   Produces unit-record synthetic data from confidential microdata (e.g., IDI data from Stats NZ) by first aggregating unit records into homogeneous clusters via a _weighted nearest-neighbour algorithm_ under configurable confidentiality rules, and then recreating linked structured synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
+   Produces unit-record synthetic data from confidential microdata (e.g., IDI data from Stats NZ) by first aggregating unit records into homogeneous clusters under configurable confidentiality rules, and then recreating linked hierarchical synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
 2. **Stochastic Population Imputation (`syspop.model.stochastic_impute`)**:
    Statistically links multiple publicly published aggregated tables (e.g., from Stats Data Explorer) into a unified unit-record dataset using conditional probability distributions.
 
@@ -165,12 +165,14 @@ plot_distribution(syn_pop, ["gender", "age"])
 
 # For Develpers
 ```
-# 1. Make sure build and twine are installed
-pip install --upgrade build twine
-# 2. Clean old build artifacts
-rm -rf dist/ build/ *.egg-info
-# 3. Build the new wheel (.whl) and source distribution (.tar.gz) for v0.5.0
-python -m build
-# 4. Upload to PyPI (will prompt for your PyPI API token)
-python -m twine upload dist/*
+# 1. Test the package
+`python -m unittest discover -s test -p "test_*.py" -v`
+# 2. Make sure build and twine are installed
+`pip install --upgrade build twine`
+# 3. Clean old build artifacts
+`rm -rf dist/ build/ *.egg-info`
+# 4. Build the new wheel (.whl) and source distribution (.tar.gz) for v0.5.0
+`python -m build`
+# 5. Upload to PyPI (will prompt for your PyPI API token)
+`python -m twine upload dist/*`
 ```
