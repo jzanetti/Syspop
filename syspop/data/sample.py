@@ -58,9 +58,8 @@ def load_sample_data(
     """
 
     if not refresh:
-        data_dict = pickle_load(
-            open("etc/examples/Stochastic_Imputation/sample_data.pkl", "rb")
-        )
+        with open("etc/examples/Stochastic_Imputation/sample_data.pkl", "rb") as fid:
+            data_dict = pickle_load(fid)
     else:
         api_key = obtain_sample_api_key()
         cfg_data = obtain_sample_data_cfg()
@@ -72,9 +71,8 @@ def load_sample_data(
 
             data_dict[data_type] = obtain_data(cfg_data[data_type], api_key)
 
-        pickle_dump(
-            data_dict, open("etc/examples/Stochastic_Imputation/sample_data.pkl", "wb")
-        )
+        with open("etc/examples/Stochastic_Imputation/sample_data.pkl", "wb") as fid:
+            pickle_dump(data_dict, fid)
 
     with open("etc/examples/Stochastic_Imputation/sample_model_cfg.yml", "r") as fid:
         model_cfg = safe_load(fid)

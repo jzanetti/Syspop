@@ -200,7 +200,7 @@ def run_complex_multi_feature_example():
     and categorical features (sex, occupation, location) across Individual -> Family -> Household.
     See also `examples/Nearest_Neighbour_Synthesis/example2.py`.
     """
-    from examples.Nearest_Neighbour_Synthesis.example2 import run_complex_example
+    from etc.examples.Nearest_Neighbour_Synthesis.example2 import run_complex_example
 
     print("\n")
     run_complex_example()

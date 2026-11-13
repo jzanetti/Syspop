@@ -83,7 +83,9 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
 
         # Aggregation with leftover assigned to nearest group -> 1 group of 3 people
         cfg_assign = dict(cfg)
-        cfg_assign["output_rules"] = dict(cfg["output_rules"], leftover_action="assign_nearest")
+        cfg_assign["output_rules"] = dict(
+            cfg["output_rules"], leftover_action="assign_nearest"
+        )
         agg_assign = aggregate_unit_records(df, cfg_assign)
         self.assertEqual(len(agg_assign), 1)
         self.assertEqual(agg_assign.loc[0, "count"], 3)
@@ -193,7 +195,9 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         for off_val in (None, False, 0, 1, "none"):
             cfg_off = load_config({"output_rules": {"rounding_base": off_val}})
             self.assertIsNone(cfg_off["output_rules"]["rounding_base"])
-            self.assertEqual(apply_count_rounding(22, cfg_off["output_rules"], rng=rng), 22)
+            self.assertEqual(
+                apply_count_rounding(22, cfg_off["output_rules"], rng=rng), 22
+            )
 
     def test_auto_discovery_and_file_pipeline(self):
         """Verify automatic feature/hierarchy discovery and file export/import pipeline."""
@@ -225,9 +229,15 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmpdir:
             agg_tables, meta = run_datalab_aggregation(df, cfg, output_dir=tmpdir)
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "individual_aggregated.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "family_aggregated.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "household_aggregated.csv")))
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "individual_aggregated.csv"))
+            )
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "family_aggregated.csv"))
+            )
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "household_aggregated.csv"))
+            )
 
             syn_df, diag = run_outside_synthesis(
                 agg_tables_or_dir=tmpdir,
@@ -240,35 +250,59 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
 
     def test_complex_multi_feature_pipeline(self):
         """Verify multi-feature (age, sex, income, saving, occupation, location) aggregation & synthesis."""
-        from examples.Nearest_Neighbour_Synthesis.example2 import generate_complex_microdata
+        from etc.examples.Nearest_Neighbour_Synthesis.example2 import (
+            generate_complex_microdata,
+        )
 
         raw_df = generate_complex_microdata(seed=101)
         with tempfile.TemporaryDirectory() as tmpdir:
             agg_tables, meta = run_datalab_aggregation(
                 df=raw_df,
-                config_or_path="etc/sample_data/complex_confidential_cfg.yml",
+                config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example2.yml",
                 output_dir=tmpdir,
             )
             # Verify IDI Output Checker reports and raw derivation files are generated
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "idi_rules_compliance_summary.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "individual_raw_with_cluster.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "individual_checker_audit_report.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "family_raw_with_cluster.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "family_checker_audit_report.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "household_raw_with_cluster.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "household_checker_audit_report.csv")))
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "idi_rules_compliance_summary.csv"))
+            )
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "individual_raw_with_cluster.csv"))
+            )
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(tmpdir, "individual_checker_audit_report.csv")
+                )
+            )
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "family_raw_with_cluster.csv"))
+            )
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "family_checker_audit_report.csv"))
+            )
+            self.assertTrue(
+                os.path.exists(os.path.join(tmpdir, "household_raw_with_cluster.csv"))
+            )
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(tmpdir, "household_checker_audit_report.csv")
+                )
+            )
 
             # Verify raw derivation records for Cluster 1 match the exported mean age of Cluster 1
-            raw_map = pd.read_csv(os.path.join(tmpdir, "individual_raw_with_cluster.csv"))
+            raw_map = pd.read_csv(
+                os.path.join(tmpdir, "individual_raw_with_cluster.csv")
+            )
             c1_raw = raw_map[raw_map["cluster_id"].astype(str) == "1"]
-            c1_agg_age = agg_tables["individual"].loc[
-                agg_tables["individual"]["cluster_id"] == 1, "age"
-            ].iloc[0]
+            c1_agg_age = (
+                agg_tables["individual"]
+                .loc[agg_tables["individual"]["cluster_id"] == 1, "age"]
+                .iloc[0]
+            )
             self.assertAlmostEqual(c1_raw["age"].mean(), c1_agg_age, places=5)
 
             syn_df, diag = run_outside_synthesis(
                 agg_tables_or_dir=tmpdir,
-                config_or_path="etc/sample_data/complex_confidential_cfg.yml",
+                config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example2.yml",
             )
             for expected_col in (
                 "household_id",
@@ -283,14 +317,18 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
             ):
                 self.assertIn(expected_col, syn_df.columns)
             # Check synthetic means are close to raw means
-            self.assertAlmostEqual(raw_df["age"].mean(), syn_df["age"].mean(), delta=3.0)
+            self.assertAlmostEqual(
+                raw_df["age"].mean(), syn_df["age"].mean(), delta=3.0
+            )
             self.assertAlmostEqual(
                 raw_df["income"].mean(), syn_df["income"].mean(), delta=5000.0
             )
 
     def test_existing_stochastic_impute_workflow(self):
         """Ensure existing stochastic_impute linkage workflow continues to work cleanly."""
-        base_pop = pd.DataFrame({"gender": [1, 2, 1], "age": [25, 30, 40], "value": [10, 15, 20]})
+        base_pop = pd.DataFrame(
+            {"gender": [1, 2, 1], "age": [25, 30, 40], "value": [10, 15, 20]}
+        )
         inc_df = pd.DataFrame(
             {
                 "gender": [1, 1, 2, 2],
@@ -350,10 +388,14 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         hh_weight_df = pd.DataFrame(
             {
                 "household_id": df["household_id"].unique(),
-                "household_weight": rng.uniform(1.5, 4.5, size=df["household_id"].nunique()).round(2),
+                "household_weight": rng.uniform(
+                    1.5, 4.5, size=df["household_id"].nunique()
+                ).round(2),
             }
         )
-        syn_hh, agg_hh, _ = run_confidential_synthetic_pipeline(df, cfg, weight_df=hh_weight_df)
+        syn_hh, agg_hh, _ = run_confidential_synthetic_pipeline(
+            df, cfg, weight_df=hh_weight_df
+        )
         self.assertIn("household_weight", agg_hh["individual"].columns)
         self.assertIn("household_weight_std", agg_hh["individual"].columns)
         self.assertIn("household_weight", syn_hh.columns)
@@ -369,7 +411,9 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
                 "person_weight": rng.uniform(0.8, 3.2, size=len(df)).round(2),
             }
         )
-        syn_ind, agg_ind, _ = run_confidential_synthetic_pipeline(df, cfg, weight_df=ind_weight_df)
+        syn_ind, agg_ind, _ = run_confidential_synthetic_pipeline(
+            df, cfg, weight_df=ind_weight_df
+        )
         self.assertIn("person_weight", agg_ind["individual"].columns)
         self.assertIn("person_weight_std", agg_ind["individual"].columns)
         self.assertIn("person_weight", syn_ind.columns)
@@ -394,7 +438,11 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         for h_id in range(1, 51):
             for f_id in (1, 2):
                 for m_idx in range(4):
-                    age = float(rng.integers(5, 17)) if m_idx == 0 else float(rng.integers(25, 65))
+                    age = (
+                        float(rng.integers(5, 17))
+                        if m_idx == 0
+                        else float(rng.integers(25, 65))
+                    )
                     rows.append(
                         {
                             "household_id": h_id,
@@ -448,7 +496,9 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         self.assertIn("individual_under_18_std", agg_tables["household"].columns)
         # Since every family of 4 has 1 child under 18 and 4 members of ~$50k income,
         # family aggregated income should be ~4 * $50k = ~$200k (sum, not mean!)
-        self.assertAlmostEqual(agg_tables["family"]["individual_under_18"].mean(), 1.0, places=2)
+        self.assertAlmostEqual(
+            agg_tables["family"]["individual_under_18"].mean(), 1.0, places=2
+        )
         self.assertGreater(agg_tables["family"]["income"].mean(), 150000.0)
         # Verify Step 3 residuals include `individual_under_18_mae`
         self.assertIn("individual_under_18_mae", diag["residuals"]["family"])

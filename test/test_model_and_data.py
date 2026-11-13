@@ -8,6 +8,7 @@ import pandas as pd
 from syspop.model.stochastic_impute import get_target_values, stochastic_impute
 from syspop.model.utils import obtain_all_tasks, check_deps_charts
 from syspop.data.data import encode_weights, encode_sum, obtain_data
+from syspop.data.sample import load_sample_data
 from syspop.data.utils import stats_data_proc, check_data_consistency
 
 
@@ -222,6 +223,12 @@ class TestDataModule(unittest.TestCase):
         inconsistent_dict = {"d1": df1, "d3": df3}
         with self.assertRaises(ValueError):
             check_data_consistency(inconsistent_dict, check_err=True, throw_err=True)
+
+    def test_load_sample_data(self):
+        data_dict, task_list = load_sample_data(refresh=False)
+        self.assertIn("seed", data_dict)
+        self.assertIsInstance(task_list, dict)
+        self.assertGreater(len(data_dict["seed"]), 0)
 
 
 if __name__ == "__main__":

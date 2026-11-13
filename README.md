@@ -37,7 +37,7 @@ pip install syspop_v2
 <a name="configuration"></a>
 ### Configuration
 
-Example configuration file can be found `etc/sample_data/sample_confidential_cfg.yml`
+Example configuration file can be found `etc/examples/Nearest_Neighbour_Synthesis/example1.yml`
 
 All confidentiality thresholds and data structures are controlled via YAML configuration (or Python `dict`), with automatic feature and hierarchy discovery when omitted:
 
@@ -95,7 +95,7 @@ from syspop.confidential import (
 # Option A: Run end-to-end (Steps 1, 2, and 3)
 # syn_df, agg_tables, diagnostics = run_confidential_synthetic_pipeline(
 #    df=raw_microdata_df,
-#    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+#    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
 #    output_dir="./output",
 # )
 
@@ -103,28 +103,28 @@ from syspop.confidential import (
 # (Optionally pass `weight_df` in parallel to `df` if using survey weights, e.g. household_weight / family_weight / person_weight)
 agg_tables, metadata = run_datalab_aggregation(
     df=raw_microdata_df,
-    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
     output_dir="./output/exported_tables",
     weight_df=None,  # Optional DataFrame with e.g. ["household_id", "household_weight"] or ["person_id", "person_weight"]
 )
 
 syn_df, diagnostics = run_outside_synthesis(
     agg_tables_or_dir="./output/exported_tables",
-    config_or_path="etc/sample_data/sample_confidential_cfg.yml",
+    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
     output_dir="./output",
 )
 ```
 
 See:
-- [`examples/Nearest_Neighbour_Synthesis/example1.py`](examples/Nearest_Neighbour_Synthesis/example1.py)
-- [`examples/Nearest_Neighbour_Synthesis/example2.py`](examples/Nearest_Neighbour_Synthesis/example2.py) & [`etc/sample_data/complex_confidential_cfg.yml`](etc/sample_data/complex_confidential_cfg.yml): Multi-feature example (`age`, `sex`, `income`, `saving`, `occupation`, `location`) with vertically structured audit reports and raw-to-synthetic distribution comparisons.
+- [`etc/examples/Nearest_Neighbour_Synthesis/example1.py`](etc/examples/Nearest_Neighbour_Synthesis/example1.py)
+- [`etc/examples/Nearest_Neighbour_Synthesis/example2.py`](etc/examples/Nearest_Neighbour_Synthesis/example2.py) & [`etc/examples/Nearest_Neighbour_Synthesis/example2.yml`](etc/examples/Nearest_Neighbour_Synthesis/example2.yml): Multi-feature example (`age`, `sex`, `income`, `saving`, `occupation`, `location`) with vertically structured audit reports and raw-to-synthetic distribution comparisons.
 
 ---
 
 <a name="method2"></a>
 ## 3. Method 2: Stochastic Imputation from Aggregated Tables
 
-See [`examples/Stochastic_Imputation/simple_example.py`](examples/Stochastic_Imputation/simple_example.py) and [`examples/Stochastic_Imputation/example_nz_census.py`](examples/Stochastic_Imputation/example_nz_census.py):
+See [`etc/examples/Stochastic_Imputation/simple_example.py`](etc/examples/Stochastic_Imputation/simple_example.py) and [`etc/examples/Stochastic_Imputation/example_nz_census.py`](etc/examples/Stochastic_Imputation/example_nz_census.py):
 
 ```python
 from pandas import DataFrame
