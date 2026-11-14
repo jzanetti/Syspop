@@ -230,13 +230,11 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             agg_tables, meta = run_datalab_aggregation(df, cfg, output_dir=tmpdir)
             self.assertTrue(
-                os.path.exists(os.path.join(tmpdir, "individual_aggregated.csv"))
+                os.path.exists(os.path.join(tmpdir, "idi_output_checker_report.xlsx"))
             )
-            self.assertTrue(
-                os.path.exists(os.path.join(tmpdir, "family_aggregated.csv"))
-            )
-            self.assertTrue(
-                os.path.exists(os.path.join(tmpdir, "household_aggregated.csv"))
+            self.assertEqual(
+                [f for f in os.listdir(tmpdir) if f.endswith(".csv")],
+                [],
             )
 
             syn_df, diag = run_outside_synthesis(
@@ -261,37 +259,23 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
                 config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example2.yml",
                 output_dir=tmpdir,
             )
-            # Verify IDI Output Checker reports and raw derivation files are generated
-            self.assertTrue(
+            # Verify consolidated IDI Output Checker Excel report is generated (and redundant audit CSVs are omitted by default)
+            excel_path = os.path.join(tmpdir, "idi_output_checker_report.xlsx")
+            self.assertTrue(os.path.exists(excel_path))
+            self.assertFalse(
                 os.path.exists(os.path.join(tmpdir, "idi_rules_compliance_summary.csv"))
             )
-            self.assertTrue(
+            self.assertFalse(
                 os.path.exists(os.path.join(tmpdir, "individual_raw_with_cluster.csv"))
             )
-            self.assertTrue(
+            self.assertFalse(
                 os.path.exists(
                     os.path.join(tmpdir, "individual_checker_audit_report.csv")
                 )
             )
-            self.assertTrue(
-                os.path.exists(os.path.join(tmpdir, "family_raw_with_cluster.csv"))
-            )
-            self.assertTrue(
-                os.path.exists(os.path.join(tmpdir, "family_checker_audit_report.csv"))
-            )
-            self.assertTrue(
-                os.path.exists(os.path.join(tmpdir, "household_raw_with_cluster.csv"))
-            )
-            self.assertTrue(
-                os.path.exists(
-                    os.path.join(tmpdir, "household_checker_audit_report.csv")
-                )
-            )
 
-            # Verify raw derivation records for Cluster 1 match the exported mean age of Cluster 1
-            raw_map = pd.read_csv(
-                os.path.join(tmpdir, "individual_raw_with_cluster.csv")
-            )
+            # Verify raw data records for Cluster 1 match the exported mean age of Cluster 1
+            raw_map = pd.read_excel(excel_path, sheet_name="Ind_Raw_Data")
             c1_raw = raw_map[raw_map["cluster_id"].astype(str) == "1"]
             c1_agg_age = (
                 agg_tables["individual"]

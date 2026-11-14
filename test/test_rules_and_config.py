@@ -150,11 +150,39 @@ class TestConfidentialConfig(unittest.TestCase):
         """load_config without arguments loads default_rules.yml correctly."""
         cfg = load_config(None)
         rules = cfg["output_rules"]
+        self.assertEqual(rules["rounding_base"], 3)
+        self.assertEqual(rules["leftover_action"], "assign_nearest")
+        self.assertEqual(rules["continuous"]["min_count"], 20)
+        self.assertEqual(rules["categorical"]["min_count"], 6)
+        self.assertEqual(rules["categorical"]["action"], "reassign_or_merge")
+        # Backward-compatible flat aliases remain populated
         self.assertEqual(rules["min_group_count"], 20)
         self.assertEqual(rules["min_cell_count"], 6)
-        self.assertEqual(rules["rounding_base"], 3)
         self.assertEqual(rules["subcell_action"], "reassign_or_merge")
-        self.assertEqual(rules["leftover_action"], "assign_nearest")
+
+    def test_load_config_nested_continuous_categorical(self):
+        """load_config supports top-level rounding/leftover and continuous/categorical sections."""
+        cfg = load_config(
+            {
+                "output_rules": {
+                    "rounding_base": None,
+                    "leftover_action": "suppress",
+                    "continuous": {
+                        "min_count": 25,
+                    },
+                    "categorical": {
+                        "min_count": 8,
+                        "action": "rr3_and_suppress",
+                    },
+                }
+            }
+        )
+        rules = cfg["output_rules"]
+        self.assertIsNone(rules["rounding_base"])
+        self.assertEqual(rules["leftover_action"], "suppress")
+        self.assertEqual(rules["continuous"]["min_count"], 25)
+        self.assertEqual(rules["categorical"]["min_count"], 8)
+        self.assertEqual(rules["categorical"]["action"], "rr3_and_suppress")
 
     def test_load_config_yaml_file(self):
         """load_config from a temporary YAML file."""
@@ -312,6 +340,47 @@ data_structure:
         w_df_unaligned = pd.DataFrame({"person_weight": [1.0, 2.0]})
         with self.assertRaises(ValueError):
             resolve_weight_dataframe(df, w_df_unaligned, hierarchy, id_cols)
+
+    def test_resolve_correlations_config(self):
+        """resolve_data_structure parses correlations in list, dict, or string formats."""
+        df = pd.DataFrame(
+            {
+                "person_id": [1, 2, 3],
+                "age": [25, 35, 45],
+                "income": [40000, 60000, 80000],
+                "sex": ["M", "F", "M"],
+            }
+        )
+        cfg = {
+            "data_structure": {
+                "features": {
+                    "age": {"type": "continuous", "weight": 1.0},
+                    "income": {"type": "continuous", "weight": 1.0},
+                    "sex": {"type": "categorical", "weight": 1.0},
+                },
+                "correlations": [
+                    {"features": ["age", "income"], "weight": 2.5},
+                    ["age", "sex"],
+                    "sex-income",
+                ],
+            }
+        }
+        struct = resolve_data_structure(df, cfg)
+        corrs = struct["correlations"]
+        self.assertEqual(len(corrs), 3)
+        self.assertEqual(corrs[0], {"name": "corr_age_income", "features": ["age", "income"], "weight": 2.5})
+        self.assertEqual(corrs[1], {"name": "corr_age_sex", "features": ["age", "sex"], "weight": 1.0})
+        self.assertEqual(corrs[2], {"name": "corr_sex_income", "features": ["sex", "income"], "weight": 1.0})
+
+        # Unknown feature in correlation raises ValueError
+        bad_cfg = {
+            "data_structure": {
+                "features": cfg["data_structure"]["features"],
+                "correlations": [["age", "nonexistent"]],
+            }
+        }
+        with self.assertRaises(ValueError):
+            resolve_data_structure(df, bad_cfg)
 
 
 if __name__ == "__main__":

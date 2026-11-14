@@ -5,6 +5,7 @@ from syspop.confidential.rules import (
     confidentialise_category_proportions,
 )
 from syspop.confidential.aggregate import (
+    add_correlation_features,
     prepare_encoded_features,
     compute_pairwise_distances,
     nearest_neighbour_grouping,
@@ -26,6 +27,10 @@ from syspop.confidential.pipeline import (
     run_outside_synthesis,
     run_confidential_synthetic_pipeline,
 )
+from syspop.confidential.verify import (
+    evaluate_synthetic_data,
+    export_synthetic_verification_report,
+)
 
 __all__ = [
     "load_config",
@@ -33,6 +38,7 @@ __all__ = [
     "rr3_round",
     "apply_count_rounding",
     "confidentialise_category_proportions",
+    "add_correlation_features",
     "prepare_encoded_features",
     "compute_pairwise_distances",
     "nearest_neighbour_grouping",
@@ -47,4 +53,6 @@ __all__ = [
     "run_datalab_aggregation",
     "run_outside_synthesis",
     "run_confidential_synthetic_pipeline",
+    "evaluate_synthetic_data",
+    "export_synthetic_verification_report",
 ]

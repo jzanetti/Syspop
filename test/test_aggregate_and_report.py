@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from syspop.confidential.aggregate import (
+    add_correlation_features,
     prepare_encoded_features,
     compute_pairwise_distances,
     _compute_weighted_mean_std,
@@ -20,8 +21,13 @@ from syspop.confidential.report import (
     build_checker_guide_df,
     build_raw_cluster_mapping_df,
     build_checker_audit_df,
+    build_released_with_counts_df,
     build_rules_summary_df,
     export_datalab_checker_reports,
+)
+from syspop.confidential.verify import (
+    evaluate_synthetic_data,
+    export_synthetic_verification_report,
 )
 
 
@@ -147,6 +153,43 @@ class TestAggregate(unittest.TestCase):
         empty_clusters = nearest_neighbour_grouping(X[:3], min_count=5)
         self.assertEqual(empty_clusters, [])
 
+    def test_joint_continuous_and_categorical_repair_avoids_merging(self):
+        """
+        Verify 17M + 3F (with min_count=20, min_cell_count=6) is repaired to 14M+6F or 20M+0F
+        using nearest compatible records, keeping clusters at size 20 instead of merging to 40.
+        """
+        # Cluster region 1 (near age 0.0): 17 Male + 3 Female = 20 records
+        # Cluster region 2 (near age 1.0): 9 Male + 11 Female = 20 records
+        X = np.array(
+            [[0.0, 1.0]] * 17
+            + [[0.05, 0.0]] * 3
+            + [[1.0, 1.0]] * 9
+            + [[0.95, 0.0]] * 11
+        )
+        onehot = {
+            "sex": np.array(
+                [[1.0, 0.0]] * 17
+                + [[0.0, 1.0]] * 3
+                + [[1.0, 0.0]] * 9
+                + [[0.0, 1.0]] * 11
+            )
+        }
+        clusters = nearest_neighbour_grouping(
+            X,
+            min_count=20,
+            leftover_action="assign_nearest",
+            onehot_matrices=onehot,
+            subcell_action="reassign_or_merge",
+            min_cell_count=6,
+        )
+        # Must remain 2 clusters of size 20 (never merged into 1 cluster of 40)
+        self.assertEqual(len(clusters), 2)
+        for c in clusters:
+            self.assertEqual(len(c), 20)
+            counts = onehot["sex"][c].sum(axis=0)
+            for cnt in counts:
+                self.assertTrue(cnt == 0 or cnt >= 6, f"Invalid category count {cnt} in {counts}")
+
     def test_aggregate_unit_records_unweighted_and_weighted(self):
         # 12 records with age and sex
         df = pd.DataFrame(
@@ -213,6 +256,115 @@ class TestAggregate(unittest.TestCase):
         self.assertEqual(fam30["minor"], 1.0)
         fam20 = fam_df[fam_df["family_id"] == 20].iloc[0]
         self.assertEqual(fam20["minor"], 0.0)
+
+    def test_add_correlation_features_all_pair_types(self):
+        df = pd.DataFrame(
+            {
+                "age": [20.0, 60.0, 20.0, 60.0],
+                "income": [20000.0, 80000.0, 80000.0, 20000.0],
+                "sex": ["M", "F", "M", "F"],
+                "occ": ["Eng", "Mgr", "Mgr", "Eng"],
+            }
+        )
+        features_meta = {
+            "age": {"type": "continuous", "weight": 1.0},
+            "income": {"type": "continuous", "weight": 1.0},
+            "sex": {"type": "categorical", "weight": 1.0},
+            "occ": {"type": "categorical", "weight": 1.0},
+        }
+        correlations = [
+            {"name": "corr_age_income", "features": ["age", "income"], "weight": 2.0},
+            {"name": "corr_age_sex", "features": ["age", "sex"], "weight": 1.5},
+            {"name": "corr_sex_occ", "features": ["sex", "occ"], "weight": 1.0},
+        ]
+
+        df_corr, corr_meta = add_correlation_features(df, features_meta, correlations)
+        # 1. Continuous x Continuous: z-score product (+1 for aligned, -1 for opposite)
+        self.assertIn("corr_age_income", df_corr.columns)
+        self.assertAlmostEqual(df_corr["corr_age_income"].iloc[0], 1.0)
+        self.assertAlmostEqual(df_corr["corr_age_income"].iloc[1], 1.0)
+        self.assertAlmostEqual(df_corr["corr_age_income"].iloc[2], -1.0)
+        self.assertAlmostEqual(df_corr["corr_age_income"].iloc[3], -1.0)
+        self.assertEqual(corr_meta["corr_age_income"]["weight"], 2.0)
+
+        # 2. Continuous x Categorical: age per sex category
+        self.assertIn("corr_age_sex_M", df_corr.columns)
+        self.assertIn("corr_age_sex_F", df_corr.columns)
+        self.assertGreater(df_corr["corr_age_sex_M"].iloc[0], 0.0)
+        self.assertEqual(df_corr["corr_age_sex_F"].iloc[0], 0.0)
+
+        # 3. Categorical x Categorical: joint category
+        self.assertIn("corr_sex_occ", df_corr.columns)
+        self.assertEqual(list(df_corr["corr_sex_occ"]), ["M__Eng", "F__Mgr", "M__Mgr", "F__Eng"])
+        self.assertEqual(corr_meta["corr_sex_occ"]["type"], "categorical")
+
+        # 4. Pre-encoded proportions (family/household level)
+        prop_df = pd.DataFrame(
+            {
+                "age": [30.0, 50.0],
+                "M": [0.5, 1.0],
+                "F": [0.5, 0.0],
+                "Eng": [1.0, 0.0],
+                "Mgr": [0.0, 1.0],
+            }
+        )
+        pre_enc = {
+            "sex": {"categories": ["M", "F"], "columns": ["M", "F"]},
+            "occ": {"categories": ["Eng", "Mgr"], "columns": ["Eng", "Mgr"]},
+        }
+        prop_corr, prop_meta = add_correlation_features(
+            prop_df, features_meta, correlations[1:], pre_encoded_categories=pre_enc
+        )
+        self.assertIn("corr_sex_occ_M_Eng", prop_corr.columns)
+        self.assertAlmostEqual(prop_corr["corr_sex_occ_M_Eng"].iloc[0], 0.5)
+
+    def test_correlation_distance_and_aggregation(self):
+        df = pd.DataFrame(
+            {
+                "age": [20.0, 22.0, 24.0, 60.0, 62.0, 64.0, 20.0, 22.0, 24.0, 60.0, 62.0, 64.0],
+                "income": [20000.0, 22000.0, 24000.0, 80000.0, 82000.0, 84000.0, 80000.0, 82000.0, 84000.0, 20000.0, 22000.0, 24000.0],
+                "sex": ["M", "M", "M", "F", "F", "F", "M", "M", "M", "F", "F", "F"],
+            }
+        )
+        base_cfg = {
+            "output_rules": {
+                "min_group_count": 6,
+                "min_cell_count": 3,
+                "rounding_base": None,
+                "subcell_action": "none",
+                "leftover_action": "assign_nearest",
+            },
+            "data_structure": {
+                "hierarchy": ["individual"],
+                "features": {
+                    "age": {"type": "continuous", "weight": 1.0},
+                    "income": {"type": "continuous", "weight": 1.0},
+                    "sex": {"type": "categorical", "weight": 1.0},
+                },
+            },
+        }
+        corr_cfg = {
+            "output_rules": base_cfg["output_rules"],
+            "data_structure": {
+                **base_cfg["data_structure"],
+                "correlations": [
+                    {"features": ["age", "income"], "weight": 3.0},
+                    {"features": ["age", "sex"], "weight": 1.5},
+                ],
+            },
+        }
+        d_base = compute_pairwise_distances(df, base_cfg)
+        d_corr = compute_pairwise_distances(df, corr_cfg)
+        # Distance between opposite-correlation records (0 and 6) must strictly increase when correlations are enabled
+        self.assertGreater(d_corr[0, 6], d_base[0, 6])
+
+        # Aggregated output must NOT leak internal corr_* columns, while normalized_df records them
+        agg_df, details = aggregate_unit_records(df, corr_cfg, return_details=True)
+        self.assertEqual(len(agg_df), 2)
+        for col in agg_df.columns:
+            self.assertFalse(col.startswith("corr_"))
+        self.assertIn("corr_age_income", details["normalized_df"].columns)
+        self.assertEqual(len(details["correlations"]), 2)
 
 
 class TestReport(unittest.TestCase):
@@ -343,6 +495,32 @@ class TestReport(unittest.TestCase):
         self.assertEqual(summary_df.iloc[0]["released_clusters"], 1)
         self.assertEqual(summary_df.iloc[0]["status"], "PASS")
 
+    def test_build_released_with_counts_df(self):
+        table_df = pd.DataFrame(
+            [{"cluster_id": 1, "age": 25.0, "age_std": 3.74, "M": 0.5, "F": 0.5, "count": 6}]
+        )
+        out_df = build_released_with_counts_df(table_df, self.level_details)
+        self.assertEqual(
+            list(out_df.columns),
+            [
+                "cluster_id",
+                "age",
+                "age_std",
+                "unrounded_age_count",
+                "M",
+                "unrounded_M_count",
+                "F",
+                "unrounded_F_count",
+                "unrounded_count",
+                "rounded_count",
+            ],
+        )
+        self.assertEqual(out_df.iloc[0]["unrounded_age_count"], 6)
+        self.assertEqual(out_df.iloc[0]["unrounded_M_count"], 3)
+        self.assertEqual(out_df.iloc[0]["unrounded_F_count"], 3)
+        self.assertEqual(out_df.iloc[0]["unrounded_count"], 6)
+        self.assertEqual(out_df.iloc[0]["rounded_count"], 6)
+
     def test_export_datalab_checker_reports(self):
         metadata_with_levels = dict(self.metadata)
         metadata_with_levels["levels"] = {"individual": self.level_details}
@@ -354,13 +532,78 @@ class TestReport(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             saved = export_datalab_checker_reports(agg_tables, metadata_with_levels, tmp_dir)
-            self.assertIn("summary_csv", saved)
+            self.assertIsNone(saved["summary_csv"])
             self.assertIn("excel_report", saved)
-            self.assertTrue(os.path.exists(saved["summary_csv"]))
             self.assertTrue(os.path.exists(saved["excel_report"]))
-            self.assertTrue(os.path.exists(saved["released_csvs"]["individual"]))
-            self.assertTrue(os.path.exists(saved["raw_derivation_csvs"]["individual"]))
-            self.assertTrue(os.path.exists(saved["checker_audit_csvs"]["individual"]))
+            self.assertEqual(saved["released_csvs"], {})
+            self.assertEqual(saved["raw_derivation_csvs"], {})
+            self.assertEqual(saved["checker_audit_csvs"], {})
+            self.assertEqual([f for f in os.listdir(tmp_dir) if f.endswith(".csv")], [])
+
+            excel_released_df = pd.read_excel(saved["excel_report"], sheet_name="Ind_Released_Output")
+            self.assertIn("unrounded_age_count", excel_released_df.columns)
+            self.assertIn("unrounded_M_count", excel_released_df.columns)
+            self.assertIn("unrounded_F_count", excel_released_df.columns)
+            self.assertIn("unrounded_count", excel_released_df.columns)
+            self.assertIn("rounded_count", excel_released_df.columns)
+            self.assertEqual(excel_released_df.iloc[0]["unrounded_age_count"], 6)
+            self.assertEqual(excel_released_df.iloc[0]["unrounded_M_count"], 3)
+            self.assertEqual(excel_released_df.iloc[0]["unrounded_F_count"], 3)
+            self.assertEqual(excel_released_df.iloc[0]["unrounded_count"], 6)
+            self.assertEqual(excel_released_df.iloc[0]["rounded_count"], 6)
+
+            saved_csv = export_datalab_checker_reports(
+                agg_tables, metadata_with_levels, tmp_dir, export_csv_reports=True
+            )
+            self.assertTrue(os.path.exists(saved_csv["released_csvs"]["individual"]))
+            self.assertTrue(os.path.exists(saved_csv["summary_csv"]))
+            self.assertTrue(os.path.exists(saved_csv["raw_derivation_csvs"]["individual"]))
+            self.assertTrue(os.path.exists(saved_csv["checker_audit_csvs"]["individual"]))
+
+    def test_evaluate_and_export_synthetic_verification_report(self):
+        raw_df = pd.DataFrame(
+            {
+                "age": [20.0, 25.0, 30.0, 35.0, 40.0, 45.0],
+                "income": [40000.0, 50000.0, 60000.0, 70000.0, 80000.0, 90000.0],
+                "sex": ["M", "M", "M", "F", "F", "F"],
+                "region": ["A", "A", "B", "B", "A", "B"],
+            }
+        )
+        # Identical synthetic dataset should achieve exact 1.0 similarity and 0.0 distances
+        res_exact = evaluate_synthetic_data(
+            raw_df=raw_df,
+            syn_df=raw_df.copy(),
+            columns=["age", "income", "sex", "region"],
+            diagnostics={"residuals": {"family": {"age_sum": 0.25}}},
+        )
+        self.assertTrue((res_exact["continuous_fidelity"]["ks_statistic"] == 0.0).all())
+        self.assertTrue((res_exact["continuous_fidelity"]["wasserstein_distance"] == 0.0).all())
+        self.assertTrue((res_exact["categorical_summary"]["tvd"] == 0.0).all())
+        self.assertTrue((res_exact["pairwise_correlations"]["abs_diff"] < 1e-12).all())
+        self.assertEqual(len(res_exact["hierarchy_residuals"]), 1)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            xlsx_path = export_synthetic_verification_report(
+                raw_df=raw_df,
+                syn_df=raw_df.copy(),
+                output_dir=tmp_dir,
+                columns=["age", "income", "sex", "region"],
+                diagnostics={"residuals": {"family": {"age_sum": 0.25}}},
+            )
+            self.assertTrue(os.path.exists(xlsx_path))
+            xl = pd.ExcelFile(xlsx_path)
+            self.assertEqual(
+                xl.sheet_names,
+                [
+                    "0_Metric_Guide",
+                    "1_Overall_Summary",
+                    "2_Continuous_Fidelity",
+                    "3_Categorical_Summary",
+                    "4_Category_Proportions",
+                    "5_Pairwise_Correlations",
+                    "6_Hierarchy_Residuals",
+                ],
+            )
 
 
 if __name__ == "__main__":

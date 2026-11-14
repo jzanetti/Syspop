@@ -43,11 +43,12 @@ All confidentiality thresholds and data structures are controlled via YAML confi
 
 ```yaml
 output_rules:
-  min_group_count: 20                  # Minimum units per cluster (for means & stds)
-  min_cell_count: 6                    # Minimum units per count / categorical cell
-  rounding_base: 3                     # Random rounding base (e.g. 3 for RR3; set to null / 0 / false to switch off)
-  subcell_action: "reassign_or_merge"  # "reassign_or_merge" (default), "suppress_cluster", "suppress_cell_nan", "rr3_and_suppress", "none"
-  leftover_action: "assign_nearest"    # "assign_nearest" or "suppress"
+  rounding_base: 3                     # Random rounding base for counts (3 for RR3, or null / 0 / false to switch off)
+  leftover_action: "assign_nearest"    # Leftover records after clustering: "assign_nearest" or "suppress"
+  continuous:
+    min_count: 20                      # Minimum units per cluster (for continuous means, stds & cluster count)
+  categorical:
+    min_count: 6                       # Minimum unweighted units per category cell inside a cluster
 
 data_structure:
   hierarchy:
@@ -73,6 +74,11 @@ data_structure:
       agg: "sum"                       # e.g., family/household income = sum of member incomes
     sex:
       type: "categorical"
+      weight: 1.0
+  correlations:                        # Optional cross-feature correlations added before clustering
+    - features: ["age", "income"]
+      weight: 1.5
+    - features: ["age", "sex"]
       weight: 1.0
 
 synthesis:

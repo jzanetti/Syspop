@@ -14,6 +14,8 @@ from syspop.confidential import (
     run_datalab_aggregation,
     run_outside_synthesis,
     run_confidential_synthetic_pipeline,
+    evaluate_synthetic_data,
+    export_synthetic_verification_report,
 )
 
 __all__ = [
@@ -32,4 +34,6 @@ __all__ = [
     "run_datalab_aggregation",
     "run_outside_synthesis",
     "run_confidential_synthetic_pipeline",
+    "evaluate_synthetic_data",
+    "export_synthetic_verification_report",
 ]

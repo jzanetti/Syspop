@@ -119,13 +119,18 @@ def confidentialise_category_proportions(
         counts[small_mask] = 0.0
 
     if action == "rr3_and_suppress":
+        cat_rules = {
+            "rounding_base": rules.get("categorical", {}).get(
+                "rounding_base", rules.get("rounding_base", 3)
+            )
+        }
         for i in range(len(counts)):
             if counts[i] > 0:
                 if (unit_weights is not None or abs(counts[i] - round(counts[i])) > 1e-6) and contributing[i] > 0:
-                    rounded_contrib = float(apply_count_rounding(int(contributing[i]), rules, rng=rng))
+                    rounded_contrib = float(apply_count_rounding(int(contributing[i]), cat_rules, rng=rng))
                     counts[i] = counts[i] * (rounded_contrib / float(contributing[i]))
                 else:
-                    counts[i] = float(apply_count_rounding(int(round(counts[i])), rules, rng=rng))
+                    counts[i] = float(apply_count_rounding(int(round(counts[i])), cat_rules, rng=rng))
 
     total = counts.sum()
     if total <= 0:
