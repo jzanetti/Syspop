@@ -488,6 +488,70 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         self.assertIn("individual_under_18_mae", diag["residuals"]["family"])
         self.assertIn("individual_under_18_mae", diag["residuals"]["household"])
 
+    def test_hierarchy_counts_control_level_and_flexible_conditions(self):
+        """Verify control_level (individual vs family), target levels, and chained/string conditions."""
+        rng = np.random.default_rng(77)
+        rows = []
+        pid = 1
+        for h_id in range(1, 51):
+            for f_id in (1, 2):
+                for m_idx in range(4):
+                    age = float(rng.integers(6, 17)) if m_idx == 0 else float(rng.integers(25, 65))
+                    rows.append(
+                        {
+                            "household_id": h_id,
+                            "family_id": f_id,
+                            "person_id": pid,
+                            "age": age,
+                            "income": float(rng.normal(50000, 5000)),
+                            "sex": "Female" if m_idx % 2 == 0 else "Male",
+                        }
+                    )
+                    pid += 1
+        df = pd.DataFrame(rows)
+
+        cfg = {
+            "output_rules": {"min_group_count": 20, "min_cell_count": 6, "rounding_base": None},
+            "data_structure": {
+                "hierarchy": ["individual", "family", "household"],
+                "hierarchy_counts": {
+                    "youth_5_to_18": {
+                        "control_level": "individual",
+                        "condition": "5 < age < 18",
+                        "levels": ["family"],
+                        "weight": 2.0,
+                    },
+                    "female_count": {
+                        "control_level": "individual",
+                        "condition": 'sex == "Female"',
+                        "levels": ["family", "household"],
+                        "weight": 1.5,
+                    },
+                    "high_income_fam": {
+                        "control_level": "family",
+                        "condition": "income > 180000",
+                        "levels": ["household"],
+                        "weight": 2.0,
+                    },
+                },
+                "features": {
+                    "age": {"type": "continuous", "weight": 1.5, "agg": "mean"},
+                    "income": {"type": "continuous", "weight": 1.5, "agg": "sum"},
+                    "sex": {"type": "categorical", "weight": 1.0},
+                },
+            },
+            "synthesis": {"random_seed": 42},
+        }
+        syn_df, agg_tables, diag = run_confidential_synthetic_pipeline(df, cfg)
+        self.assertIn("youth_5_to_18", agg_tables["family"].columns)
+        self.assertNotIn("youth_5_to_18", agg_tables["household"].columns)
+        self.assertIn("female_count", agg_tables["family"].columns)
+        self.assertIn("female_count", agg_tables["household"].columns)
+        self.assertNotIn("high_income_fam", agg_tables["family"].columns)
+        self.assertIn("high_income_fam", agg_tables["household"].columns)
+        self.assertIn("high_income_fam_mae", diag["residuals"]["household"])
+        self.assertGreater(len(syn_df), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

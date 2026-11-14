@@ -28,18 +28,21 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
             ),
         },
         {
-            "Sheet / Item": "*_Released_Output (*_aggregated.csv)",
-            "Description": "Confidentialised cluster tables requested for release outside the Data Lab.",
+            "Sheet / Item": "*_Released_Output",
+            "Description": (
+                "Confidentialised cluster tables with unrounded_*_count, unrounded_count, "
+                "and rounded_count (when rounding is enabled) for Data Lab output checking."
+            ),
         },
         {
-            "Sheet / Item": "*_Checker_Audit (*_checker_audit_report.csv)",
+            "Sheet / Item": "*_Checker_Audit",
             "Description": (
                 "Vertically structured audit table (one row per cluster and feature/category) "
                 "comparing raw unweighted respondent counts against configured thresholds and released values."
             ),
         },
         {
-            "Sheet / Item": "*_Raw_Data (*_raw_with_cluster.csv)",
+            "Sheet / Item": "*_Raw_Data",
             "Description": (
                 "Raw unit-record data with normalized values and the assigned cluster_id."
             ),
@@ -47,10 +50,9 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
         {
             "Sheet / Item": "Configured Thresholds",
             "Description": (
-                f"min_group_count={rules.get('min_group_count', 20)}, "
-                f"min_cell_count={rules.get('min_cell_count', 6)}, "
+                f"continuous.min_count={rules.get('min_group_count', 20)}, "
+                f"categorical.min_count={rules.get('min_cell_count', 6)}, "
                 f"rounding_base={rounding_str}, "
-                f"subcell_action='{rules.get('subcell_action', 'reassign_or_merge')}', "
                 f"leftover_action='{rules.get('leftover_action', 'assign_nearest')}'."
             ),
         },
@@ -296,7 +298,7 @@ def build_rules_summary_df(agg_tables: dict, metadata: dict) -> pd.DataFrame:
     r_base = rules.get("rounding_base", None)
     rounding_label = int(r_base) if (r_base is not None and int(r_base) > 1) else "Off"
     min_cell = int(rules.get("min_cell_count", 6))
-    sub_action = str(rules.get("subcell_action", "reassign_or_merge"))
+    leftover_action = str(rules.get("leftover_action", "assign_nearest"))
     req_min = int(rules.get("min_group_count", 20))
 
     summary_rows = []
@@ -318,20 +320,22 @@ def build_rules_summary_df(agg_tables: dict, metadata: dict) -> pd.DataFrame:
                     if min_active_subcell is None or cnt < min_active_subcell:
                         min_active_subcell = cnt
 
+        cont_ok = (not released_recs) or (min_unrounded >= req_min)
+        cat_ok = (not released_recs) or (min_active_subcell is None) or (min_active_subcell >= min_cell)
         summary_rows.append(
             {
                 "hierarchy_level": level_name,
                 "raw_units": total_raw_records,
                 "released_clusters": len(released_recs),
                 "suppressed_clusters": len(suppressed_recs),
-                "min_raw_cluster_count": min_unrounded,
-                "min_group_count": req_min,
-                "min_released_count": min_exported,
+                "min_unrounded_cluster_count": min_unrounded,
+                "continuous_min_count": req_min,
+                "min_rounded_cluster_count": min_exported,
                 "rounding_base": rounding_label,
                 "min_nonzero_cell_count": min_active_subcell if min_active_subcell is not None else "N/A",
-                "min_cell_count": min_cell,
-                "subcell_action": sub_action,
-                "status": "PASS" if (not released_recs or min_unrounded >= req_min) else "CHECK",
+                "categorical_min_count": min_cell,
+                "leftover_action": leftover_action,
+                "status": "PASS" if (cont_ok and cat_ok) else "CHECK",
             }
         )
 

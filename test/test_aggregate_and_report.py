@@ -28,6 +28,7 @@ from syspop.confidential.report import (
 from syspop.confidential.verify import (
     evaluate_synthetic_data,
     export_synthetic_verification_report,
+    export_verification_figures_counts,
 )
 
 
@@ -493,6 +494,8 @@ class TestReport(unittest.TestCase):
         self.assertEqual(summary_df.iloc[0]["hierarchy_level"], "individual")
         self.assertEqual(summary_df.iloc[0]["raw_units"], 6)
         self.assertEqual(summary_df.iloc[0]["released_clusters"], 1)
+        self.assertEqual(summary_df.iloc[0]["continuous_min_count"], 6)
+        self.assertEqual(summary_df.iloc[0]["categorical_min_count"], 3)
         self.assertEqual(summary_df.iloc[0]["status"], "PASS")
 
     def test_build_released_with_counts_df(self):
@@ -578,17 +581,27 @@ class TestReport(unittest.TestCase):
         )
         self.assertTrue((res_exact["continuous_fidelity"]["ks_statistic"] == 0.0).all())
         self.assertTrue((res_exact["continuous_fidelity"]["wasserstein_distance"] == 0.0).all())
+        self.assertTrue((res_exact["continuous_fidelity"]["status"] == "PASS").all())
         self.assertTrue((res_exact["categorical_summary"]["tvd"] == 0.0).all())
+        self.assertTrue((res_exact["categorical_summary"]["raw_total_count"] == 6).all())
+        self.assertTrue((res_exact["categorical_summary"]["min_raw_cell_count"] == 3).all())
+        self.assertTrue((res_exact["categorical_summary"]["status"] == "PASS").all())
         self.assertTrue((res_exact["pairwise_correlations"]["abs_diff"] < 1e-12).all())
+        self.assertTrue((res_exact["pairwise_correlations"]["raw_count"] == 6).all())
+        self.assertTrue((res_exact["pairwise_correlations"]["status"] == "PASS").all())
         self.assertEqual(len(res_exact["hierarchy_residuals"]), 1)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
+            from syspop.postp.vis import plot_comparison
+
+            comp_png = plot_comparison(raw_df, raw_df.copy(), columns=["age", "sex"], output_dir=tmp_dir)
             xlsx_path = export_synthetic_verification_report(
                 raw_df=raw_df,
                 syn_df=raw_df.copy(),
                 output_dir=tmp_dir,
                 columns=["age", "income", "sex", "region"],
                 diagnostics={"residuals": {"family": {"age_sum": 0.25}}},
+                figure_paths=[comp_png],
             )
             self.assertTrue(os.path.exists(xlsx_path))
             xl = pd.ExcelFile(xlsx_path)
@@ -602,8 +615,56 @@ class TestReport(unittest.TestCase):
                     "4_Category_Proportions",
                     "5_Pairwise_Correlations",
                     "6_Hierarchy_Residuals",
+                    "Verification_Figures",
                 ],
             )
+
+            figs_counts_xlsx = export_verification_figures_counts(
+                raw_df=raw_df,
+                syn_df=raw_df.copy(),
+                columns=["age", "income", "sex", "region"],
+                output_dir=tmp_dir,
+            )
+            self.assertTrue(os.path.exists(figs_counts_xlsx))
+            xl_figs = pd.ExcelFile(figs_counts_xlsx)
+            self.assertEqual(
+                xl_figs.sheet_names,
+                [
+                    "0_Figures_Summary",
+                    "1D_Histograms",
+                    "1D_Categories",
+                    "2D_Cat_Cat",
+                    "2D_Cat_Cont",
+                    "2D_Cont_Cont_Density",
+                ],
+            )
+            fig_sum = pd.read_excel(xl_figs, sheet_name="0_Figures_Summary")
+            # 1D comparison + 6 pairwise figures = 7 rows
+            self.assertEqual(len(fig_sum), 7)
+            self.assertTrue((fig_sum["raw_total_count"] == 6).all())
+            for sh in ["1D_Histograms", "1D_Categories", "2D_Cat_Cat", "2D_Cat_Cont", "2D_Cont_Cont_Density"]:
+                df_sh = pd.read_excel(xl_figs, sheet_name=sh)
+                self.assertIn("figure_file", df_sh.columns)
+                self.assertIn("min_required_count", df_sh.columns)
+                self.assertIn("idi_status", df_sh.columns)
+
+            # Verify config_or_path drives min_count
+            custom_cfg = {"verification": {"min_count": 3}}
+            figs_custom_xlsx = export_verification_figures_counts(
+                raw_df=raw_df,
+                syn_df=raw_df.copy(),
+                columns=["age", "income", "sex", "region"],
+                output_dir=tmp_dir,
+                filename="verification_figures_counts_custom.xlsx",
+                config_or_path=custom_cfg,
+            )
+            xl_custom = pd.ExcelFile(figs_custom_xlsx)
+            hist_1d = pd.read_excel(xl_custom, sheet_name="1D_Histograms")
+            cont_2d = pd.read_excel(xl_custom, sheet_name="2D_Cont_Cont_Density")
+            cat_1d = pd.read_excel(xl_custom, sheet_name="1D_Categories")
+            self.assertTrue((hist_1d["min_required_count"] == 3).all())
+            self.assertTrue((cont_2d["min_required_count"] == 3).all())
+            self.assertTrue((cat_1d["min_required_count"] == 3).all())
 
 
 if __name__ == "__main__":

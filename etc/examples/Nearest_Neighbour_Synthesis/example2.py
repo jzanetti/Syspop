@@ -9,6 +9,7 @@ from syspop.confidential import (
     run_datalab_aggregation,
     run_outside_synthesis,
     export_synthetic_verification_report,
+    export_verification_figures_counts,
 )
 from syspop.postp.vis import plot_distribution, plot_comparison, plot_cross_comparison
 
@@ -262,24 +263,35 @@ def run_complex_example():
         syn_df,
         columns=feature_cols,
         output_dir=syn_output_dir,
+        config_or_path=cfg_path,
     )
     cross_plots = plot_cross_comparison(
         raw_df,
         syn_df,
         columns=feature_cols,
         output_dir=syn_output_dir,
+        config_or_path=cfg_path,
     )
-    # Export Excel accuracy verification report alongside the comparison PNGs
+    # Export Excel accuracy verification report and underlying figure record counts
     verif_excel = export_synthetic_verification_report(
         raw_df=raw_df,
         syn_df=syn_df,
         output_dir=syn_output_dir,
         columns=feature_cols,
         diagnostics=diagnostics,
+        figure_paths=[comp_plot] + cross_plots,
+        config_or_path=cfg_path,
+    )
+    figs_counts_excel = export_verification_figures_counts(
+        raw_df=raw_df,
+        syn_df=syn_df,
+        columns=feature_cols,
+        output_dir=syn_output_dir,
+        config_or_path=cfg_path,
     )
     print(
-        f"\n[6] Saved Excel verification report ({verif_excel}), 1D comparison ({comp_plot}), "
-        f"and {len(cross_plots)} pairwise Raw vs. Synthetic cross-feature comparison plots to '{syn_output_dir}/':"
+        f"\n[6] Saved Excel verification report ({verif_excel}), figure counts workbook ({figs_counts_excel}), "
+        f"1D comparison ({comp_plot}), and {len(cross_plots)} pairwise Raw vs. Synthetic cross-feature comparison plots to '{syn_output_dir}/':"
     )
     for cp in cross_plots:
         print(f"    - {cp}")
