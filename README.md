@@ -123,14 +123,12 @@ syn_df, diagnostics = run_outside_synthesis(
 
 See:
 - [`etc/examples/Nearest_Neighbour_Synthesis/example1.py`](etc/examples/Nearest_Neighbour_Synthesis/example1.py)
-- [`etc/examples/Nearest_Neighbour_Synthesis/example2.py`](etc/examples/Nearest_Neighbour_Synthesis/example2.py) & [`etc/examples/Nearest_Neighbour_Synthesis/example2.yml`](etc/examples/Nearest_Neighbour_Synthesis/example2.yml): Multi-feature example (`age`, `sex`, `income`, `saving`, `occupation`, `location`) with vertically structured audit reports and raw-to-synthetic distribution comparisons.
+- [`etc/examples/Nearest_Neighbour_Synthesis/example2.py`](etc/examples/Nearest_Neighbour_Synthesis/example2.py)
 
 ---
 
 <a name="method2"></a>
 ## 3. Method 2: Stochastic Imputation from Aggregated Tables
-
-See [`etc/examples/Stochastic_Imputation/simple_example.py`](etc/examples/Stochastic_Imputation/simple_example.py) and [`etc/examples/Stochastic_Imputation/example_nz_census.py`](etc/examples/Stochastic_Imputation/example_nz_census.py):
 
 ```python
 from pandas import DataFrame
@@ -168,6 +166,11 @@ syn_pop = stochastic_impute(data, task_list, maintain_counts=["income"])
 plot_distribution(syn_pop, ["age"])
 plot_distribution(syn_pop, ["gender", "age"])
 ```
+
+See:
+- [`etc/examples/Stochastic_Imputation/simple_example.py`](etc/examples/Stochastic_Imputation/simple_example.py)
+- [`etc/examples/Stochastic_Imputation/example_nz_census.py`](etc/examples/Stochastic_Imputation/example_nz_census.py)
+
 
 # For Develpers
 ```
