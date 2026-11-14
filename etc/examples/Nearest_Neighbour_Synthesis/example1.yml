@@ -2,26 +2,14 @@
 # Reference: etc/Synthetic_Data_Production_Algorithm.docx
 
 output_rules:
-  # Minimum units per cluster (for means and standard deviations)
-  min_group_count: 20
+  rounding_base: 3                     # Random rounding base for counts (e.g., 3 for RR3; set to null / 0 / false to turn off)
+  leftover_action: "assign_nearest"    # Leftover records after clustering: "assign_nearest" or "suppress"
 
-  # Minimum units per count / categorical cell
-  min_cell_count: 6
+  continuous:
+    min_count: 20                      # Minimum units per cluster (for continuous means, stds & cluster count)
 
-  # Random rounding base (e.g., 3 for RR3; set to null / 0 / false to switch rounding off)
-  rounding_base: 3
-
-  # Small categorical cell (< min_cell_count) handling within a cluster:
-  #   - "reassign_or_merge" (Option 1 - Default): Form compliant clusters and reassign/merge
-  #       so every non-zero category in a released cluster has count >= min_cell_count
-  #   - "suppress_cluster" (Option 2a): Suppress the entire cluster if any category has 0 < count < min_cell_count
-  #   - "suppress_cell_nan" (Option 2b): Set only the small categorical proportion (< min_cell_count) to NaN
-  #   - "rr3_and_suppress" (Option 3): Mask small categorical cells (< min_cell_count) to 0.0 and apply random rounding
-  #   - "none": Raw proportions without adjustment
-  subcell_action: "reassign_or_merge"
-
-  # Leftover records (< min_group_count) handling: "assign_nearest" or "suppress"
-  leftover_action: "assign_nearest"
+  categorical:
+    min_count: 6                       # Minimum unweighted units per category cell inside each cluster
 
 data_structure:
   # Hierarchy levels from lowest (individual) to highest (household).

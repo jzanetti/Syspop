@@ -8,6 +8,7 @@ import pandas as pd
 from syspop.confidential import (
     run_datalab_aggregation,
     run_outside_synthesis,
+    export_synthetic_verification_report,
 )
 from syspop.postp.vis import plot_distribution, plot_comparison, plot_cross_comparison
 
@@ -159,27 +160,19 @@ def run_complex_example():
     )
 
     exported_files = metadata.get("exported_files", {})
-    print(
-        f"\n[2] Exported Data Lab Files & IDI Output Checker Reports (in '{export_dir}'):"
-    )
-    print(f"    - Rules Compliance Summary CSV : {exported_files.get('summary_csv')}")
-    print(f"    - Consolidated Excel Workbook  : {exported_files.get('excel_report')}")
-    for lvl in ("individual", "family", "household"):
-        print(
-            f"    - {lvl.capitalize():10s} -> Released: {exported_files['released_csvs'].get(lvl)} | "
-            f"Raw Derivation: {exported_files['raw_derivation_csvs'].get(lvl)} | "
-            f"Audit: {exported_files['checker_audit_csvs'].get(lvl)}"
-        )
+    excel_report_path = exported_files.get("excel_report")
+    print(f"\n[2] Exported Data Lab IDI Output Checker Report (in '{export_dir}'):")
+    print(f"    - Consolidated Excel Workbook  : {excel_report_path}")
 
-    summary_df = pd.read_csv(exported_files["summary_csv"])
+    summary_df = pd.read_excel(excel_report_path, sheet_name="1_Summary")
     print("\n  [2a] Compliance Summary across Hierarchy Levels:")
     print(summary_df)
 
-    ind_audit_df = pd.read_csv(exported_files["checker_audit_csvs"]["individual"])
+    ind_audit_df = pd.read_excel(excel_report_path, sheet_name="Ind_Checker_Audit")
     print("\n  [2b] Vertically Structured Audit Report for Cluster 1 (first 15 rows):")
     print(ind_audit_df[ind_audit_df["cluster_id"].astype(str) == "1"].head(15))
 
-    ind_raw_map_df = pd.read_csv(exported_files["raw_derivation_csvs"]["individual"])
+    ind_raw_map_df = pd.read_excel(excel_report_path, sheet_name="Ind_Raw_Data")
     print(
         "\n  [2c] Sample of Raw Individual Records Mapped to Cluster 1 (showing derivation of Row 1):"
     )
@@ -276,9 +269,17 @@ def run_complex_example():
         columns=feature_cols,
         output_dir=syn_output_dir,
     )
+    # Export Excel accuracy verification report alongside the comparison PNGs
+    verif_excel = export_synthetic_verification_report(
+        raw_df=raw_df,
+        syn_df=syn_df,
+        output_dir=syn_output_dir,
+        columns=feature_cols,
+        diagnostics=diagnostics,
+    )
     print(
-        f"\n[6] Saved 1D comparison ({comp_plot}) and {len(cross_plots)} pairwise "
-        f"Raw vs. Synthetic cross-feature comparison plots to '{syn_output_dir}/':"
+        f"\n[6] Saved Excel verification report ({verif_excel}), 1D comparison ({comp_plot}), "
+        f"and {len(cross_plots)} pairwise Raw vs. Synthetic cross-feature comparison plots to '{syn_output_dir}/':"
     )
     for cp in cross_plots:
         print(f"    - {cp}")

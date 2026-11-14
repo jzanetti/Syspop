@@ -39,10 +39,9 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
             ),
         },
         {
-            "Sheet / Item": "*_Raw_Derivation (*_raw_with_cluster.csv)",
+            "Sheet / Item": "*_Raw_Data (*_raw_with_cluster.csv)",
             "Description": (
-                "Unit-record mapping showing the exact raw records and normalized values "
-                "assigned to each cluster_id."
+                "Raw unit-record data with normalized values and the assigned cluster_id."
             ),
         },
         {
@@ -206,6 +205,88 @@ def build_checker_audit_df(level_name: str, level_details: dict) -> pd.DataFrame
     return pd.DataFrame(rows)
 
 
+def build_released_with_counts_df(table_df: pd.DataFrame, level_details: dict) -> pd.DataFrame:
+    """
+    Attach per-feature unweighted unrounded contributing counts (`unrounded_{feature}_count`
+    and `unrounded_{category}_count`) next to each continuous feature and categorical column,
+    and label cluster total counts explicitly as `unrounded_count` / `rounded_count`
+    for Data Lab output checking inside `idi_output_checker_report.xlsx`.
+    """
+    if table_df is None or len(table_df) == 0 or "cluster_id" not in table_df.columns:
+        return pd.DataFrame() if table_df is None else table_df.copy()
+
+    def _norm_cid(val) -> str:
+        try:
+            f = float(val)
+            if f.is_integer():
+                return str(int(f))
+        except (TypeError, ValueError):
+            pass
+        return str(val)
+
+    audit_recs = level_details.get("cluster_audit_records", [])
+    rec_by_cid = {_norm_cid(r["cluster_id"]): r for r in audit_recs}
+    released_recs = [r for r in audit_recs if r.get("status") == "RELEASED"]
+    sample_rec = released_recs[0] if released_recs else (audit_recs[0] if audit_recs else {})
+    cont_keys = set(sample_rec.get("continuous_audit", {}).keys())
+    cat_keys = set(sample_rec.get("categorical_audit", {}).keys())
+    rounding_base = sample_rec.get("rounding_base")
+    rounding_enabled = rounding_base is not None and int(rounding_base) > 1
+
+    # Build ordered column list inserting `unrounded_{name}_count` right after each feature/category
+    ordered_cols = ["cluster_id"]
+    count_sources = {}
+    for col in table_df.columns:
+        if col in ("cluster_id", "count"):
+            continue
+        ordered_cols.append(col)
+        if col.endswith("_std"):
+            base_feat = col[:-4]
+            if base_feat in cont_keys:
+                cnt_col = f"unrounded_{base_feat}_count"
+                ordered_cols.append(cnt_col)
+                count_sources[cnt_col] = ("continuous", base_feat)
+        elif col in cont_keys and f"{col}_std" not in table_df.columns:
+            cnt_col = f"unrounded_{col}_count"
+            ordered_cols.append(cnt_col)
+            count_sources[cnt_col] = ("continuous", col)
+        elif col in cat_keys:
+            cnt_col = f"unrounded_{col}_count"
+            ordered_cols.append(cnt_col)
+            count_sources[cnt_col] = ("categorical", col)
+
+    has_count_col = "count" in table_df.columns
+    if has_count_col:
+        ordered_cols.append("unrounded_count")
+        if rounding_enabled:
+            ordered_cols.append("rounded_count")
+
+    out_rows = []
+    for _, row in table_df.iterrows():
+        cid_str = _norm_cid(row["cluster_id"])
+        rec = rec_by_cid.get(cid_str, {})
+        cont_audit = rec.get("continuous_audit", {})
+        cat_audit = rec.get("categorical_audit", {})
+
+        new_row = {}
+        for col in ordered_cols:
+            if col in count_sources:
+                kind, key = count_sources[col]
+                if kind == "continuous":
+                    new_row[col] = int(cont_audit.get(key, {}).get("raw_count", 0))
+                else:
+                    new_row[col] = int(cat_audit.get(key, {}).get("unrounded_contributing_count", 0))
+            elif col == "unrounded_count":
+                new_row[col] = int(rec.get("unrounded_count", row["count"]))
+            elif col == "rounded_count":
+                new_row[col] = int(row["count"])
+            else:
+                new_row[col] = row[col]
+        out_rows.append(new_row)
+
+    return pd.DataFrame(out_rows, columns=ordered_cols)
+
+
 def build_rules_summary_df(agg_tables: dict, metadata: dict) -> pd.DataFrame:
     """
     Create a concise summary table with one row per hierarchy level.
@@ -294,14 +375,17 @@ def export_datalab_checker_reports(
     agg_tables: dict,
     metadata: dict,
     output_dir: str,
+    export_csv_reports: bool = False,
 ) -> dict:
     """
     Reusable exporter that saves:
-      1. `{output_dir}/{level}_aggregated.csv`: The confidentialised table for release.
-      2. `{output_dir}/{level}_raw_with_cluster.csv`: The raw unit records mapped to `cluster_id`.
-      3. `{output_dir}/{level}_checker_audit_report.csv`: Vertically structured cluster/feature audit table.
-      4. `{output_dir}/idi_rules_compliance_summary.csv`: Concise level-by-level compliance summary.
-      5. `{output_dir}/idi_output_checker_report.xlsx`: Multi-sheet Excel workbook.
+      1. `{output_dir}/{level}_aggregated.csv`: Clean confidentialised table for Step 3 synthesis.
+      2. `{output_dir}/idi_output_checker_report.xlsx`: Consolidated multi-sheet Excel workbook
+         for Data Lab output checking (guide, summary, released output with counts, audit, raw derivation).
+    When `export_csv_reports=True`, also writes standalone CSV copies:
+      - `{output_dir}/{level}_raw_with_cluster.csv`
+      - `{output_dir}/{level}_checker_audit_report.csv`
+      - `{output_dir}/idi_rules_compliance_summary.csv`
     """
     if not exists(output_dir):
         makedirs(output_dir)
@@ -316,9 +400,10 @@ def export_datalab_checker_reports(
 
     guide_df = build_checker_guide_df(metadata)
     summary_df = build_rules_summary_df(agg_tables, metadata)
-    summary_csv_path = join(output_dir, "idi_rules_compliance_summary.csv")
-    summary_df.to_csv(summary_csv_path, index=False)
-    saved_files["summary_csv"] = summary_csv_path
+    if export_csv_reports:
+        summary_csv_path = join(output_dir, "idi_rules_compliance_summary.csv")
+        summary_df.to_csv(summary_csv_path, index=False)
+        saved_files["summary_csv"] = summary_csv_path
 
     excel_sheets = {
         "0_Checker_Guide": guide_df,
@@ -327,26 +412,31 @@ def export_datalab_checker_reports(
     levels_meta = metadata.get("levels", {})
 
     for level_name, table_df in agg_tables.items():
-        agg_csv_path = join(output_dir, f"{level_name}_aggregated.csv")
-        table_df.to_csv(agg_csv_path, index=False)
-        saved_files["released_csvs"][level_name] = agg_csv_path
+        if export_csv_reports:
+            agg_csv_path = join(output_dir, f"{level_name}_aggregated.csv")
+            table_df.to_csv(agg_csv_path, index=False)
+            saved_files["released_csvs"][level_name] = agg_csv_path
 
         lvl_details = levels_meta.get(level_name)
         if lvl_details is not None:
             raw_map_df = build_raw_cluster_mapping_df(lvl_details)
-            raw_csv_path = join(output_dir, f"{level_name}_raw_with_cluster.csv")
-            raw_map_df.to_csv(raw_csv_path, index=False)
-            saved_files["raw_derivation_csvs"][level_name] = raw_csv_path
-
             audit_df = build_checker_audit_df(level_name, lvl_details)
-            audit_csv_path = join(output_dir, f"{level_name}_checker_audit_report.csv")
-            audit_df.to_csv(audit_csv_path, index=False)
-            saved_files["checker_audit_csvs"][level_name] = audit_csv_path
+
+            if export_csv_reports:
+                raw_csv_path = join(output_dir, f"{level_name}_raw_with_cluster.csv")
+                raw_map_df.to_csv(raw_csv_path, index=False)
+                saved_files["raw_derivation_csvs"][level_name] = raw_csv_path
+
+                audit_csv_path = join(output_dir, f"{level_name}_checker_audit_report.csv")
+                audit_df.to_csv(audit_csv_path, index=False)
+                saved_files["checker_audit_csvs"][level_name] = audit_csv_path
 
             short_lvl = level_name[:3].capitalize()
-            excel_sheets[f"{short_lvl}_Released_Output"] = table_df
+            excel_sheets[f"{short_lvl}_Released_Output"] = build_released_with_counts_df(
+                table_df, lvl_details
+            )
             excel_sheets[f"{short_lvl}_Checker_Audit"] = audit_df
-            excel_sheets[f"{short_lvl}_Raw_Derivation"] = raw_map_df
+            excel_sheets[f"{short_lvl}_Raw_Data"] = raw_map_df
 
     excel_path = join(output_dir, "idi_output_checker_report.xlsx")
     try:

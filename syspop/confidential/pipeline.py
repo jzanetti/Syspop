@@ -53,6 +53,7 @@ def run_outside_synthesis(
     """
     if isinstance(agg_tables_or_dir, str):
         agg_tables = {}
+        excel_path = join(agg_tables_or_dir, "idi_output_checker_report.xlsx")
         for level_name in ("individual", "family", "household"):
             csv_path = join(agg_tables_or_dir, f"{level_name}_aggregated.csv")
             if exists(csv_path):
@@ -62,9 +63,24 @@ def run_outside_synthesis(
                         agg_tables[level_name] = df_lvl
                 except pd.errors.EmptyDataError:
                     pass
+        if not agg_tables and exists(excel_path):
+            xl = pd.ExcelFile(excel_path)
+            for level_name in ("individual", "family", "household"):
+                sheet_name = f"{level_name[:3].capitalize()}_Released_Output"
+                if sheet_name in xl.sheet_names:
+                    df_lvl = pd.read_excel(xl, sheet_name=sheet_name)
+                    if len(df_lvl) > 0:
+                        if "rounded_count" in df_lvl.columns and "count" not in df_lvl.columns:
+                            df_lvl = df_lvl.rename(columns={"rounded_count": "count"})
+                        elif "unrounded_count" in df_lvl.columns and "count" not in df_lvl.columns:
+                            df_lvl = df_lvl.rename(columns={"unrounded_count": "count"})
+                        drop_cols = [c for c in df_lvl.columns if c.startswith("unrounded_")]
+                        if drop_cols:
+                            df_lvl = df_lvl.drop(columns=drop_cols)
+                        agg_tables[level_name] = df_lvl
         if not agg_tables:
             raise FileNotFoundError(
-                f"No non-empty `*_aggregated.csv` files found in directory '{agg_tables_or_dir}'."
+                f"No non-empty `idi_output_checker_report.xlsx` or `*_aggregated.csv` files found in directory '{agg_tables_or_dir}'."
             )
     else:
         agg_tables = agg_tables_or_dir

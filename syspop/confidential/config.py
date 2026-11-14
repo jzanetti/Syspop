@@ -39,20 +39,77 @@ def load_config(config_or_path=None) -> dict:
     else:
         raise TypeError("config_or_path must be a YAML file path (str), a dict, or None.")
 
-    resolved_rules = deepcopy(load_default_rules())
+    default_rules = deepcopy(load_default_rules())
+    default_cont = default_rules.get("continuous", {})
+    default_cat = default_rules.get("categorical", {})
+
     rules_cfg = deepcopy(raw_cfg.get("output_rules", {})) or {}
     rules_cfg.pop("preset", None)
-    resolved_rules.update(rules_cfg)
 
-    # Normalize rounding_base (None means rounding is switched off)
-    resolved_rules["rounding_base"] = _normalize_rounding_base(
-        resolved_rules.get("rounding_base", 3)
+    cont_cfg = rules_cfg.get("continuous", {}) or {}
+    cat_cfg = rules_cfg.get("categorical", {}) or {}
+
+    cat_min = int(
+        cat_cfg.get(
+            "min_count",
+            cat_cfg.get("min_cell_count", rules_cfg.get("min_cell_count", default_cat.get("min_count", 6))),
+        )
     )
-    resolved_rules["min_cell_count"] = int(resolved_rules.get("min_cell_count", 6))
-    resolved_rules["min_group_count"] = max(
-        int(resolved_rules.get("min_group_count", 20)),
-        resolved_rules["min_cell_count"],
+    cont_min = int(
+        cont_cfg.get(
+            "min_count",
+            cont_cfg.get("min_group_count", rules_cfg.get("min_group_count", default_cont.get("min_count", 20))),
+        )
     )
+    min_group_count = max(cont_min, cat_min)
+
+    if "rounding_base" in cont_cfg:
+        cont_rounding = _normalize_rounding_base(cont_cfg["rounding_base"])
+    elif "rounding_base" in rules_cfg:
+        cont_rounding = _normalize_rounding_base(rules_cfg["rounding_base"])
+    else:
+        cont_rounding = _normalize_rounding_base(default_rules.get("rounding_base", 3))
+
+    if "rounding_base" in cat_cfg:
+        cat_rounding = _normalize_rounding_base(cat_cfg["rounding_base"])
+    else:
+        cat_rounding = cont_rounding
+
+    leftover_action = str(
+        rules_cfg.get(
+            "leftover_action",
+            cont_cfg.get("leftover_action", default_rules.get("leftover_action", "assign_nearest")),
+        )
+    )
+    subcell_action = str(
+        cat_cfg.get(
+            "action",
+            cat_cfg.get(
+                "subcell_action",
+                rules_cfg.get("subcell_action", default_cat.get("action", "reassign_or_merge")),
+            ),
+        )
+    )
+
+    resolved_rules = {
+        "rounding_base": cont_rounding,
+        "leftover_action": leftover_action,
+        "continuous": {
+            "min_count": min_group_count,
+        },
+        "categorical": {
+            "min_count": cat_min,
+            "action": subcell_action,
+        },
+        # Normalized aliases used by internal aggregation / rules / reporting helpers
+        "min_group_count": min_group_count,
+        "min_cell_count": cat_min,
+        "subcell_action": subcell_action,
+    }
+    if cat_rounding != cont_rounding:
+        resolved_rules["categorical"]["rounding_base"] = cat_rounding
+    if "random_seed" in rules_cfg:
+        resolved_rules["random_seed"] = rules_cfg["random_seed"]
 
     data_cfg = deepcopy(raw_cfg.get("data_structure", {}))
     synthesis_cfg = deepcopy(raw_cfg.get("synthesis", {}))
@@ -200,12 +257,78 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
                     "levels": c_levels,
                 }
 
+    # 5. Resolve optional pairwise feature correlations for nearest-neighbour clustering
+    correlations = _resolve_correlations(data_cfg.get("correlations", None), features_meta)
+
     return {
         "hierarchy": hierarchy,
         "id_columns": id_columns,
         "features": features_meta,
         "hierarchy_counts": hierarchy_counts,
+        "correlations": correlations,
     }
+
+
+def _parse_correlation_pair(raw_item, default_name: str or None = None) -> dict or None:
+    """Parse a single correlation specification into {'name', 'features', 'weight'}."""
+    weight = 1.0
+    if isinstance(raw_item, dict):
+        pair = raw_item.get("features", raw_item.get("pair", raw_item.get("cols", None)))
+        weight = float(raw_item.get("weight", 1.0))
+        name = raw_item.get("name", default_name)
+    elif isinstance(raw_item, (list, tuple)):
+        pair = list(raw_item)
+        name = default_name
+    elif isinstance(raw_item, str):
+        sep = "-" if "-" in raw_item else (":" if ":" in raw_item else ",")
+        pair = [p.strip() for p in raw_item.split(sep) if p.strip()]
+        name = default_name
+    else:
+        return None
+
+    if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+        raise ValueError(
+            f"Each correlation entry must specify a pair of 2 feature names, got {raw_item!r}."
+        )
+    f1, f2 = str(pair[0]).strip(), str(pair[1]).strip()
+    if not f1 or not f2 or f1 == f2:
+        raise ValueError(f"Correlation features must be two distinct non-empty names, got {pair!r}.")
+
+    return {
+        "name": str(name).strip() if name else f"corr_{f1}_{f2}",
+        "features": [f1, f2],
+        "weight": weight,
+    }
+
+
+def _resolve_correlations(raw_corrs, features_meta: dict) -> list:
+    """Normalize `data_structure.correlations` into a list of validated pair specs."""
+    if not raw_corrs:
+        return []
+
+    parsed = []
+    if isinstance(raw_corrs, dict):
+        for key_name, item in raw_corrs.items():
+            spec = _parse_correlation_pair(item, default_name=f"corr_{key_name}")
+            if spec is not None:
+                parsed.append(spec)
+    elif isinstance(raw_corrs, list):
+        for item in raw_corrs:
+            spec = _parse_correlation_pair(item)
+            if spec is not None:
+                parsed.append(spec)
+    else:
+        raise TypeError("data_structure.correlations must be a list or dict.")
+
+    if features_meta:
+        for spec in parsed:
+            for feat in spec["features"]:
+                if feat not in features_meta:
+                    raise ValueError(
+                        f"Correlation feature '{feat}' in {spec['features']} was not found in "
+                        f"resolved features {list(features_meta.keys())}."
+                    )
+    return parsed
 
 
 def resolve_weight_dataframe(

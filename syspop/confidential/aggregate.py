@@ -101,6 +101,123 @@ def prepare_encoded_features(
     return norm_df, X_weighted, encoding_info
 
 
+def _extract_categorical_matrix(
+    df: pd.DataFrame,
+    feat_name: str,
+    pre_encoded_categories: dict or None = None,
+) -> tuple:
+    """Return `(categories, onehot_or_prop_matrix)` for a categorical feature."""
+    if pre_encoded_categories is not None and feat_name in pre_encoded_categories:
+        cat_info = pre_encoded_categories[feat_name]
+        col_names = cat_info["columns"]
+        mat = df[col_names].fillna(0.0).to_numpy(dtype=float)
+        return list(cat_info["categories"]), mat
+
+    series_str = df[feat_name].fillna("Missing").astype(str)
+    categories = list(dict.fromkeys(series_str.tolist()))
+    mat = np.zeros((len(df), len(categories)), dtype=float)
+    for idx, cat_val in enumerate(categories):
+        mat[:, idx] = (series_str.to_numpy() == cat_val).astype(float)
+    return categories, mat
+
+
+def add_correlation_features(
+    df: pd.DataFrame,
+    features_meta: dict,
+    correlations: list or None = None,
+    pre_encoded_categories: dict or None = None,
+) -> tuple:
+    """
+    Add correlation/interaction columns to `df` for configured feature pairs prior to
+    nearest-neighbour clustering:
+      - Continuous x Continuous : standardized z-score product (z_f1 * z_f2)
+      - Continuous x Categorical: scaled non-negative continuous value per category
+      - Categorical x Categorical: joint category indicator / cross-product columns
+
+    Returns:
+        tuple: `(df_with_corr, corr_features_meta)` where `corr_features_meta` describes
+        the added correlation columns for distance encoding.
+    """
+    if not correlations:
+        return df, {}
+
+    out_df = df.copy()
+    corr_features_meta = {}
+
+    for corr_spec in correlations:
+        pair = corr_spec.get("features", [])
+        if len(pair) != 2:
+            continue
+        f1, f2 = pair[0], pair[1]
+        if f1 not in features_meta or f2 not in features_meta:
+            continue
+
+        t1 = features_meta[f1]["type"]
+        t2 = features_meta[f2]["type"]
+        weight = float(corr_spec.get("weight", 1.0))
+        base_name = corr_spec.get("name", f"corr_{f1}_{f2}")
+
+        if t1 == "continuous" and t2 == "continuous":
+            x1 = pd.to_numeric(out_df[f1], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+            x2 = pd.to_numeric(out_df[f2], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+            s1, s2 = float(np.std(x1)), float(np.std(x2))
+            z1 = (x1 - float(np.mean(x1))) / s1 if s1 > 0 else np.zeros_like(x1)
+            z2 = (x2 - float(np.mean(x2))) / s2 if s2 > 0 else np.zeros_like(x2)
+            out_df[base_name] = z1 * z2
+            corr_features_meta[base_name] = {
+                "type": "continuous",
+                "weight": weight,
+                "non_negative": False,
+                "is_correlation": True,
+            }
+        elif t1 == "continuous" or t2 == "continuous":
+            cont_f, cat_f = (f1, f2) if t1 == "continuous" else (f2, f1)
+            x_c = pd.to_numeric(out_df[cont_f], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+            x_min, x_max = float(np.min(x_c)), float(np.max(x_c))
+            u_cont = (
+                0.1 + 0.9 * (x_c - x_min) / (x_max - x_min)
+                if x_max > x_min
+                else np.ones_like(x_c)
+            )
+            cats, mat = _extract_categorical_matrix(out_df, cat_f, pre_encoded_categories)
+            for idx, cat_val in enumerate(cats):
+                col_name = f"{base_name}_{cat_val}"
+                out_df[col_name] = u_cont * mat[:, idx]
+                corr_features_meta[col_name] = {
+                    "type": "continuous",
+                    "weight": weight * 0.5,
+                    "non_negative": True,
+                    "is_correlation": True,
+                }
+        else:
+            if pre_encoded_categories is None or (
+                f1 not in pre_encoded_categories and f2 not in pre_encoded_categories
+            ):
+                s1 = out_df[f1].fillna("Missing").astype(str)
+                s2 = out_df[f2].fillna("Missing").astype(str)
+                out_df[base_name] = s1 + "__" + s2
+                corr_features_meta[base_name] = {
+                    "type": "categorical",
+                    "weight": weight,
+                    "is_correlation": True,
+                }
+            else:
+                cats1, mat1 = _extract_categorical_matrix(out_df, f1, pre_encoded_categories)
+                cats2, mat2 = _extract_categorical_matrix(out_df, f2, pre_encoded_categories)
+                for i, c1 in enumerate(cats1):
+                    for j, c2 in enumerate(cats2):
+                        col_name = f"{base_name}_{c1}_{c2}"
+                        out_df[col_name] = mat1[:, i] * mat2[:, j]
+                        corr_features_meta[col_name] = {
+                            "type": "continuous",
+                            "weight": weight * 0.5,
+                            "non_negative": True,
+                            "is_correlation": True,
+                        }
+
+    return out_df, corr_features_meta
+
+
 def compute_pairwise_distances(df: pd.DataFrame, config_or_path=None) -> np.ndarray:
     """
     Compute the pairwise weighted squared distance matrix between all unit records in `df`
@@ -108,7 +225,13 @@ def compute_pairwise_distances(df: pd.DataFrame, config_or_path=None) -> np.ndar
     """
     cfg = load_config(config_or_path)
     data_struct = resolve_data_structure(df, cfg)
-    _, X_weighted, _ = prepare_encoded_features(df, data_struct["features"])
+    df_with_corr, corr_features_meta = add_correlation_features(
+        df,
+        data_struct["features"],
+        correlations=data_struct.get("correlations", []),
+    )
+    dist_features_meta = {**data_struct["features"], **corr_features_meta}
+    _, X_weighted, _ = prepare_encoded_features(df_with_corr, dist_features_meta)
     diff = X_weighted[:, None, :] - X_weighted[None, :, :]
     return np.sum(diff ** 2, axis=-1)
 
@@ -129,6 +252,28 @@ def _count_record_subcell_violations(
                     continue
                 violations += 1
     return violations
+
+
+def _compute_subcell_deficit(
+    cluster_indices: np.ndarray,
+    onehot_matrices: dict,
+    min_cell_count: int,
+    global_cat_counts: dict or None = None,
+) -> int:
+    """
+    Compute total sub-cell deficit across all categorical columns in `cluster_indices`.
+    For each category with 0 < count < min_cell_count, deficit is min(count, min_cell_count - count),
+    measuring the minimum number of records needed to reach either 0 or min_cell_count.
+    """
+    deficit = 0
+    for feat_name, mat in onehot_matrices.items():
+        counts = (mat[cluster_indices] > 0).sum(axis=0)
+        for col_idx, c_val in enumerate(counts):
+            if 0 < c_val < min_cell_count:
+                if global_cat_counts is not None and global_cat_counts[feat_name][col_idx] < min_cell_count:
+                    continue
+                deficit += int(min(c_val, min_cell_count - c_val))
+    return deficit
 
 
 def _record_fits_cluster_categories(
@@ -209,14 +354,14 @@ def _resolve_small_subcells_by_reassignment(
                 if len(pos_matches) == 0:
                     continue
                 pos_a = int(pos_matches[0])
-                cur_v_a = _count_record_subcell_violations(
+                cur_d_a = _compute_subcell_deficit(
                     cur_a, onehot_matrices, min_cell_count, global_cat_counts
                 )
-                if cur_v_a == 0:
+                if cur_d_a == 0:
                     break
 
                 without_a = np.delete(cur_a, pos_a)
-                v_without_a = _count_record_subcell_violations(
+                d_without_a = _compute_subcell_deficit(
                     without_a, onehot_matrices, min_cell_count, global_cat_counts
                 )
 
@@ -225,14 +370,14 @@ def _resolve_small_subcells_by_reassignment(
                     moved = False
                     for b_idx in other_order:
                         cur_b = clusters[b_idx]
-                        v_b_before = _count_record_subcell_violations(
+                        d_b_before = _compute_subcell_deficit(
                             cur_b, onehot_matrices, min_cell_count, global_cat_counts
                         )
                         with_a_in_b = np.append(cur_b, rec_a)
-                        v_b_after = _count_record_subcell_violations(
+                        d_b_after = _compute_subcell_deficit(
                             with_a_in_b, onehot_matrices, min_cell_count, global_cat_counts
                         )
-                        if v_without_a + v_b_after < cur_v_a + v_b_before:
+                        if d_without_a + d_b_after < cur_d_a + d_b_before:
                             clusters[c_idx] = without_a
                             clusters[b_idx] = with_a_in_b
                             centroids[c_idx] = X_weighted[clusters[c_idx]].mean(axis=0)
@@ -247,7 +392,7 @@ def _resolve_small_subcells_by_reassignment(
                 swapped = False
                 for b_idx in other_order:
                     cur_b = clusters[b_idx]
-                    v_b_before = _count_record_subcell_violations(
+                    d_b_before = _compute_subcell_deficit(
                         cur_b, onehot_matrices, min_cell_count, global_cat_counts
                     )
                     for pos_b in range(len(cur_b)):
@@ -255,13 +400,13 @@ def _resolve_small_subcells_by_reassignment(
                         new_a = np.append(without_a, rec_b)
                         new_b = np.append(np.delete(cur_b, pos_b), rec_a)
 
-                        v_a_after = _count_record_subcell_violations(
+                        d_a_after = _compute_subcell_deficit(
                             new_a, onehot_matrices, min_cell_count, global_cat_counts
                         )
-                        v_b_after = _count_record_subcell_violations(
+                        d_b_after = _compute_subcell_deficit(
                             new_b, onehot_matrices, min_cell_count, global_cat_counts
                         )
-                        if v_a_after + v_b_after < cur_v_a + v_b_before:
+                        if d_a_after + d_b_after < cur_d_a + d_b_before:
                             clusters[c_idx] = new_a
                             clusters[b_idx] = new_b
                             centroids[c_idx] = X_weighted[clusters[c_idx]].mean(axis=0)
@@ -321,6 +466,117 @@ def _resolve_small_subcells_by_reassignment(
     return clusters
 
 
+def _repair_cluster_from_pool(
+    c_arr: np.ndarray,
+    pool_arr: np.ndarray,
+    X_weighted: np.ndarray,
+    onehot_matrices: dict,
+    min_cell_count: int,
+    global_cat_counts: dict,
+    max_iters: int = 20,
+) -> tuple:
+    """
+    Repair any small categorical sub-cells (0 < count < min_cell_count) inside `c_arr`
+    while keeping `len(c_arr)` unchanged by swapping records with `pool_arr`:
+      - Option A (Top-up): Pull `need = min_cell_count - cnt` nearest records of that
+        category from `pool_arr` and push `need` farthest non-category records out to `pool_arr`.
+      - Option B (Purge): Push the `cnt` minority records out to `pool_arr` and pull
+        `cnt` nearest compatible records from `pool_arr`.
+    Picks whichever option reduces `_compute_subcell_deficit` with the tightest cluster SSE.
+    """
+    if not onehot_matrices or min_cell_count <= 1 or len(pool_arr) == 0:
+        return c_arr, pool_arr
+
+    for _ in range(max_iters):
+        cur_deficit = _compute_subcell_deficit(
+            c_arr, onehot_matrices, min_cell_count, global_cat_counts
+        )
+        if cur_deficit == 0:
+            break
+
+        # Find the violating cell with the smallest deficit
+        best_cell = None
+        best_cell_def = 10**9
+        for feat_name, mat in onehot_matrices.items():
+            counts = (mat[c_arr] > 0).sum(axis=0)
+            for col_k in np.flatnonzero((counts > 0) & (counts < min_cell_count)):
+                if global_cat_counts[feat_name][col_k] < min_cell_count:
+                    continue
+                cnt = int(counts[col_k])
+                d_val = min(cnt, min_cell_count - cnt)
+                if d_val < best_cell_def:
+                    best_cell_def = d_val
+                    best_cell = (feat_name, int(col_k), cnt)
+
+        if best_cell is None:
+            break
+
+        feat_name, col_k, cnt = best_cell
+        mat = onehot_matrices[feat_name] > 0
+        c_has_mask = mat[c_arr, col_k]
+        p_has_mask = mat[pool_arr, col_k]
+
+        in_c_has = c_arr[c_has_mask]
+        in_c_not = c_arr[~c_has_mask]
+        pool_has = pool_arr[p_has_mask]
+        pool_not = pool_arr[~p_has_mask]
+
+        centroid = X_weighted[c_arr].mean(axis=0)
+        candidates = []
+
+        # Option A: Top-up category col_k to min_cell_count
+        need = min_cell_count - cnt
+        if len(pool_has) >= need and len(in_c_not) >= need:
+            d_pool = np.sum((X_weighted[pool_has] - centroid) ** 2, axis=1)
+            add_recs = pool_has[np.argsort(d_pool)[:need]]
+
+            d_out = np.sum((X_weighted[in_c_not] - centroid) ** 2, axis=1)
+            drop_recs = in_c_not[np.argsort(-d_out)[:need]]
+            keep_not = in_c_not[np.argsort(-d_out)[need:]]
+
+            cand_a = np.concatenate([in_c_has, keep_not, add_recs])
+            def_a = _compute_subcell_deficit(
+                cand_a, onehot_matrices, min_cell_count, global_cat_counts
+            )
+            if def_a < cur_deficit:
+                sse_a = float(np.sum((X_weighted[cand_a] - X_weighted[cand_a].mean(axis=0)) ** 2))
+                candidates.append((def_a, sse_a, cand_a, add_recs, drop_recs))
+
+        # Option B: Purge category col_k down to 0
+        if len(pool_not) >= cnt:
+            d_pool_not = np.sum((X_weighted[pool_not] - centroid) ** 2, axis=1)
+            # Prefer pool_not records that fit existing categories in in_c_not
+            fits = np.array(
+                [
+                    _record_fits_cluster_categories(int(r), in_c_not, onehot_matrices, min_cell_count)
+                    for r in pool_not
+                ],
+                dtype=bool,
+            )
+            order = np.argsort(d_pool_not + np.where(fits, 0.0, 1e6))
+            add_recs_b = pool_not[order[:cnt]]
+            drop_recs_b = in_c_has
+
+            cand_b = np.concatenate([in_c_not, add_recs_b])
+            def_b = _compute_subcell_deficit(
+                cand_b, onehot_matrices, min_cell_count, global_cat_counts
+            )
+            if def_b < cur_deficit:
+                sse_b = float(np.sum((X_weighted[cand_b] - X_weighted[cand_b].mean(axis=0)) ** 2))
+                candidates.append((def_b, sse_b, cand_b, add_recs_b, drop_recs_b))
+
+        if not candidates:
+            break
+
+        _, _, best_cand, added, dropped = min(candidates, key=lambda x: (x[0], x[1]))
+        c_arr = best_cand
+        added_set = set(int(x) for x in added)
+        pool_keep = np.array([r for r in pool_arr if int(r) not in added_set], dtype=int)
+        pool_arr = np.concatenate([pool_keep, dropped.astype(int)])
+
+    return c_arr, pool_arr
+
+
 def _form_subcell_compliant_clusters(
     X_weighted: np.ndarray,
     min_count: int,
@@ -331,18 +587,14 @@ def _form_subcell_compliant_clusters(
 ) -> list:
     """
     Form clusters of size >= `min_count` where every categorical sub-cell has either 0
-    or >= `min_cell_count` records (Option 1: 'reassign_or_merge').
-
-    Strategy:
-      1. Partition records by their exact categorical signature into homogeneous blocks
-         of size >= `min_cell_count` (using nearest-neighbour on continuous features).
-      2. Combine these homogeneous micro-blocks by nearest centroid distance into clusters
-         of size >= `min_count`. Because every micro-block has >= `min_cell_count` identical
-         categorical records, any sum of micro-blocks is guaranteed to have 0 or >= `min_cell_count`
-         records in every category!
-      3. Assign any leftover records from small categorical cells (< `min_cell_count`) to
-         existing clusters that already have >= `min_cell_count` in each of that record's
-         individual categories, or resolve via reassignment/merging.
+    or >= `min_cell_count` records:
+      1. Build each nearest-neighbour cluster of size `min_count` and directly repair any
+         small sub-cell (e.g. turning 17M+3F into 14M+6F or 20M+0F) using nearest records
+         from the unassigned pool.
+      2. Assign any leftover records (< `min_count`) according to `leftover_action`, preferring
+         clusters that remain sub-cell compliant.
+      3. Run cross-cluster reassignment/swap repair so both `min_count` and `min_cell_count`
+         are satisfied without unnecessary cluster merging.
     """
     n_rows = X_weighted.shape[0]
     global_cat_counts = {
@@ -355,7 +607,6 @@ def _form_subcell_compliant_clusters(
     )
 
     if not all_binary:
-        # For family/household level where categories are fractional proportions, use standard NN + reassignment
         base_clusters = _standard_nn_clusters(
             X_weighted, min_count, leftover_action, candidate_pool_size
         )
@@ -363,107 +614,88 @@ def _form_subcell_compliant_clusters(
             base_clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
         )
 
-    # Build categorical signature per row
-    combined_onehot = np.hstack(list(onehot_matrices.values()))
-    # Group indices by identical one-hot row signature
-    sig_groups = {}
-    for row_idx in range(n_rows):
-        sig = tuple(combined_onehot[row_idx].astype(int).tolist())
-        sig_groups.setdefault(sig, []).append(row_idx)
+    unassigned = np.arange(n_rows, dtype=int)
+    clusters = []
 
-    micro_blocks = []
-    leftover_pool = []
+    while len(unassigned) >= min_count:
+        u_len = len(unassigned)
+        X_u = X_weighted[unassigned]
 
-    for sig, idx_list in sig_groups.items():
-        idx_arr = np.array(idx_list, dtype=int)
-        if len(idx_arr) < min_cell_count:
-            leftover_pool.extend(idx_list)
-            continue
+        if u_len == min_count:
+            clusters.append(unassigned.copy())
+            unassigned = np.array([], dtype=int)
+            break
 
-        # Split large homogeneous cells into nearest-neighbour micro-blocks of size >= min_cell_count
-        # If len(idx_arr) >= min_count, we can directly form full clusters of size min_count!
-        u = idx_arr.copy()
-        while len(u) >= min_cell_count:
-            if len(u) < 2 * min_cell_count:
-                micro_blocks.append(u.copy())
-                u = np.array([], dtype=int)
-                break
-            target_sz = min_count if len(u) >= min_count + min_cell_count else min_cell_count
-            X_u = X_weighted[u]
-            dists = np.sum((X_u[0:1] - X_u) ** 2, axis=-1)[0]
-            chosen_local = np.argsort(dists)[:target_sz]
-            micro_blocks.append(u[chosen_local])
-            mask = np.ones(len(u), dtype=bool)
-            mask[chosen_local] = False
-            u = u[mask]
-
-        if len(u) > 0:
-            leftover_pool.extend(u.tolist())
-
-    # Combine micro-blocks into full clusters of size >= min_count
-    ready_clusters = [b for b in micro_blocks if len(b) >= min_count]
-    small_blocks = [b for b in micro_blocks if len(b) < min_count]
-
-    while small_blocks:
-        # Sort so smallest block is merged first
-        small_blocks.sort(key=len)
-        b_cur = small_blocks.pop(0)
-
-        while len(b_cur) < min_count and small_blocks:
-            c_cur = X_weighted[b_cur].mean(axis=0)
-            block_centroids = np.array([X_weighted[b].mean(axis=0) for b in small_blocks])
-            dists = np.sum((block_centroids - c_cur) ** 2, axis=1)
-            nearest_idx = int(np.argmin(dists))
-            b_cur = np.concatenate([b_cur, small_blocks.pop(nearest_idx)])
-
-        if len(b_cur) >= min_count:
-            ready_clusters.append(b_cur)
-        elif ready_clusters:
-            # Attach to nearest ready cluster
-            c_cur = X_weighted[b_cur].mean(axis=0)
-            ready_centroids = np.array([X_weighted[c].mean(axis=0) for c in ready_clusters])
-            nearest_r = int(np.argmin(np.sum((ready_centroids - c_cur) ** 2, axis=1)))
-            ready_clusters[nearest_r] = np.concatenate([ready_clusters[nearest_r], b_cur])
+        if u_len <= candidate_pool_size:
+            cand_positions = np.arange(u_len)
         else:
-            leftover_pool.extend(b_cur.tolist())
+            stride = max(1, u_len // candidate_pool_size)
+            cand_positions = np.arange(0, u_len, stride)[:candidate_pool_size]
 
-    if not ready_clusters:
-        base_clusters = _standard_nn_clusters(
-            X_weighted, min_count, leftover_action, candidate_pool_size
+        X_cand = X_u[cand_positions]
+        dists = np.sum((X_cand[:, None, :] - X_u[None, :, :]) ** 2, axis=-1)
+
+        nearest_part = np.argpartition(dists, kth=min_count - 1, axis=1)[:, :min_count]
+        row_idx = np.arange(len(cand_positions))[:, None]
+        group_scores = np.sum(dists[row_idx, nearest_part], axis=1)
+
+        best_cand_idx = int(np.argmin(group_scores))
+        chosen_local = nearest_part[best_cand_idx]
+        chosen_local = chosen_local[np.argsort(dists[best_cand_idx, chosen_local])]
+
+        c_arr = unassigned[chosen_local]
+        mask = np.ones(u_len, dtype=bool)
+        mask[chosen_local] = False
+        pool_arr = unassigned[mask]
+
+        c_arr, pool_arr = _repair_cluster_from_pool(
+            c_arr,
+            pool_arr,
+            X_weighted,
+            onehot_matrices,
+            min_cell_count,
+            global_cat_counts,
         )
-        return _resolve_small_subcells_by_reassignment(
-            base_clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
-        )
+        clusters.append(c_arr)
+        unassigned = pool_arr
 
-    # Handle leftover records from rare categorical cells
-    if leftover_pool and str(leftover_action).strip().lower() == "assign_nearest":
-        still_unassigned = []
-        ready_centroids = np.array([X_weighted[c].mean(axis=0) for c in ready_clusters])
-        for rec_idx in leftover_pool:
-            # Find clusters where adding rec_idx creates ZERO small sub-cell violations
-            compatible_clusters = [
-                c_i
-                for c_i, c_indices in enumerate(ready_clusters)
-                if _record_fits_cluster_categories(rec_idx, c_indices, onehot_matrices, min_cell_count)
-            ]
-            if compatible_clusters:
-                comp_centroids = ready_centroids[compatible_clusters]
-                d = np.sum((comp_centroids - X_weighted[rec_idx]) ** 2, axis=1)
-                chosen_c = compatible_clusters[int(np.argmin(d))]
-                ready_clusters[chosen_c] = np.append(ready_clusters[chosen_c], rec_idx)
-                ready_centroids[chosen_c] = X_weighted[ready_clusters[chosen_c]].mean(axis=0)
-            else:
-                still_unassigned.append(rec_idx)
+    # Handle leftover records (< min_count)
+    if len(unassigned) > 0 and len(clusters) > 0:
+        action = str(leftover_action).strip().lower()
+        if action == "assign_nearest":
+            centroids = np.array([X_weighted[c].mean(axis=0) for c in clusters])
+            still_unassigned = []
+            for rec_idx in unassigned:
+                compatible_clusters = [
+                    c_i
+                    for c_i, c_indices in enumerate(clusters)
+                    if _record_fits_cluster_categories(
+                        int(rec_idx), c_indices, onehot_matrices, min_cell_count
+                    )
+                ]
+                if compatible_clusters:
+                    comp_centroids = centroids[compatible_clusters]
+                    d = np.sum((comp_centroids - X_weighted[rec_idx]) ** 2, axis=1)
+                    chosen_c = compatible_clusters[int(np.argmin(d))]
+                    clusters[chosen_c] = np.append(clusters[chosen_c], rec_idx)
+                    centroids[chosen_c] = X_weighted[clusters[chosen_c]].mean(axis=0)
+                else:
+                    still_unassigned.append(int(rec_idx))
 
-        # If any records still unassigned, assign to nearest cluster and run reassignment/merge pass
-        for rec_idx in still_unassigned:
-            d = np.sum((ready_centroids - X_weighted[rec_idx]) ** 2, axis=1)
-            chosen_c = int(np.argmin(d))
-            ready_clusters[chosen_c] = np.append(ready_clusters[chosen_c], rec_idx)
-            ready_centroids[chosen_c] = X_weighted[ready_clusters[chosen_c]].mean(axis=0)
+            for rec_idx in still_unassigned:
+                d = np.sum((centroids - X_weighted[rec_idx]) ** 2, axis=1)
+                chosen_c = int(np.argmin(d))
+                clusters[chosen_c] = np.append(clusters[chosen_c], rec_idx)
+                centroids[chosen_c] = X_weighted[clusters[chosen_c]].mean(axis=0)
+        elif action == "suppress":
+            pass
+        else:
+            raise ValueError(
+                f"Unsupported leftover_action '{leftover_action}'. Use 'assign_nearest' or 'suppress'."
+            )
 
     return _resolve_small_subcells_by_reassignment(
-        ready_clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
+        clusters, X_weighted, onehot_matrices, min_count, min_cell_count, global_cat_counts
     )
 
 
@@ -615,6 +847,7 @@ def aggregate_unit_records(
     pre_encoded_categories: dict or None = None,
     weight_col: str or None = None,
     return_details: bool = False,
+    correlations: list or None = None,
 ) -> pd.DataFrame or tuple:
     """
     Step 1 of the Synthetic Data Production Algorithm:
@@ -644,9 +877,23 @@ def aggregate_unit_records(
     else:
         all_unit_weights = None
 
-    norm_df, X_weighted, encoding_info = prepare_encoded_features(
-        df, features_meta, pre_encoded_categories=pre_encoded_categories
+    active_correlations = (
+        data_struct.get("correlations", []) if correlations is None else correlations
     )
+    df_for_dist, corr_features_meta = add_correlation_features(
+        df,
+        features_meta,
+        correlations=active_correlations,
+        pre_encoded_categories=pre_encoded_categories,
+    )
+    dist_features_meta = {**features_meta, **corr_features_meta}
+
+    norm_df, X_weighted, encoding_info = prepare_encoded_features(
+        df_for_dist, dist_features_meta, pre_encoded_categories=pre_encoded_categories
+    )
+    real_onehot_matrices = {
+        k: v for k, v in encoding_info["onehot_matrices"].items() if k in features_meta
+    }
 
     min_group_count = int(rules["min_group_count"])
     min_cell_count = int(rules.get("min_cell_count", 6))
@@ -656,7 +903,7 @@ def aggregate_unit_records(
         X_weighted=X_weighted,
         min_count=min_group_count,
         leftover_action=rules.get("leftover_action", "assign_nearest"),
-        onehot_matrices=encoding_info["onehot_matrices"],
+        onehot_matrices=real_onehot_matrices,
         subcell_action=subcell_action,
         min_cell_count=min_cell_count,
     )
@@ -690,7 +937,7 @@ def aggregate_unit_records(
             suppressed = True
             suppression_reason = f"Rounded count ({rounded_n}) <= 0"
         elif subcell_action == "suppress_cluster" and check_subcell_violation(
-            c_indices, encoding_info["onehot_matrices"], min_cell_count
+            c_indices, real_onehot_matrices, min_cell_count
         ):
             suppressed = True
             suppression_reason = (
@@ -880,16 +1127,20 @@ def aggregate_unit_records(
     agg_df = pd.DataFrame(rows)
 
     if return_details:
+        real_cat_mappings = {
+            k: v for k, v in encoding_info["cat_mappings"].items() if k in features_meta
+        }
         details = {
             "raw_df": df.copy(),
             "normalized_df": norm_df,
             "clusters": kept_clusters,
             "cluster_audit_records": cluster_audit_records,
             "features_meta": features_meta,
-            "cat_mappings": encoding_info["cat_mappings"],
+            "cat_mappings": real_cat_mappings,
             "max_values": encoding_info["max_values"],
             "output_rules": rules,
             "weight_col": weight_col if has_weights else None,
+            "correlations": active_correlations,
         }
         return agg_df, details
 
