@@ -124,6 +124,22 @@ class TestVis(unittest.TestCase):
             for p in focus_paths:
                 self.assertTrue(os.path.exists(p))
 
+    def test_idi_safe_adaptive_bins(self):
+        from syspop.postp.vis import compute_idi_safe_1d_bins, compute_idi_safe_2d_bins
+
+        rng = np.random.default_rng(7)
+        # Skewed distribution where equal-width bins would have sparse tail bins
+        r_vals = np.concatenate([rng.normal(20, 3, size=80), rng.normal(70, 10, size=20)])
+        s_vals = rng.normal(35, 15, size=100)
+        edges = compute_idi_safe_1d_bins(r_vals, s_vals, min_bin_count=20)
+        cnts, _ = np.histogram(r_vals, bins=edges)
+        self.assertTrue(np.all(cnts >= 20))
+        self.assertGreater(len(edges), 2)
+
+        x_bins, y_bins = compute_idi_safe_2d_bins(r_vals, r_vals * 2.0, s_vals, s_vals * 2.0, min_bin_count=6)
+        self.assertGreaterEqual(len(x_bins), 2)
+        self.assertGreaterEqual(len(y_bins), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

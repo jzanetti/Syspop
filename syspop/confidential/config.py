@@ -113,12 +113,37 @@ def load_config(config_or_path=None) -> dict:
 
     data_cfg = deepcopy(raw_cfg.get("data_structure", {}))
     synthesis_cfg = deepcopy(raw_cfg.get("synthesis", {}))
+    verif_cfg = deepcopy(raw_cfg.get("verification", {})) or {}
+
+    verif_min_count = int(
+        verif_cfg.get(
+            "min_count",
+            verif_cfg.get(
+                "min_cell_count",
+                verif_cfg.get("min_bin_count", resolved_rules["min_cell_count"]),
+            ),
+        )
+    )
+    resolved_verification = {
+        "min_count": verif_min_count,
+    }
+    if "thresholds" in verif_cfg and isinstance(verif_cfg["thresholds"], dict):
+        resolved_verification["thresholds"] = deepcopy(verif_cfg["thresholds"])
 
     return {
         "output_rules": resolved_rules,
         "data_structure": data_cfg,
         "synthesis": synthesis_cfg,
+        "verification": resolved_verification,
     }
+
+
+def resolve_verification_config(config_or_path=None) -> dict:
+    """
+    Resolve verification settings (e.g. `min_bin_count`, `min_cell_count`, `thresholds`)
+    from a YAML file path, config dict, or defaults.
+    """
+    return load_config(config_or_path)["verification"]
 
 
 def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
@@ -234,19 +259,41 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
 
     # 4. Resolve optional hierarchy_counts (sub-group member counts when rolling up to family/household)
     raw_h_counts = data_cfg.get("hierarchy_counts", {}) or {}
-    parent_levels = [lvl for lvl in hierarchy if lvl != "individual"]
+    default_ctrl = hierarchy[0] if hierarchy else "individual"
     hierarchy_counts = {}
     if isinstance(raw_h_counts, dict):
         for cnt_name, cnt_spec in raw_h_counts.items():
             if isinstance(cnt_spec, str):
                 cond_str = cnt_spec.strip()
                 c_weight = 1.0
-                c_levels = list(parent_levels)
+                c_ctrl = default_ctrl
+                ctrl_idx = hierarchy.index(c_ctrl) if c_ctrl in hierarchy else 0
+                allowed_targets = hierarchy[ctrl_idx + 1 :]
+                c_levels = list(allowed_targets)
             elif isinstance(cnt_spec, dict):
                 cond_str = str(cnt_spec.get("condition", "")).strip()
                 c_weight = float(cnt_spec.get("weight", 1.0))
-                raw_lvls = cnt_spec.get("levels", parent_levels)
-                c_levels = [str(l).lower() for l in raw_lvls] if isinstance(raw_lvls, list) else list(parent_levels)
+                raw_ctrl = cnt_spec.get("control_level", cnt_spec.get("source_level", default_ctrl))
+                c_ctrl = str(raw_ctrl).strip().lower()
+                if c_ctrl not in hierarchy:
+                    raise ValueError(
+                        f"hierarchy_counts['{cnt_name}'].control_level='{c_ctrl}' is not in hierarchy {hierarchy}."
+                    )
+                ctrl_idx = hierarchy.index(c_ctrl)
+                allowed_targets = hierarchy[ctrl_idx + 1 :]
+                raw_lvls = cnt_spec.get("levels", None)
+                if raw_lvls is None:
+                    c_levels = list(allowed_targets)
+                elif isinstance(raw_lvls, list):
+                    c_levels = [str(l).strip().lower() for l in raw_lvls]
+                    invalid_lvls = [l for l in c_levels if l not in allowed_targets]
+                    if invalid_lvls:
+                        raise ValueError(
+                            f"hierarchy_counts['{cnt_name}'].levels={invalid_lvls} must be strictly above "
+                            f"control_level='{c_ctrl}' (allowed: {allowed_targets})."
+                        )
+                else:
+                    c_levels = list(allowed_targets)
             else:
                 continue
 
@@ -254,6 +301,7 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
                 hierarchy_counts[cnt_name] = {
                     "condition": cond_str,
                     "weight": c_weight,
+                    "control_level": c_ctrl,
                     "levels": c_levels,
                 }
 

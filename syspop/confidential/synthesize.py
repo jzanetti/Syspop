@@ -5,6 +5,7 @@ from syspop.confidential.config import (
     resolve_data_structure,
     _normalize_agg_name,
 )
+from syspop.confidential.aggregate import evaluate_hierarchy_condition
 
 
 HIERARCHY_COUNT_ALIASES = {
@@ -395,15 +396,14 @@ def recreate_individuals_from_agg(
 
     ind_records = pd.concat(chunks, ignore_index=True)
 
-    # Evaluate any configured hierarchy_counts conditions (e.g. "age < 18") on synthetic individuals
+    # Evaluate any configured hierarchy_counts conditions controlled at 'individual' level
     for cnt_name, cnt_spec in hierarchy_counts.items():
+        if str(cnt_spec.get("control_level", "individual")).strip().lower() != "individual":
+            continue
         cond_str = str(cnt_spec.get("condition", "")).strip()
         if not cond_str:
             continue
-        if cond_str.lower() in ("all", "true", "1"):
-            ind_records[f"__hcount_{cnt_name}"] = 1.0
-        else:
-            ind_records[f"__hcount_{cnt_name}"] = ind_records.eval(cond_str).astype(float)
+        ind_records[f"__hcount_{cnt_name}"] = evaluate_hierarchy_condition(ind_records, cond_str)
 
     ind_id_col = schema["id_columns"].get("individual", "person_id")
     ind_records.insert(0, ind_id_col, np.arange(1, len(ind_records) + 1, dtype=int))
@@ -444,6 +444,7 @@ def _generate_parent_targets(
     cfg: dict,
     rng: np.random.Generator,
     target_parent_count: int or None = None,
+    parent_level: str or None = None,
 ) -> tuple:
     """
     Generate synthetic parent unit targets (e.g., families or households) from a
@@ -534,8 +535,11 @@ def _generate_parent_targets(
             for col_idx, col_label in enumerate(cat_info["columns"]):
                 chunk[f"__onehot_{col_label}"] = np.full(n_p, probs[col_idx], dtype=float)
 
-        # Sample any configured sub-group member counts (e.g., individual_under_18)
-        for cnt_name in hierarchy_counts:
+        # Sample any configured sub-group member counts targeting this parent_level
+        for cnt_name, cnt_spec in hierarchy_counts.items():
+            allowed_levels = cnt_spec.get("levels", ["family", "household"])
+            if parent_level is not None and parent_level not in allowed_levels:
+                continue
             c_col = _match_column_case_insensitive(parent_agg_df, [cnt_name])
             if c_col is not None:
                 c_std_col = _match_column_case_insensitive(
@@ -808,7 +812,12 @@ def create_synthetic_dataset(
             else HIERARCHY_COUNT_ALIASES["household_no_family"]
         )
         hh_targets_df, _ = _generate_parent_targets(
-            agg_tables["household"], hh_aliases, schema, cfg, rng
+            agg_tables["household"],
+            hh_aliases,
+            schema,
+            cfg,
+            rng,
+            parent_level="household",
         )
         if has_family and len(hh_targets_df) > 0:
             reconcile_mode = str(cfg.get("synthesis", {}).get("reconcile_counts", "auto")).lower()
@@ -826,6 +835,7 @@ def create_synthetic_dataset(
             cfg,
             rng,
             target_parent_count=total_families_needed,
+            parent_level="family",
         )
         if len(fam_targets_df) > 0:
             reconcile_mode = str(cfg.get("synthesis", {}).get("reconcile_counts", "auto")).lower()
@@ -874,6 +884,20 @@ def create_synthetic_dataset(
 
         # 5. Link families -> households (if household level is also active)
         if has_household and hh_targets_df is not None and len(hh_targets_df) > 0:
+            # Evaluate any family-controlled hierarchy_counts on realized_families_df
+            for cnt_name, cnt_spec in schema.get("hierarchy_counts", {}).items():
+                if (
+                    str(cnt_spec.get("control_level", "individual")).strip().lower() == "family"
+                    and "household" in cnt_spec.get("levels", ["household"])
+                ):
+                    cond_str = str(cnt_spec.get("condition", "")).strip()
+                    if cond_str:
+                        fam_eval_df = realized_families_df.copy()
+                        if "individual_num" not in fam_eval_df.columns and "__child_count" in fam_eval_df.columns:
+                            fam_eval_df["individual_num"] = fam_eval_df["__child_count"]
+                        realized_families_df[f"__hcount_{cnt_name}"] = evaluate_hierarchy_condition(
+                            fam_eval_df, cond_str
+                        )
             hh_id_col = id_columns.get("household", "household_id")
             linked_families, realized_hh_df, hh_residuals = assign_children_to_parents_greedy(
                 children_df=realized_families_df,

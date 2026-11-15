@@ -276,6 +276,11 @@ data_structure:
                 "hierarchy_counts": {
                     "under_18": "age < 18",
                     "retiree": {"condition": "age >= 65", "weight": 2.0},
+                    "high_income_fam": {
+                        "control_level": "family",
+                        "condition": "income > 100000",
+                        "weight": 1.5,
+                    },
                 },
                 "features": {
                     "age": {"type": "continuous", "agg": "mean", "weight": 2.0},
@@ -287,8 +292,24 @@ data_structure:
         self.assertEqual(res["hierarchy"], ["individual", "family", "household"])
         self.assertIn("under_18", res["hierarchy_counts"])
         self.assertEqual(res["hierarchy_counts"]["under_18"]["condition"], "age < 18")
+        self.assertEqual(res["hierarchy_counts"]["under_18"]["control_level"], "individual")
+        self.assertEqual(res["hierarchy_counts"]["under_18"]["levels"], ["family", "household"])
         self.assertEqual(res["hierarchy_counts"]["retiree"]["condition"], "age >= 65")
         self.assertEqual(res["hierarchy_counts"]["retiree"]["weight"], 2.0)
+        self.assertEqual(res["hierarchy_counts"]["high_income_fam"]["control_level"], "family")
+        self.assertEqual(res["hierarchy_counts"]["high_income_fam"]["levels"], ["household"])
+
+        bad_cfg = {
+            "data_structure": {
+                "hierarchy": ["individual", "family", "household"],
+                "hierarchy_counts": {
+                    "bad": {"control_level": "family", "levels": ["family"], "condition": "age > 10"}
+                },
+                "features": {"age": {"type": "continuous"}},
+            }
+        }
+        with self.assertRaises(ValueError):
+            resolve_data_structure(df, bad_cfg)
         self.assertEqual(res["features"]["age"]["agg"], "mean")
         self.assertEqual(res["features"]["age"]["type"], "continuous")
         self.assertEqual(res["features"]["sex"]["type"], "categorical")
@@ -381,6 +402,24 @@ data_structure:
         }
         with self.assertRaises(ValueError):
             resolve_data_structure(df, bad_cfg)
+
+    def test_verification_config_resolution(self):
+        """load_config and resolve_verification_config resolve verification min_count."""
+        from syspop.confidential.config import resolve_verification_config
+
+        # Explicit verification override
+        cfg = {
+            "output_rules": {"continuous": {"min_count": 20}, "categorical": {"min_count": 6}},
+            "verification": {"min_count": 10},
+        }
+        verif = resolve_verification_config(cfg)
+        self.assertEqual(verif["min_count"], 10)
+
+        # Fallback to output_rules.categorical.min_count when verification section is omitted
+        verif_default = resolve_verification_config(
+            {"output_rules": {"continuous": {"min_count": 25}, "categorical": {"min_count": 8}}}
+        )
+        self.assertEqual(verif_default["min_count"], 8)
 
 
 if __name__ == "__main__":

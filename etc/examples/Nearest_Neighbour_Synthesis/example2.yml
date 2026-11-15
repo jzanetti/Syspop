@@ -23,13 +23,24 @@ data_structure:
     family: "family_id"
     household: "household_id"
 
-  # Sub-group member counts when rolling up from individual to family / household
+  # Sub-group member counts when rolling up from `control_level` to higher `levels`
   # (Total unit counts `individual_num` and `family_num` are always included automatically)
   hierarchy_counts:
     individual_under_18:
-      condition: "age < 18"
+      control_level: "individual" # Source level where `condition` is evaluated (default: "individual")
+      condition: "age < 18" # Supports flexible expressions: e.g., "5 < age < 18", "age > 18", "sex == 'Female'"
       weight: 2.5
-      levels: [family] # optional; omit to include both [family, household]
+      levels: [family, household] # Target parent levels strictly above `control_level`
+    youth_5_to_18:
+      control_level: "individual"
+      condition: "5 < age < 18"
+      weight: 2.0
+      levels: [family]
+    high_income_family:
+      control_level: "family"
+      condition: "income > 100000"
+      weight: 1.5
+      levels: [household]
 
   features:
     location:
@@ -67,3 +78,6 @@ data_structure:
 synthesis:
   reconcile_counts: "auto"
   random_seed: 42
+
+verification:
+  min_count: 20 # Minimum raw units per bin/cell/category in verification plots & figure counts

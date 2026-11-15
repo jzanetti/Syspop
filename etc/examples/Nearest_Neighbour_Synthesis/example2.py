@@ -9,11 +9,12 @@ from syspop.confidential import (
     run_datalab_aggregation,
     run_outside_synthesis,
     export_synthetic_verification_report,
+    export_verification_figures_counts,
 )
-from syspop.postp.vis import plot_distribution, plot_comparison, plot_cross_comparison
+from syspop.postp.vis import plot_distribution, plot_hierarchical_verification
 
 
-def generate_complex_microdata(seed: int = 2026) -> pd.DataFrame:
+def generate_complex_microdata(seed: int = 2026, n_hhld=500) -> pd.DataFrame:
     """
     Generate a realistic confidential unit-record microdata table with:
       - Hierarchy IDs: household_id, family_id, person_id
@@ -50,8 +51,8 @@ def generate_complex_microdata(seed: int = 2026) -> pd.DataFrame:
 
     records = []
 
-    # Generate 120 households (~260 families, ~750 individuals)
-    for hh_id in range(1, 121):
+    # e.g., if generate 120 households (~260 families, ~750 individuals)
+    for hh_id in range(1, n_hhld + 1):
         hh_location = rng.choice(locations, p=loc_probs)
         n_families = int(rng.choice([1, 2, 3], p=[0.25, 0.55, 0.20]))
 
@@ -255,34 +256,40 @@ def run_complex_example():
     for lvl, res in diagnostics["residuals"].items():
         print(f"  {lvl.capitalize()} level:", {k: round(v, 3) for k, v in res.items()})
 
-    # Plot 1D and all pairwise 2D cross-feature comparisons (Raw vs. Synthetic)
+    # Plot 1D and pairwise 2D cross-feature comparisons across all hierarchy levels (individual, family, household)
     feature_cols = ["age", "sex", "income", "saving", "occupation", "location"]
-    comp_plot = plot_comparison(
-        raw_df,
-        syn_df,
+    fig_bundle = plot_hierarchical_verification(
+        raw_df=raw_df,
+        syn_df=syn_df,
         columns=feature_cols,
         output_dir=syn_output_dir,
+        config_or_path=cfg_path,
     )
-    cross_plots = plot_cross_comparison(
-        raw_df,
-        syn_df,
-        columns=feature_cols,
-        output_dir=syn_output_dir,
-    )
-    # Export Excel accuracy verification report alongside the comparison PNGs
+    all_plots = fig_bundle["all_figures"]
+    # Export Excel accuracy verification report and underlying figure record counts across all levels
     verif_excel = export_synthetic_verification_report(
         raw_df=raw_df,
         syn_df=syn_df,
         output_dir=syn_output_dir,
         columns=feature_cols,
         diagnostics=diagnostics,
+        config_or_path=cfg_path,
+    )
+    figs_counts_excel = export_verification_figures_counts(
+        raw_df=raw_df,
+        syn_df=syn_df,
+        columns=feature_cols,
+        output_dir=syn_output_dir,
+        config_or_path=cfg_path,
     )
     print(
-        f"\n[6] Saved Excel verification report ({verif_excel}), 1D comparison ({comp_plot}), "
-        f"and {len(cross_plots)} pairwise Raw vs. Synthetic cross-feature comparison plots to '{syn_output_dir}/':"
+        f"\n[6] Saved Excel verification report ({verif_excel}), figure counts workbook ({figs_counts_excel}), "
+        f"and {len(all_plots)} grouped Raw vs. Synthetic comparison plots under '{syn_output_dir}/figures/':"
     )
-    for cp in cross_plots:
-        print(f"    - {cp}")
+    for lvl, paths in fig_bundle["by_level"].items():
+        print(f"    [{lvl}] ({len(paths)} figures)")
+        for p in paths:
+            print(f"      - {p}")
 
 
 if __name__ == "__main__":

@@ -1147,6 +1147,21 @@ def aggregate_unit_records(
     return agg_df
 
 
+def evaluate_hierarchy_condition(df: pd.DataFrame, cond_str: str) -> np.ndarray:
+    """
+    Evaluate a flexible boolean condition string on `df` (supporting chained
+    comparisons like `5 < age < 18`, `age > 18`, string equality `sex == "abc"`,
+    and `in` lists) and return a float array of 0.0 / 1.0 values.
+    """
+    cond = str(cond_str).strip()
+    if not cond:
+        return np.zeros(len(df), dtype=float)
+    if cond.lower() in ("all", "true", "1"):
+        return np.ones(len(df), dtype=float)
+    res = df.eval(cond, engine="python")
+    return pd.Series(res, index=df.index).fillna(False).astype(bool).to_numpy(dtype=float)
+
+
 def build_unit_hierarchy_table(
     df: pd.DataFrame,
     group_id_cols: str or list,
@@ -1157,6 +1172,7 @@ def build_unit_hierarchy_table(
     weight_col: str or None = None,
     hierarchy_counts: dict or None = None,
     level_name: str or None = None,
+    source_tables_by_level: dict or None = None,
 ) -> tuple:
     """
     Step 2 helper: Merge individual unit records by `group_id_cols` (e.g. `[household_id, family_id]`
@@ -1242,19 +1258,24 @@ def build_unit_hierarchy_table(
             cond_str = str(cnt_spec.get("condition", "")).strip()
             if not cond_str:
                 continue
-            if cond_str.lower() in ("all", "true", "1"):
-                work_df[cnt_name] = 1.0
-            else:
-                work_df[cnt_name] = work_df.eval(cond_str).astype(float)
-            unit_level_df[cnt_name] = (
-                work_df.groupby(group_id_cols, sort=False)[cnt_name].sum().to_numpy(dtype=float)
+            ctrl_lvl = str(cnt_spec.get("control_level", "individual")).strip().lower()
+            src_df = (
+                source_tables_by_level.get(ctrl_lvl, work_df)
+                if source_tables_by_level is not None
+                else work_df
             )
+            tmp_src = src_df[group_id_cols].copy()
+            tmp_src[cnt_name] = evaluate_hierarchy_condition(src_df, cond_str)
+            grp_cnt = tmp_src.groupby(group_id_cols, as_index=False, sort=False)[cnt_name].sum()
+            merged_cnt = unit_level_df[group_id_cols].merge(grp_cnt, on=group_id_cols, how="left")
+            unit_level_df[cnt_name] = merged_cnt[cnt_name].fillna(0.0).to_numpy(dtype=float)
             level_features_meta[cnt_name] = {
                 "type": "continuous",
                 "weight": float(cnt_spec.get("weight", 1.0)),
                 "non_negative": True,
                 "agg": "sum",
                 "is_hierarchy_count": True,
+                "control_level": ctrl_lvl,
                 "condition": cond_str,
             }
 
@@ -1302,6 +1323,7 @@ def aggregate_hierarchy(
     cat_mappings = ind_details["cat_mappings"]
 
     # 2. Family level aggregation (if present in hierarchy)
+    source_tables_by_level = {"individual": work_df}
     if "family" in hierarchy:
         fam_col = id_columns.get("family", "family_id")
         if fam_col not in work_df.columns:
@@ -1324,7 +1346,9 @@ def aggregate_hierarchy(
             weight_col=weight_col,
             hierarchy_counts=hierarchy_counts,
             level_name="family",
+            source_tables_by_level=source_tables_by_level,
         )
+        source_tables_by_level["family"] = fam_unit_df
         fam_agg, fam_details = aggregate_unit_records(
             fam_unit_df,
             cfg,
@@ -1358,6 +1382,7 @@ def aggregate_hierarchy(
             weight_col=weight_col,
             hierarchy_counts=hierarchy_counts,
             level_name="household",
+            source_tables_by_level=source_tables_by_level,
         )
         hh_agg, hh_details = aggregate_unit_records(
             hh_unit_df,

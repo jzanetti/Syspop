@@ -16,6 +16,7 @@ from syspop.confidential import (
     run_confidential_synthetic_pipeline,
     evaluate_synthetic_data,
     export_synthetic_verification_report,
+    export_verification_figures_counts,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "run_confidential_synthetic_pipeline",
     "evaluate_synthetic_data",
     "export_synthetic_verification_report",
+    "export_verification_figures_counts",
 ]
