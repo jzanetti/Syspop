@@ -180,6 +180,8 @@ def plot_comparison(
     filename: str = "comparison_raw_vs_synthetic.png",
     min_count: int or None = None,
     config_or_path=None,
+    level_name: str or None = None,
+    grouped_filenames: bool = False,
 ):
     """
     Plot side-by-side 1D comparison of feature distributions between the original
@@ -196,8 +198,15 @@ def plot_comparison(
     if isinstance(columns, str):
         columns = [columns]
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    target_dir = output_dir
+    if grouped_filenames or level_name is not None:
+        sub_parts = [output_dir, "figures"] + ([level_name] if level_name else [])
+        target_dir = os.path.join(*sub_parts)
+        if filename == "comparison_raw_vs_synthetic.png":
+            filename = "1d_distributions.png"
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
 
     n_cols = len(columns)
     n_grid_cols = min(3, n_cols)
@@ -248,7 +257,7 @@ def plot_comparison(
         axes[extra_idx].axis("off")
 
     plt.tight_layout()
-    out_path = os.path.join(output_dir, filename)
+    out_path = os.path.join(target_dir, filename)
     plt.savefig(out_path)
     plt.close()
     return out_path
@@ -262,6 +271,7 @@ def _plot_single_pair_comparison(
     output_dir: str,
     include_scatter: bool = False,
     min_count: int = 6,
+    grouped_filenames: bool = False,
 ) -> str:
     """
     Create a side-by-side Raw vs. Synthetic comparison figure for a pair of features `(col1, col2)`:
@@ -271,7 +281,16 @@ def _plot_single_pair_comparison(
     """
     cat1 = _is_categorical(raw_df[col1])
     cat2 = _is_categorical(raw_df[col2])
-    out_path = os.path.join(output_dir, f"comparison_{col1}_{col2}.png")
+    if grouped_filenames:
+        if cat1 and cat2:
+            prefix = "2d_cat_cat"
+        elif cat1 != cat2:
+            prefix = "2d_cat_cont"
+        else:
+            prefix = "2d_cont_cont"
+        out_path = os.path.join(output_dir, f"{prefix}_{col1}_vs_{col2}.png")
+    else:
+        out_path = os.path.join(output_dir, f"comparison_{col1}_{col2}.png")
 
     if cat1 and cat2:
         cats1 = sorted(set(raw_df[col1].dropna()).union(set(syn_df[col1].dropna())), key=str)
@@ -508,9 +527,11 @@ def plot_cross_comparison(
     include_scatter: bool = False,
     min_count: int or None = None,
     config_or_path=None,
+    level_name: str or None = None,
+    grouped_filenames: bool = False,
 ) -> list:
     """
-    Generate Raw vs. Synthetic cross-feature comparison plots (`comparison_{col1}_{col2}.png`).
+    Generate Raw vs. Synthetic cross-feature comparison plots.
 
     Parameters:
       - raw_df: Confidential unit-record DataFrame.
@@ -523,6 +544,9 @@ def plot_cross_comparison(
       - min_count: Minimum raw units per cell/category (default from `config_or_path`
         verification settings or 6).
       - config_or_path: Optional YAML path or config dict containing `verification` settings.
+      - level_name: Optional hierarchy level name (e.g., 'individual', 'family', 'household').
+      - grouped_filenames: When True (or when `level_name` is set), saves plots under
+        `{output_dir}/figures/{level_name}/` with type-prefixed filenames.
 
     Returns:
       - List of saved PNG file paths.
@@ -535,8 +559,14 @@ def plot_cross_comparison(
         else:
             min_count = 6
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    use_grouped = bool(grouped_filenames or level_name is not None)
+    target_dir = output_dir
+    if use_grouped:
+        sub_parts = [output_dir, "figures"] + ([level_name] if level_name else [])
+        target_dir = os.path.join(*sub_parts)
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
 
     if focus_column is not None:
         pairs = [(focus_column, c) for c in columns if c != focus_column]
@@ -550,10 +580,72 @@ def plot_cross_comparison(
             syn_df,
             col1,
             col2,
-            output_dir,
+            target_dir,
             include_scatter=include_scatter,
             min_count=min_count,
+            grouped_filenames=use_grouped,
         )
         saved_paths.append(path)
 
     return saved_paths
+
+
+def plot_hierarchical_verification(
+    raw_df: pd.DataFrame,
+    syn_df: pd.DataFrame,
+    columns: list or None = None,
+    output_dir: str = "./output",
+    config_or_path=None,
+    include_scatter: bool = False,
+    min_count: int or None = None,
+) -> dict:
+    """
+    Generate grouped Raw vs. Synthetic 1D and 2D verification figures across all
+    configured hierarchy levels (e.g. `individual`, `family`, `household`) under
+    `{output_dir}/figures/{level}/`.
+    """
+    from syspop.confidential.verify import build_verification_level_datasets
+
+    level_datasets = build_verification_level_datasets(
+        raw_df=raw_df,
+        syn_df=syn_df,
+        config_or_path=config_or_path,
+        columns=columns,
+    )
+    by_level = {}
+    all_figures = []
+    for lvl, spec in level_datasets.items():
+        p_cols = spec["plot_columns"]
+        if not p_cols:
+            by_level[lvl] = []
+            continue
+        lvl_figs = []
+        p_1d = plot_comparison(
+            spec["raw_df"],
+            spec["syn_df"],
+            columns=p_cols,
+            output_dir=output_dir,
+            min_count=min_count,
+            config_or_path=config_or_path,
+            level_name=lvl,
+            grouped_filenames=True,
+        )
+        lvl_figs.append(p_1d)
+        if len(p_cols) >= 2:
+            lvl_figs.extend(
+                plot_cross_comparison(
+                    spec["raw_df"],
+                    spec["syn_df"],
+                    columns=p_cols,
+                    output_dir=output_dir,
+                    include_scatter=include_scatter,
+                    min_count=min_count,
+                    config_or_path=config_or_path,
+                    level_name=lvl,
+                    grouped_filenames=True,
+                )
+            )
+        by_level[lvl] = lvl_figs
+        all_figures.extend(lvl_figs)
+
+    return {"by_level": by_level, "all_figures": all_figures}

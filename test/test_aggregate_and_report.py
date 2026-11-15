@@ -566,56 +566,49 @@ class TestReport(unittest.TestCase):
     def test_evaluate_and_export_synthetic_verification_report(self):
         raw_df = pd.DataFrame(
             {
-                "age": [20.0, 25.0, 30.0, 35.0, 40.0, 45.0],
-                "income": [40000.0, 50000.0, 60000.0, 70000.0, 80000.0, 90000.0],
-                "sex": ["M", "M", "M", "F", "F", "F"],
-                "region": ["A", "A", "B", "B", "A", "B"],
+                "age": [float(20 + i) for i in range(20)],
+                "income": [float(40000 + 2500 * i) for i in range(20)],
+                "sex": ["M" if i % 2 == 0 else "F" for i in range(20)],
+                "region": ["A" if i % 3 != 0 else "B" for i in range(20)],
             }
         )
-        # Identical synthetic dataset should achieve exact 1.0 similarity and 0.0 distances
+        # Identical synthetic dataset should achieve exact 0 differences and PASS
         res_exact = evaluate_synthetic_data(
             raw_df=raw_df,
             syn_df=raw_df.copy(),
             columns=["age", "income", "sex", "region"],
             diagnostics={"residuals": {"family": {"age_sum": 0.25}}},
+            min_count=2,
         )
-        self.assertTrue((res_exact["continuous_fidelity"]["ks_statistic"] == 0.0).all())
-        self.assertTrue((res_exact["continuous_fidelity"]["wasserstein_distance"] == 0.0).all())
-        self.assertTrue((res_exact["continuous_fidelity"]["status"] == "PASS").all())
-        self.assertTrue((res_exact["categorical_summary"]["tvd"] == 0.0).all())
-        self.assertTrue((res_exact["categorical_summary"]["raw_total_count"] == 6).all())
-        self.assertTrue((res_exact["categorical_summary"]["min_raw_cell_count"] == 3).all())
-        self.assertTrue((res_exact["categorical_summary"]["status"] == "PASS").all())
-        self.assertTrue((res_exact["pairwise_correlations"]["abs_diff"] < 1e-12).all())
-        self.assertTrue((res_exact["pairwise_correlations"]["raw_count"] == 6).all())
-        self.assertTrue((res_exact["pairwise_correlations"]["status"] == "PASS").all())
+        self.assertTrue((res_exact["numeric_summary"]["mean_diff"] == 0.0).all())
+        self.assertTrue((res_exact["numeric_summary"]["idi_status"] == "PASS").all())
+        self.assertTrue((res_exact["category_summary"]["proportion_diff"] == 0.0).all())
+        self.assertTrue((res_exact["category_summary"]["idi_status"] == "PASS").all())
+        self.assertTrue((res_exact["pairwise_correlations"]["diff"] < 1e-12).all())
+        self.assertTrue((res_exact["pairwise_correlations"]["raw_count"] == 20).all())
+        self.assertTrue((res_exact["pairwise_correlations"]["idi_status"] == "PASS").all())
         self.assertEqual(len(res_exact["hierarchy_residuals"]), 1)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            from syspop.postp.vis import plot_comparison
-
-            comp_png = plot_comparison(raw_df, raw_df.copy(), columns=["age", "sex"], output_dir=tmp_dir)
             xlsx_path = export_synthetic_verification_report(
                 raw_df=raw_df,
                 syn_df=raw_df.copy(),
                 output_dir=tmp_dir,
                 columns=["age", "income", "sex", "region"],
                 diagnostics={"residuals": {"family": {"age_sum": 0.25}}},
-                figure_paths=[comp_png],
+                min_count=2,
             )
             self.assertTrue(os.path.exists(xlsx_path))
             xl = pd.ExcelFile(xlsx_path)
             self.assertEqual(
                 xl.sheet_names,
                 [
-                    "0_Metric_Guide",
+                    "0_Guide",
                     "1_Overall_Summary",
-                    "2_Continuous_Fidelity",
-                    "3_Categorical_Summary",
-                    "4_Category_Proportions",
-                    "5_Pairwise_Correlations",
-                    "6_Hierarchy_Residuals",
-                    "Verification_Figures",
+                    "2_Numeric_Summary",
+                    "3_Category_Summary",
+                    "4_Pairwise_Correlations",
+                    "5_Hierarchy_Residuals",
                 ],
             )
 
@@ -641,14 +634,18 @@ class TestReport(unittest.TestCase):
             fig_sum = pd.read_excel(xl_figs, sheet_name="0_Figures_Summary")
             # 1D comparison + 6 pairwise figures = 7 rows
             self.assertEqual(len(fig_sum), 7)
-            self.assertTrue((fig_sum["raw_total_count"] == 6).all())
+            self.assertTrue((fig_sum["raw_total_count"] == 20).all())
             for sh in ["1D_Histograms", "1D_Categories", "2D_Cat_Cat", "2D_Cat_Cont", "2D_Cont_Cont_Density"]:
                 df_sh = pd.read_excel(xl_figs, sheet_name=sh)
                 self.assertIn("figure_file", df_sh.columns)
-                self.assertIn("min_required_count", df_sh.columns)
                 self.assertIn("idi_status", df_sh.columns)
+            for sh in ["1D_Histograms", "1D_Categories", "2D_Cat_Cat"]:
+                df_sh = pd.read_excel(xl_figs, sheet_name=sh)
+                self.assertNotIn("raw_proportion", df_sh.columns)
+                self.assertNotIn("syn_proportion", df_sh.columns)
+                self.assertNotIn("min_required_count", df_sh.columns)
 
-            # Verify config_or_path drives min_count
+            # Verify config_or_path drives min_count (e.g. min_count=3 flags raw_count < 3)
             custom_cfg = {"verification": {"min_count": 3}}
             figs_custom_xlsx = export_verification_figures_counts(
                 raw_df=raw_df,
@@ -659,12 +656,73 @@ class TestReport(unittest.TestCase):
                 config_or_path=custom_cfg,
             )
             xl_custom = pd.ExcelFile(figs_custom_xlsx)
-            hist_1d = pd.read_excel(xl_custom, sheet_name="1D_Histograms")
             cont_2d = pd.read_excel(xl_custom, sheet_name="2D_Cont_Cont_Density")
-            cat_1d = pd.read_excel(xl_custom, sheet_name="1D_Categories")
-            self.assertTrue((hist_1d["min_required_count"] == 3).all())
             self.assertTrue((cont_2d["min_required_count"] == 3).all())
-            self.assertTrue((cat_1d["min_required_count"] == 3).all())
+
+    def test_hierarchical_verification_levels_and_grouped_figures(self):
+        from syspop.postp.vis import plot_hierarchical_verification
+
+        hier_df = pd.DataFrame(
+            {
+                "household_id": [1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6],
+                "family_id": [1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                "person_id": list(range(1, 13)),
+                "age": [10.0, 35.0, 40.0, 12.0, 38.0, 28.0, 30.0, 45.0, 50.0, 15.0, 42.0, 60.0],
+                "income": [0.0, 50000.0, 60000.0, 0.0, 70000.0, 45000.0, 55000.0, 80000.0, 90000.0, 0.0, 65000.0, 40000.0],
+                "sex": ["M", "F", "M", "F", "M", "F", "M", "F", "M", "F", "M", "F"],
+            }
+        )
+        cfg = {
+            "data_structure": {
+                "hierarchy": ["individual", "family", "household"],
+                "id_columns": {"individual": "person_id", "family": "family_id", "household": "household_id"},
+                "hierarchy_counts": {
+                    "under_18": {"control_level": "individual", "condition": "age < 18", "levels": ["family", "household"]}
+                },
+                "features": {
+                    "age": {"type": "continuous", "agg": "mean"},
+                    "income": {"type": "continuous", "agg": "sum"},
+                    "sex": {"type": "categorical"},
+                },
+            },
+            "verification": {"min_count": 2},
+        }
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fig_bundle = plot_hierarchical_verification(
+                raw_df=hier_df,
+                syn_df=hier_df.copy(),
+                columns=["age", "income", "sex"],
+                output_dir=tmp_dir,
+                config_or_path=cfg,
+            )
+            self.assertEqual(list(fig_bundle["by_level"].keys()), ["individual", "family", "household"])
+            self.assertTrue(any("figures/individual/1d_distributions.png" in p for p in fig_bundle["by_level"]["individual"]))
+            self.assertTrue(any("figures/family/2d_" in p for p in fig_bundle["by_level"]["family"]))
+            self.assertTrue(any("figures/household/1d_distributions.png" in p for p in fig_bundle["by_level"]["household"]))
+
+            verif_xlsx = export_synthetic_verification_report(
+                raw_df=hier_df,
+                syn_df=hier_df.copy(),
+                output_dir=tmp_dir,
+                columns=["age", "income", "sex"],
+                figure_paths=fig_bundle["all_figures"],
+                config_or_path=cfg,
+            )
+            overall = pd.read_excel(verif_xlsx, sheet_name="1_Overall_Summary")
+            self.assertEqual(set(overall["level"]), {"individual", "family", "household"})
+
+            counts_xlsx = export_verification_figures_counts(
+                raw_df=hier_df,
+                syn_df=hier_df.copy(),
+                columns=["age", "income", "sex"],
+                output_dir=tmp_dir,
+                config_or_path=cfg,
+            )
+            fig_sum = pd.read_excel(counts_xlsx, sheet_name="0_Figures_Summary")
+            self.assertEqual(set(fig_sum["level"]), {"individual", "family", "household"})
+            # Verify 1-to-1 match between plotted figure filenames and figure_file column
+            plotted_rel = {f"{os.path.basename(os.path.dirname(p))}/{os.path.basename(p)}" for p in fig_bundle["all_figures"]}
+            self.assertEqual(plotted_rel, set(fig_sum["figure_file"]))
 
 
 if __name__ == "__main__":

@@ -175,13 +175,13 @@ See:
 # For Develpers
 ```
 # 1. Test the package
-`python -m unittest discover -s test -p "test_*.py" -v`
+python -m unittest discover -s test -p "test_*.py" -v
 # 2. Make sure build and twine are installed
-`pip install --upgrade build twine`
+pip install --upgrade build twine
 # 3. Clean old build artifacts
-`rm -rf dist/ build/ *.egg-info`
+rm -rf dist/ build/ *.egg-info
 # 4. Build the new wheel (.whl) and source distribution (.tar.gz) for v0.5.0
-`python -m build`
+python -m build
 # 5. Upload to PyPI (will prompt for your PyPI API token)
-`python -m twine upload dist/*`
+python -m twine upload dist/*
 ```
