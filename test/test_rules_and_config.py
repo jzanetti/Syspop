@@ -421,6 +421,31 @@ data_structure:
         )
         self.assertEqual(verif_default["min_count"], 8)
 
+    def test_unified_common_agg_verif_synthesis_config(self):
+        """load_config supports unified common/agg/verif/synthesis layout including null sections."""
+        from syspop.confidential.config import resolve_verification_config
+
+        unified_cfg = {
+            "common": {
+                "hierarchy": ["employee", "company"],
+                "id_columns": {"employee": "emp_id", "company": "comp_id"},
+                "features": {"tenure": {"type": "continuous", "agg": "mean"}},
+            },
+            "agg": {
+                "rounding_base": 3,
+                "continuous": {"min_count": 12},
+                "categorical": {"min_count": 4},
+            },
+            "verif": None,
+            "synthesis": None,
+        }
+        loaded = load_config(unified_cfg)
+        self.assertEqual(loaded["data_structure"]["hierarchy"], ["employee", "company"])
+        self.assertEqual(loaded["output_rules"]["min_group_count"], 12)
+        self.assertEqual(loaded["output_rules"]["min_cell_count"], 4)
+        self.assertEqual(loaded["synthesis"], {})
+        self.assertEqual(resolve_verification_config(unified_cfg)["min_count"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()

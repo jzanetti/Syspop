@@ -23,9 +23,10 @@ from syspop.confidential.synthesize import (
     create_synthetic_dataset,
 )
 from syspop.confidential.pipeline import (
-    run_datalab_aggregation,
-    run_outside_synthesis,
+    run_aggregation,
+    run_synthesis,
     run_confidential_synthetic_pipeline,
+    run_verif,
 )
 from syspop.confidential.verify import (
     evaluate_synthetic_data,
@@ -51,8 +52,9 @@ __all__ = [
     "export_datalab_checker_reports",
     "recreate_individuals_from_agg",
     "create_synthetic_dataset",
-    "run_datalab_aggregation",
-    "run_outside_synthesis",
+    "run_aggregation",
+    "run_synthesis",
+    "run_verif",
     "run_confidential_synthetic_pipeline",
     "evaluate_synthetic_data",
     "export_synthetic_verification_report",

@@ -43,7 +43,41 @@ def load_config(config_or_path=None) -> dict:
     default_cont = default_rules.get("continuous", {})
     default_cat = default_rules.get("categorical", {})
 
-    rules_cfg = deepcopy(raw_cfg.get("output_rules", {})) or {}
+    common_cfg = deepcopy(raw_cfg.get("common") or {})
+    agg_cfg = deepcopy(raw_cfg.get("agg") or {})
+    verif_raw = raw_cfg.get("verif") if "verif" in raw_cfg else raw_cfg.get("verification")
+    verif_cfg = deepcopy(verif_raw or {})
+    synthesis_cfg = deepcopy(raw_cfg.get("synthesis") or {})
+
+    if "output_rules" in agg_cfg and isinstance(agg_cfg["output_rules"], dict):
+        rules_cfg = deepcopy(agg_cfg["output_rules"])
+    elif any(
+        k in agg_cfg
+        for k in (
+            "rounding_base",
+            "leftover_action",
+            "continuous",
+            "categorical",
+            "min_group_count",
+            "min_cell_count",
+        )
+    ):
+        rules_cfg = {
+            k: deepcopy(agg_cfg[k])
+            for k in (
+                "rounding_base",
+                "leftover_action",
+                "continuous",
+                "categorical",
+                "min_group_count",
+                "min_cell_count",
+                "subcell_action",
+                "random_seed",
+            )
+            if k in agg_cfg
+        }
+    else:
+        rules_cfg = deepcopy(raw_cfg.get("output_rules") or {})
     rules_cfg.pop("preset", None)
 
     cont_cfg = rules_cfg.get("continuous", {}) or {}
@@ -111,9 +145,23 @@ def load_config(config_or_path=None) -> dict:
     if "random_seed" in rules_cfg:
         resolved_rules["random_seed"] = rules_cfg["random_seed"]
 
-    data_cfg = deepcopy(raw_cfg.get("data_structure", {}))
-    synthesis_cfg = deepcopy(raw_cfg.get("synthesis", {}))
-    verif_cfg = deepcopy(raw_cfg.get("verification", {})) or {}
+    data_cfg = {}
+    if "data_structure" in common_cfg and isinstance(common_cfg["data_structure"], dict):
+        data_cfg.update(deepcopy(common_cfg["data_structure"]))
+    for k in (
+        "hierarchy",
+        "id_columns",
+        "hierarchy_counts",
+        "features",
+        "correlations",
+        "weights",
+        "feature_types",
+        "auto_categorical_max_unique",
+    ):
+        if k in common_cfg:
+            data_cfg[k] = deepcopy(common_cfg[k])
+    if isinstance(raw_cfg.get("data_structure"), dict):
+        data_cfg.update(deepcopy(raw_cfg["data_structure"]))
 
     verif_min_count = int(
         verif_cfg.get(
@@ -127,6 +175,9 @@ def load_config(config_or_path=None) -> dict:
     resolved_verification = {
         "min_count": verif_min_count,
     }
+    if "columns" in verif_cfg and verif_cfg["columns"] is not None:
+        cols_val = verif_cfg["columns"]
+        resolved_verification["columns"] = [cols_val] if isinstance(cols_val, str) else list(cols_val)
     if "thresholds" in verif_cfg and isinstance(verif_cfg["thresholds"], dict):
         resolved_verification["thresholds"] = deepcopy(verif_cfg["thresholds"])
 
@@ -153,10 +204,34 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
     """
     data_cfg = deepcopy(cfg.get("data_structure", {}))
 
-    # 1. Resolve ID columns mapping
-    id_columns = deepcopy(DEFAULT_ID_COLUMNS)
-    if "id_columns" in data_cfg and isinstance(data_cfg["id_columns"], dict):
-        id_columns.update(data_cfg["id_columns"])
+    # 1. Resolve hierarchy order (lowest to highest, e.g. individual -> family -> household or employee -> company)
+    raw_id_cols = data_cfg.get("id_columns", {}) if isinstance(data_cfg.get("id_columns"), dict) else {}
+    if "hierarchy" in data_cfg and data_cfg["hierarchy"]:
+        hierarchy = [str(h).lower() for h in data_cfg["hierarchy"]]
+    elif raw_id_cols:
+        hierarchy = [str(k).lower() for k in raw_id_cols.keys()]
+    elif df is not None:
+        hierarchy = ["individual"]
+        if DEFAULT_ID_COLUMNS["family"] in df.columns or "family_id" in df.columns:
+            hierarchy.append("family")
+        if DEFAULT_ID_COLUMNS["household"] in df.columns or "household_id" in df.columns:
+            hierarchy.append("household")
+    else:
+        hierarchy = ["individual"]
+
+    # 2. Resolve ID columns mapping for the active hierarchy
+    id_columns = {}
+    for lvl in hierarchy:
+        if lvl in raw_id_cols:
+            id_columns[lvl] = raw_id_cols[lvl]
+        elif lvl in DEFAULT_ID_COLUMNS:
+            id_columns[lvl] = DEFAULT_ID_COLUMNS[lvl]
+        else:
+            id_columns[lvl] = f"{lvl}_id"
+    for k, v in raw_id_cols.items():
+        lk = str(k).lower()
+        if lk not in id_columns:
+            id_columns[lk] = v
 
     if df is not None:
         col_lower_map = {c.lower().replace(" ", "_"): c for c in df.columns}
@@ -165,18 +240,6 @@ def resolve_data_structure(df: DataFrame or None, cfg: dict) -> dict:
                 norm_key = col_name.lower().replace(" ", "_")
                 if norm_key in col_lower_map:
                     id_columns[level] = col_lower_map[norm_key]
-
-    # 2. Resolve hierarchy order (lowest to highest: individual -> family -> household)
-    if "hierarchy" in data_cfg and data_cfg["hierarchy"]:
-        hierarchy = [str(h).lower() for h in data_cfg["hierarchy"]]
-    elif df is not None:
-        hierarchy = ["individual"]
-        if id_columns.get("family") in df.columns:
-            hierarchy.append("family")
-        if id_columns.get("household") in df.columns:
-            hierarchy.append("household")
-    else:
-        hierarchy = ["individual"]
 
     id_col_set = {
         id_columns[lvl]
@@ -411,16 +474,21 @@ def resolve_weight_dataframe(
 
     # Match weight_col name to one of the hierarchy levels
     matched_level = None
-    level_prefixes = {
+    builtin_aliases = {
         "individual": ["individual", "person", "ind"],
         "family": ["family", "fam"],
         "household": ["household", "hh"],
     }
-    for lvl, id_col in id_columns.items():
+    level_prefixes = {}
+    for lvl in hierarchy:
+        prefixes = [lvl]
+        prefixes.extend(builtin_aliases.get(lvl, []))
+        id_col = id_columns.get(lvl)
         if id_col:
             prefix = id_col.lower().replace("_id", "").strip()
-            if prefix and prefix not in level_prefixes.get(lvl, []):
-                level_prefixes.setdefault(lvl, []).append(prefix)
+            if prefix:
+                prefixes.append(prefix)
+        level_prefixes[lvl] = list(dict.fromkeys(prefixes))
 
     for lvl, prefixes in level_prefixes.items():
         for p in prefixes:
