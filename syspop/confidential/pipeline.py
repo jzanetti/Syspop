@@ -66,15 +66,21 @@ def run_outside_synthesis(
         if not agg_tables and exists(excel_path):
             xl = pd.ExcelFile(excel_path)
             for level_name in ("individual", "family", "household"):
-                sheet_name = f"{level_name[:3].capitalize()}_Released_Output"
+                sheet_name = f"{level_name}_Released_Output"[:31]
+                if sheet_name not in xl.sheet_names:
+                    sheet_name = f"{level_name[:3].capitalize()}_Released_Output"
                 if sheet_name in xl.sheet_names:
                     df_lvl = pd.read_excel(xl, sheet_name=sheet_name)
                     if len(df_lvl) > 0:
-                        if "rounded_count" in df_lvl.columns and "count" not in df_lvl.columns:
+                        if "rounded_total_count" in df_lvl.columns and "count" not in df_lvl.columns:
+                            df_lvl = df_lvl.rename(columns={"rounded_total_count": "count"})
+                        elif "rounded_count" in df_lvl.columns and "count" not in df_lvl.columns:
                             df_lvl = df_lvl.rename(columns={"rounded_count": "count"})
+                        elif "unrounded_total_count" in df_lvl.columns and "count" not in df_lvl.columns:
+                            df_lvl = df_lvl.rename(columns={"unrounded_total_count": "count"})
                         elif "unrounded_count" in df_lvl.columns and "count" not in df_lvl.columns:
                             df_lvl = df_lvl.rename(columns={"unrounded_count": "count"})
-                        drop_cols = [c for c in df_lvl.columns if c.startswith("unrounded_")]
+                        drop_cols = [c for c in df_lvl.columns if c.startswith("unrounded_") or c.startswith("rounded_")]
                         if drop_cols:
                             df_lvl = df_lvl.drop(columns=drop_cols)
                         agg_tables[level_name] = df_lvl

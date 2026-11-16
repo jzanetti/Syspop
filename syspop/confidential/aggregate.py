@@ -960,31 +960,61 @@ def aggregate_unit_records(
             w_valid = c_weights[valid_mask] if c_weights is not None else None
             raw_mean, raw_std = _compute_weighted_mean_std(vals, w_valid)
 
-            row_data[feat_name] = raw_mean
-            row_data[f"{feat_name}_std"] = raw_std
+            if len(vals) == unrounded_n:
+                rounded_feat_n = int(rounded_n)
+            else:
+                rounded_feat_n = int(apply_count_rounding(len(vals), rules, rng=rng))
+
+            if rounding_enabled and rounded_feat_n > 0 and len(vals) > 0:
+                if w_valid is None:
+                    released_mean = float(np.sum(vals) / rounded_feat_n)
+                    released_std = (
+                        float(np.sqrt(np.sum((vals - released_mean) ** 2) / max(rounded_feat_n - 1, 1)))
+                        if rounded_feat_n > 1
+                        else 0.0
+                    )
+                else:
+                    released_mean = float(raw_mean * (float(len(vals)) / float(rounded_feat_n)))
+                    released_std = raw_std
+            else:
+                released_mean, released_std = raw_mean, raw_std
+
+            row_data[feat_name] = released_mean
+            row_data[f"{feat_name}_std"] = released_std
 
             cont_audit[feat_name] = {
                 "raw_count": int(len(vals)),
+                "rounded_count": int(rounded_feat_n) if not suppressed else 0,
                 "min_group_count": min_group_count,
                 "raw_mean": raw_mean,
-                "exported_mean": raw_mean if not suppressed else np.nan,
+                "exported_mean": released_mean if not suppressed else np.nan,
                 "raw_std": raw_std,
-                "exported_std": raw_std if not suppressed else np.nan,
+                "exported_std": released_std if not suppressed else np.nan,
                 "status": "PASS" if not suppressed else f"SUPPRESSED ({suppression_reason})",
             }
 
         # Export survey weight mean & std so Step 3 synthesizes the weight column on the synthetic sample
         if has_weights and weight_col not in row_data:
             w_mean, w_std = _compute_weighted_mean_std(c_weights, None)
-            row_data[weight_col] = w_mean
-            row_data[f"{weight_col}_std"] = w_std
+            if rounding_enabled and rounded_n > 0 and len(c_weights) > 0:
+                rel_w_mean = float(np.sum(c_weights) / rounded_n)
+                rel_w_std = (
+                    float(np.sqrt(np.sum((c_weights - rel_w_mean) ** 2) / max(rounded_n - 1, 1)))
+                    if rounded_n > 1
+                    else 0.0
+                )
+            else:
+                rel_w_mean, rel_w_std = w_mean, w_std
+            row_data[weight_col] = rel_w_mean
+            row_data[f"{weight_col}_std"] = rel_w_std
             cont_audit[weight_col] = {
                 "raw_count": int(len(c_weights)),
+                "rounded_count": int(rounded_n) if not suppressed else 0,
                 "min_group_count": min_group_count,
                 "raw_mean": w_mean,
-                "exported_mean": w_mean if not suppressed else np.nan,
+                "exported_mean": rel_w_mean if not suppressed else np.nan,
                 "raw_std": w_std,
-                "exported_std": w_std if not suppressed else np.nan,
+                "exported_std": rel_w_std if not suppressed else np.nan,
                 "status": "PASS" if not suppressed else f"SUPPRESSED ({suppression_reason})",
             }
 
@@ -1002,14 +1032,15 @@ def aggregate_unit_records(
             raw_props = raw_sums / raw_total if raw_total > 0 else np.zeros_like(raw_sums)
             contributing_counts = (mat > 0).sum(axis=0)
 
-            props = confidentialise_category_proportions(
-                mat, rules, rng=rng, unit_weights=c_weights
+            props, rounded_contrib = confidentialise_category_proportions(
+                mat, rules, rng=rng, unit_weights=c_weights, return_rounded_counts=True
             )
             for col_idx, col_label in enumerate(cat_info["columns"]):
                 cat_name = cat_info["categories"][col_idx]
                 exp_prop = float(props[col_idx]) if pd.notna(props[col_idx]) else np.nan
                 row_data[col_label] = exp_prop
                 c_cnt = int(contributing_counts[col_idx])
+                r_cnt = int(rounded_contrib[col_idx]) if not suppressed else 0
 
                 if suppressed:
                     sub_status = "SUPPRESSED"
@@ -1026,6 +1057,7 @@ def aggregate_unit_records(
                     "feature": feat_name,
                     "category": str(cat_name),
                     "unrounded_contributing_count": c_cnt,
+                    "rounded_contributing_count": r_cnt,
                     "raw_sum": float(raw_sums[col_idx]),
                     "raw_proportion": float(raw_props[col_idx]),
                     "exported_proportion": exp_prop if not suppressed else np.nan,

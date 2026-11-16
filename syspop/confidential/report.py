@@ -23,26 +23,25 @@ def build_checker_guide_df(metadata: dict) -> pd.DataFrame:
         {
             "Sheet / Item": "1_Summary",
             "Description": (
-                f"Overview of cluster counts, rounding ({rounding_str}), "
-                f"and sub-cell thresholds across hierarchy levels ({', '.join(hierarchy)})."
+                f"Overview of raw_counts and released_clusters across hierarchy levels ({', '.join(hierarchy)})."
             ),
         },
         {
-            "Sheet / Item": "*_Released_Output",
+            "Sheet / Item": "{level}_Released_Output",
             "Description": (
-                "Confidentialised cluster tables with unrounded_*_count, unrounded_count, "
-                "and rounded_count (when rounding is enabled) for Data Lab output checking."
+                "Confidentialised cluster tables with unrounded_*_count, rounded_*_count, "
+                "unrounded_total_count, and rounded_total_count for output checking."
             ),
         },
         {
-            "Sheet / Item": "*_Checker_Audit",
+            "Sheet / Item": "{level}_Checker_Audit",
             "Description": (
                 "Vertically structured audit table (one row per cluster and feature/category) "
-                "comparing raw unweighted respondent counts against configured thresholds and released values."
+                "comparing raw and released values alongside raw_count, rounded_count, min_required, and status."
             ),
         },
         {
-            "Sheet / Item": "*_Raw_Data",
+            "Sheet / Item": "{level}_Raw_Data",
             "Description": (
                 "Raw unit-record data with normalized values and the assigned cluster_id."
             ),
@@ -137,10 +136,11 @@ def build_checker_audit_df(level_name: str, level_details: dict) -> pd.DataFrame
                 "cluster_id": cid,
                 "feature": "cluster_count",
                 "metric_or_category": "total_units",
-                "raw_count": unrounded_n,
-                "min_required": req_min,
                 "raw_value": float(unrounded_n),
                 "released_value": float(rounded_n) if status == "RELEASED" else np.nan,
+                "raw_count": unrounded_n,
+                "rounded_count": rounded_n if status == "RELEASED" else 0,
+                "min_required": req_min,
                 "status": "PASS" if status == "RELEASED" else "SUPPRESSED",
             }
         )
@@ -148,6 +148,7 @@ def build_checker_audit_df(level_name: str, level_details: dict) -> pd.DataFrame
         # 2. Continuous features (mean and std rows)
         for feat_name, c_info in rec["continuous_audit"].items():
             f_cnt = int(c_info.get("raw_count", unrounded_n))
+            f_rcnt = int(c_info.get("rounded_count", rounded_n if status == "RELEASED" else 0))
             f_status = "PASS" if status == "RELEASED" else "SUPPRESSED"
             rows.append(
                 {
@@ -155,14 +156,15 @@ def build_checker_audit_df(level_name: str, level_details: dict) -> pd.DataFrame
                     "cluster_id": cid,
                     "feature": feat_name,
                     "metric_or_category": "mean",
-                    "raw_count": f_cnt,
-                    "min_required": int(c_info.get("min_group_count", req_min)),
                     "raw_value": round(float(c_info["raw_mean"]), 6) if pd.notna(c_info["raw_mean"]) else np.nan,
                     "released_value": (
                         round(float(c_info["exported_mean"]), 6)
                         if pd.notna(c_info["exported_mean"])
                         else np.nan
                     ),
+                    "raw_count": f_cnt,
+                    "rounded_count": f_rcnt,
+                    "min_required": int(c_info.get("min_group_count", req_min)),
                     "status": f_status,
                 }
             )
@@ -172,34 +174,41 @@ def build_checker_audit_df(level_name: str, level_details: dict) -> pd.DataFrame
                     "cluster_id": cid,
                     "feature": feat_name,
                     "metric_or_category": "std",
-                    "raw_count": f_cnt,
-                    "min_required": int(c_info.get("min_group_count", req_min)),
                     "raw_value": round(float(c_info["raw_std"]), 6) if pd.notna(c_info["raw_std"]) else np.nan,
                     "released_value": (
                         round(float(c_info["exported_std"]), 6)
                         if pd.notna(c_info["exported_std"])
                         else np.nan
                     ),
+                    "raw_count": f_cnt,
+                    "rounded_count": f_rcnt,
+                    "min_required": int(c_info.get("min_group_count", req_min)),
                     "status": f_status,
                 }
             )
 
-        # 3. Categorical features (one row per category)
+        # 3. Categorical features (one row per non-empty category)
         for col_label, cat_info in rec["categorical_audit"].items():
+            c_cnt = int(cat_info["unrounded_contributing_count"])
+            exp_prop = cat_info.get("exported_proportion")
+            if c_cnt == 0 and (exp_prop is None or pd.isna(exp_prop) or float(exp_prop) == 0.0):
+                continue
+            c_rcnt = int(cat_info.get("rounded_contributing_count", c_cnt if status == "RELEASED" else 0))
             rows.append(
                 {
                     "level": level_name,
                     "cluster_id": cid,
                     "feature": cat_info["feature"],
                     "metric_or_category": cat_info.get("category", col_label),
-                    "raw_count": int(cat_info["unrounded_contributing_count"]),
-                    "min_required": int(cat_info["min_cell_count"]),
                     "raw_value": round(float(cat_info["raw_proportion"]), 6),
                     "released_value": (
                         round(float(cat_info["exported_proportion"]), 6)
                         if pd.notna(cat_info["exported_proportion"])
                         else np.nan
                     ),
+                    "raw_count": c_cnt,
+                    "rounded_count": c_rcnt,
+                    "min_required": int(cat_info["min_cell_count"]),
                     "status": cat_info["status"],
                 }
             )
@@ -235,7 +244,8 @@ def build_released_with_counts_df(table_df: pd.DataFrame, level_details: dict) -
     rounding_base = sample_rec.get("rounding_base")
     rounding_enabled = rounding_base is not None and int(rounding_base) > 1
 
-    # Build ordered column list inserting `unrounded_{name}_count` right after each feature/category
+    # Build ordered column list inserting `unrounded_{name}_count` and `rounded_{name}_count`
+    # right after each feature/category, and `unrounded_total_count` / `rounded_total_count` at the end.
     ordered_cols = ["cluster_id"]
     count_sources = {}
     for col in table_df.columns:
@@ -245,23 +255,27 @@ def build_released_with_counts_df(table_df: pd.DataFrame, level_details: dict) -
         if col.endswith("_std"):
             base_feat = col[:-4]
             if base_feat in cont_keys:
-                cnt_col = f"unrounded_{base_feat}_count"
-                ordered_cols.append(cnt_col)
-                count_sources[cnt_col] = ("continuous", base_feat)
+                u_col = f"unrounded_{base_feat}_count"
+                r_col = f"rounded_{base_feat}_count"
+                ordered_cols.extend([u_col, r_col])
+                count_sources[u_col] = ("continuous_unrounded", base_feat)
+                count_sources[r_col] = ("continuous_rounded", base_feat)
         elif col in cont_keys and f"{col}_std" not in table_df.columns:
-            cnt_col = f"unrounded_{col}_count"
-            ordered_cols.append(cnt_col)
-            count_sources[cnt_col] = ("continuous", col)
+            u_col = f"unrounded_{col}_count"
+            r_col = f"rounded_{col}_count"
+            ordered_cols.extend([u_col, r_col])
+            count_sources[u_col] = ("continuous_unrounded", col)
+            count_sources[r_col] = ("continuous_rounded", col)
         elif col in cat_keys:
-            cnt_col = f"unrounded_{col}_count"
-            ordered_cols.append(cnt_col)
-            count_sources[cnt_col] = ("categorical", col)
+            u_col = f"unrounded_{col}_count"
+            r_col = f"rounded_{col}_count"
+            ordered_cols.extend([u_col, r_col])
+            count_sources[u_col] = ("categorical_unrounded", col)
+            count_sources[r_col] = ("categorical_rounded", col)
 
     has_count_col = "count" in table_df.columns
     if has_count_col:
-        ordered_cols.append("unrounded_count")
-        if rounding_enabled:
-            ordered_cols.append("rounded_count")
+        ordered_cols.extend(["unrounded_total_count", "rounded_total_count"])
 
     out_rows = []
     for _, row in table_df.iterrows():
@@ -274,13 +288,24 @@ def build_released_with_counts_df(table_df: pd.DataFrame, level_details: dict) -
         for col in ordered_cols:
             if col in count_sources:
                 kind, key = count_sources[col]
-                if kind == "continuous":
+                if kind == "continuous_unrounded":
                     new_row[col] = int(cont_audit.get(key, {}).get("raw_count", 0))
-                else:
+                elif kind == "continuous_rounded":
+                    c_entry = cont_audit.get(key, {})
+                    new_row[col] = int(c_entry.get("rounded_count", c_entry.get("raw_count", 0)))
+                elif kind == "categorical_unrounded":
                     new_row[col] = int(cat_audit.get(key, {}).get("unrounded_contributing_count", 0))
-            elif col == "unrounded_count":
+                else:
+                    cat_entry = cat_audit.get(key, {})
+                    new_row[col] = int(
+                        cat_entry.get(
+                            "rounded_contributing_count",
+                            cat_entry.get("unrounded_contributing_count", 0),
+                        )
+                    )
+            elif col == "unrounded_total_count":
                 new_row[col] = int(rec.get("unrounded_count", row["count"]))
-            elif col == "rounded_count":
+            elif col == "rounded_total_count":
                 new_row[col] = int(row["count"])
             else:
                 new_row[col] = row[col]
@@ -291,51 +316,20 @@ def build_released_with_counts_df(table_df: pd.DataFrame, level_details: dict) -
 
 def build_rules_summary_df(agg_tables: dict, metadata: dict) -> pd.DataFrame:
     """
-    Create a concise summary table with one row per hierarchy level.
+    Create a concise summary table with 3 columns (`hierarchy_level`, `raw_counts`,
+    `released_clusters`) per configured hierarchy level.
     """
-    rules = metadata.get("output_rules", {})
     levels_meta = metadata.get("levels", {})
-    r_base = rules.get("rounding_base", None)
-    rounding_label = int(r_base) if (r_base is not None and int(r_base) > 1) else "Off"
-    min_cell = int(rules.get("min_cell_count", 6))
-    leftover_action = str(rules.get("leftover_action", "assign_nearest"))
-    req_min = int(rules.get("min_group_count", 20))
-
     summary_rows = []
     for level_name, lvl_details in levels_meta.items():
         audit_recs = lvl_details.get("cluster_audit_records", [])
         released_recs = [r for r in audit_recs if r["status"] == "RELEASED"]
-        suppressed_recs = [r for r in audit_recs if r["status"] != "RELEASED"]
-
         total_raw_records = len(lvl_details.get("raw_df", []))
-        min_unrounded = min((r["unrounded_count"] for r in released_recs), default=0)
-        min_exported = min((r["rounded_count"] for r in released_recs), default=0)
-
-        min_active_subcell = None
-        for r in released_recs:
-            for c_audit in r["categorical_audit"].values():
-                cnt = c_audit["unrounded_contributing_count"]
-                exp_p = c_audit["exported_proportion"]
-                if exp_p is not None and pd.notna(exp_p) and exp_p > 0:
-                    if min_active_subcell is None or cnt < min_active_subcell:
-                        min_active_subcell = cnt
-
-        cont_ok = (not released_recs) or (min_unrounded >= req_min)
-        cat_ok = (not released_recs) or (min_active_subcell is None) or (min_active_subcell >= min_cell)
         summary_rows.append(
             {
                 "hierarchy_level": level_name,
-                "raw_units": total_raw_records,
-                "released_clusters": len(released_recs),
-                "suppressed_clusters": len(suppressed_recs),
-                "min_unrounded_cluster_count": min_unrounded,
-                "continuous_min_count": req_min,
-                "min_rounded_cluster_count": min_exported,
-                "rounding_base": rounding_label,
-                "min_nonzero_cell_count": min_active_subcell if min_active_subcell is not None else "N/A",
-                "categorical_min_count": min_cell,
-                "leftover_action": leftover_action,
-                "status": "PASS" if (cont_ok and cat_ok) else "CHECK",
+                "raw_counts": int(total_raw_records),
+                "released_clusters": int(len(released_recs)),
             }
         )
 
@@ -435,12 +429,11 @@ def export_datalab_checker_reports(
                 audit_df.to_csv(audit_csv_path, index=False)
                 saved_files["checker_audit_csvs"][level_name] = audit_csv_path
 
-            short_lvl = level_name[:3].capitalize()
-            excel_sheets[f"{short_lvl}_Released_Output"] = build_released_with_counts_df(
+            excel_sheets[f"{level_name}_Released_Output"[:31]] = build_released_with_counts_df(
                 table_df, lvl_details
             )
-            excel_sheets[f"{short_lvl}_Checker_Audit"] = audit_df
-            excel_sheets[f"{short_lvl}_Raw_Data"] = raw_map_df
+            excel_sheets[f"{level_name}_Checker_Audit"[:31]] = audit_df
+            excel_sheets[f"{level_name}_Raw_Data"[:31]] = raw_map_df
 
     excel_path = join(output_dir, "idi_output_checker_report.xlsx")
     try:

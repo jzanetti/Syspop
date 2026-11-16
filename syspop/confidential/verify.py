@@ -51,14 +51,12 @@ def _contingency_tvd(x_raw: pd.Series, y_raw: pd.Series, x_syn: pd.Series, y_syn
 
 
 def build_metric_guide_df() -> pd.DataFrame:
-    """Reference guide explaining the simplified synthetic data verification report."""
+    """Reference guide explaining the synthetic data verification report."""
     rows = [
-        ("1_Overall_Summary", "Record counts, feature counts, and IDI minimum-count compliance per hierarchy level."),
-        ("2_Numeric_Summary", "Basic 1D numeric comparison: raw vs. synthetic count, mean, std, and median."),
-        ("3_Category_Summary", "Basic 1D category comparison: raw vs. synthetic count and proportion (small raw cells < min_count suppressed)."),
-        ("4_Pairwise_Correlations", "Basic 2D association comparison: Pearson r (numeric-numeric), Cramer's V (cat-cat), Correlation Ratio eta (cat-numeric)."),
-        ("5_Hierarchy_Residuals", "Mean Absolute Error (MAE) between target hierarchy aggregates and synthetic microdata (when diagnostics provided)."),
-        ("idi_status", "PASS = raw_count >= min_count (or 0); SUPPRESSED / BELOW_MIN_COUNT = raw_count below IDI min_count threshold."),
+        ("1_Numeric_Summary", "1D numeric comparison across hierarchy levels: raw vs. synthetic count, mean, std, and median."),
+        ("2_Category_Summary", "1D category and discrete-count comparison across hierarchy levels: raw vs. synthetic counts."),
+        ("3_Pairwise_Correlations", "2D association comparison: Pearson r (numeric-numeric), Cramer's V (cat-cat), Correlation Ratio eta (cat-numeric)."),
+        ("status", "PASS = raw_count >= min_count (or 0); SUPPRESSED = raw_count is below the configured min_count threshold."),
     ]
     return pd.DataFrame(rows, columns=["Sheet / Column", "Description"])
 
@@ -72,8 +70,8 @@ def evaluate_synthetic_data(
 ) -> dict:
     """
     Compute basic statistical comparison metrics (mean, std, median, category
-    proportions, and pairwise correlations) between `syn_df` and `raw_df`,
-    with IDI minimum-count checks (`min_count`).
+    counts, and pairwise correlations) between `syn_df` and `raw_df`,
+    with minimum-count checks (`min_count`).
     """
     if columns is None:
         eval_cols = [c for c in raw_df.columns if c in syn_df.columns]
@@ -82,6 +80,12 @@ def evaluate_synthetic_data(
 
     cont_cols = [c for c in eval_cols if _is_continuous_series(raw_df[c]) and _is_continuous_series(syn_df[c])]
     cat_cols = [c for c in eval_cols if c not in cont_cols]
+    # Also include discrete low-cardinality integer/count columns (e.g. family_num, individual_num) in category counts
+    discrete_cat_cols = list(cat_cols)
+    for col in cont_cols:
+        r_num = pd.to_numeric(raw_df[col], errors="coerce").dropna()
+        if len(r_num) > 0 and _is_categorical(r_num) and np.all(np.isclose(r_num, np.round(r_num))):
+            discrete_cat_cols.append(col)
 
     # 1. Numeric 1D Summary (count, mean, std, median)
     cont_rows = []
@@ -110,40 +114,37 @@ def evaluate_synthetic_data(
                 "syn_std": s_std,
                 "raw_median": np.nan if is_low else r_med,
                 "syn_median": s_med,
-                "idi_status": "BELOW_MIN_COUNT" if is_low else "PASS",
+                "status": "SUPPRESSED" if is_low else "PASS",
             }
         )
     cont_df = pd.DataFrame(cont_rows)
 
-    # 2. Categorical 1D Summary (counts & proportions with IDI suppression)
+    # 2. Categorical / Discrete 1D Summary (counts only, with small-cell status)
     cat_rows = []
-    for col in cat_cols:
-        r_ser = raw_df[col].dropna().astype(str)
-        s_ser = syn_df[col].dropna().astype(str)
+    for col in discrete_cat_cols:
+        if col in cont_cols:
+            r_ser = pd.to_numeric(raw_df[col], errors="coerce").dropna().round().astype(int).astype(str)
+            s_ser = pd.to_numeric(syn_df[col], errors="coerce").dropna().round().astype(int).astype(str)
+        else:
+            r_ser = raw_df[col].dropna().astype(str)
+            s_ser = syn_df[col].dropna().astype(str)
         r_cnts = r_ser.value_counts()
         s_cnts = s_ser.value_counts()
         all_cats = sorted(set(r_cnts.index).union(set(s_cnts.index)))
         if not all_cats:
             continue
 
-        r_tot = max(int(len(r_ser)), 1)
-        s_tot = max(int(len(s_ser)), 1)
         for k in all_cats:
             rc = int(r_cnts.get(k, 0))
             sc = int(s_cnts.get(k, 0))
             is_suppressed = 0 < rc < min_count
-            r_prop = np.nan if is_suppressed else (rc / r_tot)
-            s_prop = sc / s_tot
             cat_rows.append(
                 {
                     "column": col,
                     "category": k,
                     "raw_count": rc,
                     "syn_count": sc,
-                    "raw_proportion": r_prop,
-                    "syn_proportion": s_prop,
-                    "proportion_diff": np.nan if is_suppressed else (s_prop - r_prop),
-                    "idi_status": "SUPPRESSED" if is_suppressed else "PASS",
+                    "status": "SUPPRESSED" if is_suppressed else "PASS",
                 }
             )
     cat_df = pd.DataFrame(cat_rows)
@@ -185,7 +186,6 @@ def evaluate_synthetic_data(
             v_syn = _correlation_ratio(syn_df[cat_c], syn_df[cont_c])
             pair_type, metric_name = "categorical-numeric", "Correlation Ratio (eta)"
 
-        diff = (v_syn - v_raw) if (np.isfinite(v_raw) and np.isfinite(v_syn)) else np.nan
         pair_rows.append(
             {
                 "feature_1": c1,
@@ -196,53 +196,16 @@ def evaluate_synthetic_data(
                 "syn_count": sc,
                 "raw_value": v_raw,
                 "syn_value": v_syn,
-                "diff": diff,
-                "idi_status": "BELOW_MIN_COUNT" if is_low else "PASS",
+                "status": "SUPPRESSED" if is_low else "PASS",
             }
         )
     pairs_df = pd.DataFrame(pair_rows)
 
-    # 4. Optional Hierarchy Residuals
-    res_rows = []
-    if diagnostics and isinstance(diagnostics.get("residuals"), dict):
-        for lvl, res_map in diagnostics["residuals"].items():
-            for metric_k, mae_val in res_map.items():
-                res_rows.append(
-                    {
-                        "level": lvl,
-                        "metric": metric_k,
-                        "mae": float(mae_val),
-                    }
-                )
-    residuals_df = pd.DataFrame(res_rows)
-
-    # 5. Overall Summary (one concise row per level)
-    n_raw, n_syn = int(len(raw_df)), int(len(syn_df))
-    has_low_cont = len(cont_df) > 0 and (cont_df["idi_status"] != "PASS").any()
-    has_low_pair = len(pairs_df) > 0 and (pairs_df["idi_status"] != "PASS").any()
-    n_suppressed_cat = int((cat_df["idi_status"] == "SUPPRESSED").sum()) if len(cat_df) > 0 else 0
-    overall_df = pd.DataFrame(
-        [
-            {
-                "raw_records": n_raw,
-                "syn_records": n_syn,
-                "numeric_features": int(len(cont_df)),
-                "categorical_features": int(len(cat_cols)),
-                "pairwise_correlations": int(len(pairs_df)),
-                "suppressed_small_categories": n_suppressed_cat,
-                "min_count_required": int(min_count),
-                "idi_status": "CHECK_LOW_COUNTS" if (has_low_cont or has_low_pair) else "PASS",
-            }
-        ]
-    )
-
     return {
         "metric_guide": build_metric_guide_df(),
-        "overall_summary": overall_df,
         "numeric_summary": cont_df,
         "category_summary": cat_df,
         "pairwise_correlations": pairs_df,
-        "hierarchy_residuals": residuals_df,
     }
 
 
@@ -458,25 +421,19 @@ def export_synthetic_verification_report(
             }
         }
 
-    overall_parts = []
     num_parts = []
     cat_parts = []
     pair_parts = []
     metric_guide_df = build_metric_guide_df()
-    residuals_df = pd.DataFrame()
 
-    for idx_lvl, (lvl, spec) in enumerate(level_datasets.items()):
+    for lvl, spec in level_datasets.items():
         res = evaluate_synthetic_data(
             raw_df=spec["raw_df"],
             syn_df=spec["syn_df"],
             columns=spec["eval_columns"],
-            diagnostics=diagnostics if idx_lvl == 0 else None,
             min_count=min_count,
         )
-        if idx_lvl == 0:
-            residuals_df = res["hierarchy_residuals"]
         for target_list, key in [
-            (overall_parts, "overall_summary"),
             (num_parts, "numeric_summary"),
             (cat_parts, "category_summary"),
             (pair_parts, "pairwise_correlations"),
@@ -490,13 +447,10 @@ def export_synthetic_verification_report(
     excel_path = join(output_dir, filename)
     sheets = {
         "0_Guide": metric_guide_df,
-        "1_Overall_Summary": pd.concat(overall_parts, ignore_index=True) if overall_parts else pd.DataFrame(),
-        "2_Numeric_Summary": pd.concat(num_parts, ignore_index=True) if num_parts else pd.DataFrame(),
-        "3_Category_Summary": pd.concat(cat_parts, ignore_index=True) if cat_parts else pd.DataFrame(),
-        "4_Pairwise_Correlations": pd.concat(pair_parts, ignore_index=True) if pair_parts else pd.DataFrame(),
+        "1_Numeric_Summary": pd.concat(num_parts, ignore_index=True) if num_parts else pd.DataFrame(),
+        "2_Category_Summary": pd.concat(cat_parts, ignore_index=True) if cat_parts else pd.DataFrame(),
+        "3_Pairwise_Correlations": pd.concat(pair_parts, ignore_index=True) if pair_parts else pd.DataFrame(),
     }
-    if len(residuals_df) > 0:
-        sheets["5_Hierarchy_Residuals"] = residuals_df
 
     with pd.ExcelWriter(excel_path) as writer:
         for sheet_name, df_sheet in sheets.items():
@@ -554,7 +508,6 @@ def export_verification_figures_counts(
 
     use_grouped = len(level_datasets) > 1 or config_or_path is not None
 
-    summary_rows = []
     hist_1d_rows = []
     cat_1d_rows = []
     cat_cat_2d_rows = []
@@ -571,8 +524,6 @@ def export_verification_figures_counts(
         fig_1d_name = f"{lvl}/1d_distributions.png" if use_grouped else "comparison_raw_vs_synthetic.png"
 
         # 1. 1D comparison figure counts (matching vis.plot_comparison)
-        min_1d_raw = None
-        min_1d_syn = None
         for col in eval_cols:
             if not _is_categorical(lvl_raw[col]):
                 r_vals = pd.to_numeric(lvl_raw[col], errors="coerce").dropna().to_numpy(dtype=float)
@@ -582,15 +533,9 @@ def export_verification_figures_counts(
                 bins = compute_idi_safe_1d_bins(r_vals, s_vals, min_bin_count=min_count)
                 r_cnts, _ = np.histogram(r_vals, bins=bins)
                 s_cnts, _ = np.histogram(s_vals, bins=bins)
-                r_tot = max(int(r_cnts.sum()), 1)
-                s_tot = max(int(s_cnts.sum()), 1)
                 for b_i in range(len(r_cnts)):
                     rc = int(r_cnts[b_i])
                     sc = int(s_cnts[b_i])
-                    if rc > 0:
-                        min_1d_raw = rc if min_1d_raw is None else min(min_1d_raw, rc)
-                    if sc > 0:
-                        min_1d_syn = sc if min_1d_syn is None else min(min_1d_syn, sc)
                     hist_1d_rows.append(
                         {
                             "level": lvl,
@@ -600,7 +545,7 @@ def export_verification_figures_counts(
                             "bin_upper": float(bins[b_i + 1]),
                             "raw_count": rc,
                             "syn_count": sc,
-                            "idi_status": "PASS" if (rc == 0 or rc >= min_count) else "BELOW_MIN_COUNT",
+                            "status": "PASS" if (rc == 0 or rc >= min_count) else "SUPPRESSED",
                         }
                     )
             else:
@@ -613,10 +558,6 @@ def export_verification_figures_counts(
                     rc = int(r_cnts.get(k, 0))
                     sc = int(s_cnts.get(k, 0))
                     is_suppressed = 0 < rc < min_count
-                    if not is_suppressed and rc > 0:
-                        min_1d_raw = rc if min_1d_raw is None else min(min_1d_raw, rc)
-                    if sc > 0:
-                        min_1d_syn = sc if min_1d_syn is None else min(min_1d_syn, sc)
                     cat_1d_rows.append(
                         {
                             "level": lvl,
@@ -625,22 +566,9 @@ def export_verification_figures_counts(
                             "category": k,
                             "raw_count": rc,
                             "syn_count": sc,
-                            "idi_status": "SUPPRESSED" if is_suppressed else "PASS",
+                            "status": "SUPPRESSED" if is_suppressed else "PASS",
                         }
                     )
-
-        summary_rows.append(
-            {
-                "level": lvl,
-                "figure_file": fig_1d_name,
-                "figure_type": "1D_comparison",
-                "features": ", ".join(eval_cols),
-                "raw_total_count": int(len(lvl_raw)),
-                "syn_total_count": int(len(lvl_syn)),
-                "min_nonzero_raw_count": min_1d_raw if min_1d_raw is not None else 0,
-                "min_nonzero_syn_count": min_1d_syn if min_1d_syn is not None else 0,
-            }
-        )
 
         # 2. 2D cross-comparison figure counts (matching vis.plot_cross_comparison)
         if focus_column is not None and focus_column in eval_cols:
@@ -681,10 +609,6 @@ def export_verification_figures_counts(
                         if rc == 0 and sc == 0:
                             continue
                         is_suppressed = 0 < rc < min_count
-                        if not is_suppressed and rc > 0:
-                            min_r = rc if min_r is None else min(min_r, rc)
-                        if sc > 0:
-                            min_s = sc if min_s is None else min(min_s, sc)
                         cat_cat_2d_rows.append(
                             {
                                 "level": lvl,
@@ -695,67 +619,37 @@ def export_verification_figures_counts(
                                 "value_2": v2,
                                 "raw_count": rc,
                                 "syn_count": sc,
-                                "idi_status": "SUPPRESSED" if is_suppressed else "PASS",
+                                "status": "SUPPRESSED" if is_suppressed else "PASS",
                             }
                         )
-                summary_rows.append(
-                    {
-                        "level": lvl,
-                        "figure_file": fig_name,
-                        "figure_type": "2D_categorical_categorical",
-                        "features": f"{col1}, {col2}",
-                        "raw_total_count": int(len(r_pair)),
-                        "syn_total_count": int(len(s_pair)),
-                        "min_nonzero_raw_count": min_r if min_r is not None else 0,
-                        "min_nonzero_syn_count": min_s if min_s is not None else 0,
-                    }
-                )
             elif (not c1_cont) or (not c2_cont):
                 cat_c, cont_c = (col1, col2) if not c1_cont else (col2, col1)
                 r_sub = pd.DataFrame({"cat": lvl_raw[cat_c].astype(str), "val": pd.to_numeric(lvl_raw[cont_c], errors="coerce")}).dropna()
                 s_sub = pd.DataFrame({"cat": lvl_syn[cat_c].astype(str), "val": pd.to_numeric(lvl_syn[cont_c], errors="coerce")}).dropna()
                 cats = sorted(set(r_sub["cat"]).union(set(s_sub["cat"])))
-                min_r, min_s = None, None
                 for k in cats:
                     rv = r_sub.loc[r_sub["cat"] == k, "val"]
                     sv = s_sub.loc[s_sub["cat"] == k, "val"]
                     rc, sc = int(len(rv)), int(len(sv))
                     is_suppressed = 0 < rc < min_count
-                    if not is_suppressed and rc > 0:
-                        min_r = rc if min_r is None else min(min_r, rc)
-                    if sc > 0:
-                        min_s = sc if min_s is None else min(min_s, sc)
                     cat_cont_2d_rows.append(
                         {
                             "level": lvl,
                             "figure_file": fig_name,
                             "cat_feature": cat_c,
                             "cont_feature": cont_c,
-                            "category": k,
+                            "cat_value": k,
+                            "cont_raw_mean": np.nan if is_suppressed else (float(rv.mean()) if rc > 0 else np.nan),
+                            "cont_syn_mean": float(sv.mean()) if sc > 0 else np.nan,
+                            "cont_raw_std": np.nan if is_suppressed else (float(rv.std()) if rc > 1 else np.nan),
+                            "cont_syn_std": float(sv.std()) if sc > 1 else np.nan,
+                            "cont_raw_median": np.nan if is_suppressed else (float(rv.median()) if rc > 0 else np.nan),
+                            "cont_syn_median": float(sv.median()) if sc > 0 else np.nan,
                             "raw_count": rc,
                             "syn_count": sc,
-                            "raw_mean": np.nan if is_suppressed else (float(rv.mean()) if rc > 0 else np.nan),
-                            "syn_mean": float(sv.mean()) if sc > 0 else np.nan,
-                            "raw_std": np.nan if is_suppressed else (float(rv.std()) if rc > 1 else np.nan),
-                            "syn_std": float(sv.std()) if sc > 1 else np.nan,
-                            "raw_median": np.nan if is_suppressed else (float(rv.median()) if rc > 0 else np.nan),
-                            "syn_median": float(sv.median()) if sc > 0 else np.nan,
-                            "min_required_count": int(min_count),
-                            "idi_status": "SUPPRESSED" if is_suppressed else "PASS",
+                            "status": "SUPPRESSED" if is_suppressed else "PASS",
                         }
                     )
-                summary_rows.append(
-                    {
-                        "level": lvl,
-                        "figure_file": fig_name,
-                        "figure_type": "2D_categorical_continuous",
-                        "features": f"{col1}, {col2}",
-                        "raw_total_count": int(len(r_sub)),
-                        "syn_total_count": int(len(s_sub)),
-                        "min_nonzero_raw_count": min_r if min_r is not None else 0,
-                        "min_nonzero_syn_count": min_s if min_s is not None else 0,
-                    }
-                )
             else:
                 rx = pd.to_numeric(lvl_raw[col1], errors="coerce").to_numpy(dtype=float)
                 ry = pd.to_numeric(lvl_raw[col2], errors="coerce").to_numpy(dtype=float)
@@ -772,7 +666,6 @@ def export_verification_figures_counts(
                 h_syn_cnt, _, _ = np.histogram2d(sx, sy, bins=[x_bins, y_bins])
                 h_raw_den, _, _ = np.histogram2d(rx, ry, bins=[x_bins, y_bins], density=True)
                 h_syn_den, _, _ = np.histogram2d(sx, sy, bins=[x_bins, y_bins], density=True)
-                min_r, min_s = None, None
                 for xi in range(len(x_bins) - 1):
                     for yi in range(len(y_bins) - 1):
                         rc = int(h_raw_cnt[xi, yi])
@@ -780,44 +673,26 @@ def export_verification_figures_counts(
                         if rc == 0 and sc == 0:
                             continue
                         is_suppressed = 0 < rc < min_count
-                        if not is_suppressed and rc > 0:
-                            min_r = rc if min_r is None else min(min_r, rc)
-                        if sc > 0:
-                            min_s = sc if min_s is None else min(min_s, sc)
                         cont_cont_2d_rows.append(
                             {
                                 "level": lvl,
                                 "figure_file": fig_name,
                                 "feature_1": col1,
                                 "feature_2": col2,
-                                "x_bin_lower": float(x_bins[xi]),
-                                "x_bin_upper": float(x_bins[xi + 1]),
-                                "y_bin_lower": float(y_bins[yi]),
-                                "y_bin_upper": float(y_bins[yi + 1]),
-                                "raw_count": rc,
-                                "syn_count": sc,
+                                "bin_lower_1": float(x_bins[xi]),
+                                "bin_upper_1": float(x_bins[xi + 1]),
+                                "bin_lower_2": float(y_bins[yi]),
+                                "bin_upper_2": float(y_bins[yi + 1]),
                                 "raw_density": np.nan if is_suppressed else float(h_raw_den[xi, yi]),
                                 "syn_density": float(h_syn_den[xi, yi]),
-                                "min_required_count": int(min_count),
-                                "idi_status": "SUPPRESSED" if is_suppressed else "PASS",
+                                "raw_count": rc,
+                                "syn_count": sc,
+                                "status": "SUPPRESSED" if is_suppressed else "PASS",
                             }
                         )
-                summary_rows.append(
-                    {
-                        "level": lvl,
-                        "figure_file": fig_name,
-                        "figure_type": "2D_continuous_density",
-                        "features": f"{col1}, {col2}",
-                        "raw_total_count": int(len(rx)),
-                        "syn_total_count": int(len(sx)),
-                        "min_nonzero_raw_count": min_r if min_r is not None else 0,
-                        "min_nonzero_syn_count": min_s if min_s is not None else 0,
-                    }
-                )
 
     excel_path = join(output_dir, filename)
     sheets = {
-        "0_Figures_Summary": pd.DataFrame(summary_rows),
         "1D_Histograms": pd.DataFrame(hist_1d_rows),
         "1D_Categories": pd.DataFrame(cat_1d_rows),
         "2D_Cat_Cat": pd.DataFrame(cat_cat_2d_rows),

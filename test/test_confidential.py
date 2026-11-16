@@ -274,15 +274,16 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
                 )
             )
 
-            # Verify raw data records for Cluster 1 match the exported mean age of Cluster 1
-            raw_map = pd.read_excel(excel_path, sheet_name="Ind_Raw_Data")
+            # Verify raw data records for Cluster 1 match the exported mean age (computed using rounded count)
+            raw_map = pd.read_excel(excel_path, sheet_name="individual_Raw_Data")
             c1_raw = raw_map[raw_map["cluster_id"].astype(str) == "1"]
+            c1_released_count = float(c1_raw["cluster_released_count"].iloc[0])
             c1_agg_age = (
                 agg_tables["individual"]
                 .loc[agg_tables["individual"]["cluster_id"] == 1, "age"]
                 .iloc[0]
             )
-            self.assertAlmostEqual(c1_raw["age"].mean(), c1_agg_age, places=5)
+            self.assertAlmostEqual(c1_raw["age"].sum() / c1_released_count, c1_agg_age, places=5)
 
             syn_df, diag = run_outside_synthesis(
                 agg_tables_or_dir=tmpdir,

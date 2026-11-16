@@ -80,7 +80,8 @@ def confidentialise_category_proportions(
     rules: dict,
     rng: np.random.Generator or None = None,
     unit_weights: np.ndarray or None = None,
-) -> np.ndarray:
+    return_rounded_counts: bool = False,
+) -> np.ndarray or tuple:
     """
     Compute confidentialised category proportions for a single categorical variable within a cluster.
     `cat_matrix` has shape `(n_group_records, n_categories)`.
@@ -101,41 +102,50 @@ def confidentialise_category_proportions(
 
     action = str(rules.get("subcell_action", "reassign_or_merge")).strip().lower()
     min_cell = int(rules.get("min_cell_count", 6))
+    rounded_contributing = np.asarray(contributing, dtype=int).copy()
 
     if action in ("none", "suppress_cluster"):
         total = counts.sum()
-        return counts / total if total > 0 else np.ones_like(counts) / len(counts)
+        props = counts / total if total > 0 else np.ones_like(counts) / len(counts)
+        return (props, rounded_contributing) if return_rounded_counts else props
 
     if action == "suppress_cell_nan":
         total = counts.sum()
         props = counts / total if total > 0 else np.ones_like(counts) / len(counts)
         small_mask = (contributing > 0) & (contributing < min_cell)
         props[small_mask] = np.nan
-        return props
+        rounded_contributing[small_mask] = 0
+        return (props, rounded_contributing) if return_rounded_counts else props
 
     # For 'reassign_or_merge', 'merge', and 'rr3_and_suppress':
     small_mask = (contributing > 0) & (contributing < min_cell)
     if small_mask.any() and (~small_mask & (contributing >= min_cell)).any():
         counts[small_mask] = 0.0
+        rounded_contributing[small_mask] = 0
 
-    if action == "rr3_and_suppress":
+    cat_base = rules.get("categorical", {}).get("rounding_base", rules.get("rounding_base", None))
+    cat_rounding_on = cat_base is not None and int(cat_base) > 1
+    if action == "rr3_and_suppress" or (cat_rounding_on and action in ("reassign_or_merge", "merge")):
         cat_rules = {
-            "rounding_base": rules.get("categorical", {}).get(
-                "rounding_base", rules.get("rounding_base", 3)
-            )
+            "rounding_base": cat_base if cat_base is not None else 3
         }
         for i in range(len(counts)):
-            if counts[i] > 0:
-                if (unit_weights is not None or abs(counts[i] - round(counts[i])) > 1e-6) and contributing[i] > 0:
-                    rounded_contrib = float(apply_count_rounding(int(contributing[i]), cat_rules, rng=rng))
-                    counts[i] = counts[i] * (rounded_contrib / float(contributing[i]))
+            if counts[i] > 0 and contributing[i] > 0:
+                rounded_contrib = int(apply_count_rounding(int(contributing[i]), cat_rules, rng=rng))
+                rounded_contributing[i] = rounded_contrib
+                if unit_weights is not None or abs(counts[i] - round(counts[i])) > 1e-6:
+                    counts[i] = counts[i] * (float(rounded_contrib) / float(contributing[i]))
                 else:
-                    counts[i] = float(apply_count_rounding(int(round(counts[i])), cat_rules, rng=rng))
+                    counts[i] = float(rounded_contrib)
+            else:
+                rounded_contributing[i] = 0
 
     total = counts.sum()
     if total <= 0:
         raw_sums = mat.sum(axis=0) if mat.ndim > 1 else np.asarray(cat_matrix, dtype=float)
         raw_total = float(np.sum(raw_sums))
-        return raw_sums / raw_total if raw_total > 0 else np.ones_like(counts) / len(counts)
+        props = raw_sums / raw_total if raw_total > 0 else np.ones_like(counts) / len(counts)
+        return (props, rounded_contributing) if return_rounded_counts else props
 
-    return counts / total
+    props = counts / total
+    return (props, rounded_contributing) if return_rounded_counts else props
