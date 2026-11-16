@@ -4,6 +4,13 @@
 
 A Python package providing two complementary workflows for synthetic unit-record population generation:
 
+## Why:
+
+Secure data environments restrict the release of unit-record data because disclosure checkers must be able to verify that no individual or entity can be identified. In practice, this limits standard micro-to-micro synthetic data generators (such as `CTGAN` or `Copulas`): their black-box neural weights and continuous joint distributions lack deterministic privacy guarantees and cannot be easily audited against strict cell-suppression and rounding rules.
+
+To bridge this gap, **SysPop** implements two practical pathways that let researchers work with realistic unit-record populations while strictly honoring statistical disclosure rules:
+
+
 1. **Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
    Produces unit-record synthetic data from confidential microdata (e.g., IDI data from Stats NZ) by first aggregating unit records into homogeneous clusters under configurable confidentiality rules, and then recreating linked hierarchical synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
 2. **Stochastic Population Imputation (`syspop.model.stochastic_impute`)**:
@@ -13,6 +20,7 @@ A Python package providing two complementary workflows for synthetic unit-record
 
 ## Table of Contents
 - [Syspop: Synthetic Population \& Confidential Microdata Engine](#syspop-synthetic-population--confidential-microdata-engine)
+  - [Why:](#why)
   - [Table of Contents](#table-of-contents)
   - [1. Installation](#1-installation)
   - [2. Method 1: Nearest-Neighbour Confidential Aggregation \& Hierarchical Synthesis](#2-method-1-nearest-neighbour-confidential-aggregation--hierarchical-synthesis)
