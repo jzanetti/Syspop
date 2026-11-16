@@ -15,8 +15,8 @@ from syspop.confidential import (
     aggregate_unit_records,
     aggregate_hierarchy,
     create_synthetic_dataset,
-    run_datalab_aggregation,
-    run_outside_synthesis,
+    run_aggregation,
+    run_synthesis,
     run_confidential_synthetic_pipeline,
 )
 from syspop.model.stochastic_impute import stochastic_impute
@@ -228,7 +228,7 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
             "synthesis": {"random_seed": 42},
         }
         with tempfile.TemporaryDirectory() as tmpdir:
-            agg_tables, meta = run_datalab_aggregation(df, cfg, output_dir=tmpdir)
+            agg_tables, meta = run_aggregation(df, cfg, output_dir=tmpdir)
             self.assertTrue(
                 os.path.exists(os.path.join(tmpdir, "idi_output_checker_report.xlsx"))
             )
@@ -237,7 +237,7 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
                 [],
             )
 
-            syn_df, diag = run_outside_synthesis(
+            syn_df, diag = run_synthesis(
                 agg_tables_or_dir=tmpdir,
                 config_or_path=cfg,
                 output_dir=tmpdir,
@@ -248,15 +248,13 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
 
     def test_complex_multi_feature_pipeline(self):
         """Verify multi-feature (age, sex, income, saving, occupation, location) aggregation & synthesis."""
-        from etc.examples.Nearest_Neighbour_Synthesis.example2 import (
-            generate_complex_microdata,
-        )
+        from syspop.utils.create_sample_microdata import generate_hhld_complex_microdata
 
-        raw_df = generate_complex_microdata(seed=101)
+        raw_df, _ = generate_hhld_complex_microdata(seed=101, n_hhld=120)
         with tempfile.TemporaryDirectory() as tmpdir:
-            agg_tables, meta = run_datalab_aggregation(
+            agg_tables, meta = run_aggregation(
                 df=raw_df,
-                config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example2.yml",
+                config_or_path="etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.yml",
                 output_dir=tmpdir,
             )
             # Verify consolidated IDI Output Checker Excel report is generated (and redundant audit CSVs are omitted by default)
@@ -283,11 +281,13 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
                 .loc[agg_tables["individual"]["cluster_id"] == 1, "age"]
                 .iloc[0]
             )
-            self.assertAlmostEqual(c1_raw["age"].sum() / c1_released_count, c1_agg_age, places=5)
+            self.assertAlmostEqual(
+                c1_raw["age"].sum() / c1_released_count, c1_agg_age, places=5
+            )
 
-            syn_df, diag = run_outside_synthesis(
+            syn_df, diag = run_synthesis(
                 agg_tables_or_dir=tmpdir,
-                config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example2.yml",
+                config_or_path="etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.yml",
             )
             for expected_col in (
                 "household_id",
@@ -497,7 +497,11 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         for h_id in range(1, 51):
             for f_id in (1, 2):
                 for m_idx in range(4):
-                    age = float(rng.integers(6, 17)) if m_idx == 0 else float(rng.integers(25, 65))
+                    age = (
+                        float(rng.integers(6, 17))
+                        if m_idx == 0
+                        else float(rng.integers(25, 65))
+                    )
                     rows.append(
                         {
                             "household_id": h_id,
@@ -512,7 +516,11 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         df = pd.DataFrame(rows)
 
         cfg = {
-            "output_rules": {"min_group_count": 20, "min_cell_count": 6, "rounding_base": None},
+            "output_rules": {
+                "min_group_count": 20,
+                "min_cell_count": 6,
+                "rounding_base": None,
+            },
             "data_structure": {
                 "hierarchy": ["individual", "family", "household"],
                 "hierarchy_counts": {
@@ -552,6 +560,73 @@ class TestConfidentialSyntheticAlgorithm(unittest.TestCase):
         self.assertIn("high_income_fam", agg_tables["household"].columns)
         self.assertIn("high_income_fam_mae", diag["residuals"]["household"])
         self.assertGreater(len(syn_df), 0)
+
+    def test_custom_arbitrary_hierarchy_and_separate_configs(self):
+        """Verify arbitrary hierarchy (employee -> department -> company) with 3 separate configs."""
+        from syspop.confidential import run_verif
+
+        rng = np.random.default_rng(77)
+        rows = []
+        emp_seq = 1
+        for comp_id in range(1, 13):
+            for dept_id in range(1, 3):
+                for _ in range(4):
+                    rows.append(
+                        {
+                            "comp_id": comp_id,
+                            "dept_id": dept_id,
+                            "emp_id": emp_seq,
+                            "tenure": float(rng.integers(1, 20)),
+                            "salary": float(rng.integers(50000, 140000)),
+                            "role": rng.choice(["Eng", "Ops"]),
+                        }
+                    )
+                    emp_seq += 1
+        df = pd.DataFrame(rows)
+
+        common_struct = {
+            "hierarchy": ["employee", "department", "company"],
+            "id_columns": {"employee": "emp_id", "department": "dept_id", "company": "comp_id"},
+            "hierarchy_counts": {
+                "senior_emp": {
+                    "control_level": "employee",
+                    "condition": "tenure >= 10",
+                    "levels": ["department", "company"],
+                }
+            },
+            "features": {
+                "tenure": {"type": "continuous", "agg": "mean"},
+                "salary": {"type": "continuous", "agg": "sum"},
+                "role": {"type": "categorical"},
+            },
+        }
+        agg_cfg = {
+            "output_rules": {"rounding_base": 3, "continuous": {"min_count": 6}, "categorical": {"min_count": 2}},
+            "data_structure": common_struct,
+        }
+        syn_cfg = {
+            "data_structure": common_struct,
+            "synthesis": {"reconcile_counts": "auto", "random_seed": 42},
+        }
+        verif_cfg = {
+            "data_structure": common_struct,
+            "verification": {"min_count": 3, "columns": ["tenure", "salary", "role"]},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            export_dir = os.path.join(tmpdir, "agg")
+            verif_dir = os.path.join(tmpdir, "syn")
+            agg_tables, _ = run_aggregation(df=df, config_or_path=agg_cfg, output_dir=export_dir)
+            self.assertEqual(set(agg_tables.keys()), {"employee", "department", "company"})
+
+            syn_df, diag = run_synthesis(agg_tables_or_dir=export_dir, config_or_path=syn_cfg, output_dir=verif_dir)
+            self.assertEqual(list(syn_df.columns[:3]), ["comp_id", "dept_id", "emp_id"])
+            self.assertEqual(set(diag["residuals"].keys()), {"department", "company"})
+
+            verif_out = run_verif(raw_df=df, syn_df=syn_df, output_dir=verif_dir, config_or_path=verif_cfg)
+            self.assertEqual(set(verif_out["figures"]["by_level"].keys()), {"employee", "department", "company"})
+            num_sum = pd.read_excel(verif_out["verification_report"], sheet_name="1_Numeric_Summary")
+            self.assertEqual(set(num_sum["level"]), {"employee", "department", "company"})
 
 
 if __name__ == "__main__":

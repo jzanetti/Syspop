@@ -8,25 +8,14 @@ from syspop.confidential.config import (
 from syspop.confidential.aggregate import evaluate_hierarchy_condition
 
 
-HIERARCHY_COUNT_ALIASES = {
-    "family": ["individual_num", "individual number", "individual_number", "ind_num"],
-    "household_with_family": [
-        "family_num",
-        "family number",
-        "family_number",
-        "fam_num",
-        "individual_num",
-        "individual number",
-    ],
-    "household_no_family": [
-        "individual_num",
-        "individual number",
-        "individual_number",
-        "ind_num",
-        "family_num",
-        "family number",
-    ],
-}
+def _get_child_count_aliases(child_lvl: str) -> list:
+    """Return candidate column names for the child-count column of `child_lvl`."""
+    aliases = [f"{child_lvl}_num", f"{child_lvl} number", f"{child_lvl}_number"]
+    if child_lvl == "individual":
+        aliases.append("ind_num")
+    elif child_lvl == "family":
+        aliases.append("fam_num")
+    return aliases
 
 
 def _match_column_case_insensitive(df: pd.DataFrame, candidates: list) -> str or None:
@@ -48,29 +37,29 @@ def infer_synthesis_schema(
     feature mappings from aggregated tables and configuration (even if Step 1 metadata
     is not provided, e.g., when running outside the Data Lab from exported CSVs).
     """
-    if "individual" not in agg_tables:
-        raise ValueError("agg_tables must contain at least an 'individual' DataFrame.")
-
-    ind_df = agg_tables["individual"]
     data_cfg = cfg.get("data_structure", {})
 
-    # 1. Hierarchy
+    # 1. Hierarchy (lowest -> highest)
     if metadata and "hierarchy" in metadata:
-        hierarchy = list(metadata["hierarchy"])
+        hierarchy = [str(h).lower() for h in metadata["hierarchy"]]
     elif "hierarchy" in data_cfg and data_cfg["hierarchy"]:
         hierarchy = [str(h).lower() for h in data_cfg["hierarchy"]]
     else:
-        hierarchy = ["individual"]
-        if "family" in agg_tables:
-            hierarchy.append("family")
-        if "household" in agg_tables:
-            hierarchy.append("household")
+        hierarchy = [str(k).lower() for k in agg_tables.keys()]
+
+    if not hierarchy:
+        raise ValueError("Hierarchy cannot be empty.")
+
+    base_lvl = hierarchy[0]
+    if base_lvl not in agg_tables:
+        raise ValueError(f"agg_tables must contain at least a '{base_lvl}' DataFrame.")
+
+    ind_df = agg_tables[base_lvl]
 
     # 2. ID columns
     id_columns = {
-        "individual": "person_id",
-        "family": "family_id",
-        "household": "household_id",
+        lvl: ("person_id" if lvl == "individual" else f"{lvl}_id")
+        for lvl in hierarchy
     }
     if metadata and "id_columns" in metadata:
         id_columns.update(metadata["id_columns"])
@@ -80,7 +69,7 @@ def infer_synthesis_schema(
     # 3. Discover continuous and categorical features from metadata or aggregated columns
     count_col = _match_column_case_insensitive(ind_df, ["count", "value", "n"])
     if count_col is None:
-        raise ValueError("Individual aggregated table must contain a 'count' column.")
+        raise ValueError(f"'{base_lvl}' aggregated table must contain a 'count' column.")
 
     # Identify *_std columns in individual table
     std_col_map = {}
@@ -396,17 +385,18 @@ def recreate_individuals_from_agg(
 
     ind_records = pd.concat(chunks, ignore_index=True)
 
-    # Evaluate any configured hierarchy_counts conditions controlled at 'individual' level
+    # Evaluate any configured hierarchy_counts conditions controlled at the base level
+    base_lvl = schema["hierarchy"][0]
     for cnt_name, cnt_spec in hierarchy_counts.items():
-        if str(cnt_spec.get("control_level", "individual")).strip().lower() != "individual":
+        if str(cnt_spec.get("control_level", base_lvl)).strip().lower() != base_lvl:
             continue
         cond_str = str(cnt_spec.get("condition", "")).strip()
         if not cond_str:
             continue
         ind_records[f"__hcount_{cnt_name}"] = evaluate_hierarchy_condition(ind_records, cond_str)
 
-    ind_id_col = schema["id_columns"].get("individual", "person_id")
-    ind_records.insert(0, ind_id_col, np.arange(1, len(ind_records) + 1, dtype=int))
+    base_id_col = schema["id_columns"].get(base_lvl, f"{base_lvl}_id")
+    ind_records.insert(0, base_id_col, np.arange(1, len(ind_records) + 1, dtype=int))
     return ind_records
 
 
@@ -780,14 +770,15 @@ def create_synthetic_dataset(
 ) -> pd.DataFrame or tuple:
     """
     Step 3 of the Synthetic Data Production Algorithm:
-    Recreate the synthetic unit-record dataset outside the Data Lab from the
-    released confidentialised aggregated tables (Individual, and optionally Family
-    and Household tables) while minimizing residual errors across the hierarchy.
+    Recreate the synthetic unit-record dataset from the released confidentialised
+    aggregated tables across any configured hierarchy while minimizing residual
+    errors across levels.
     """
-    if isinstance(agg_tables, pd.DataFrame):
-        agg_tables = {"individual": agg_tables}
-
     cfg = load_config(config_or_path)
+    if isinstance(agg_tables, pd.DataFrame):
+        cfg_hier = cfg.get("data_structure", {}).get("hierarchy") or ["individual"]
+        agg_tables = {str(cfg_hier[0]).lower(): agg_tables}
+
     schema = infer_synthesis_schema(agg_tables, cfg, metadata=metadata)
     hierarchy = schema["hierarchy"]
     id_columns = schema["id_columns"]
@@ -797,62 +788,45 @@ def create_synthetic_dataset(
     )
     rng = np.random.default_rng(seed)
 
-    has_family = "family" in hierarchy and "family" in agg_tables and len(agg_tables["family"]) > 0
-    has_household = "household" in hierarchy and "household" in agg_tables and len(agg_tables["household"]) > 0
-
+    active_levels = [
+        lvl for lvl in hierarchy if lvl in agg_tables and len(agg_tables[lvl]) > 0
+    ]
+    base_lvl = active_levels[0]
     diagnostics = {"residuals": {}}
+    reconcile_mode = str(cfg.get("synthesis", {}).get("reconcile_counts", "auto")).lower()
 
-    # 1. If household and family both exist, first generate household targets so we know total required families
-    hh_targets_df = None
-    total_families_needed = None
-    if has_household:
-        hh_aliases = (
-            HIERARCHY_COUNT_ALIASES["household_with_family"]
-            if has_family
-            else HIERARCHY_COUNT_ALIASES["household_no_family"]
-        )
-        hh_targets_df, _ = _generate_parent_targets(
-            agg_tables["household"],
-            hh_aliases,
+    # 1. Generate parent targets top-down from highest level down to active_levels[1]
+    parent_targets = {}
+    target_count_next = None
+    for lvl_idx in range(len(active_levels) - 1, 0, -1):
+        parent_lvl = active_levels[lvl_idx]
+        child_lvl = active_levels[lvl_idx - 1]
+        aliases = _get_child_count_aliases(child_lvl)
+        if lvl_idx == 1 and base_lvl != child_lvl:
+            aliases = aliases + _get_child_count_aliases(base_lvl)
+
+        p_targets_df, _ = _generate_parent_targets(
+            agg_tables[parent_lvl],
+            aliases,
             schema,
             cfg,
             rng,
-            parent_level="household",
+            target_parent_count=target_count_next,
+            parent_level=parent_lvl,
         )
-        if has_family and len(hh_targets_df) > 0:
-            reconcile_mode = str(cfg.get("synthesis", {}).get("reconcile_counts", "auto")).lower()
-            if reconcile_mode == "auto":
-                total_families_needed = int(hh_targets_df["__child_count"].sum())
+        parent_targets[parent_lvl] = p_targets_df
+        if reconcile_mode == "auto" and len(p_targets_df) > 0:
+            target_count_next = int(p_targets_df["__child_count"].sum())
+        else:
+            target_count_next = None
 
-    # 2. If family exists, generate family targets so we know total required individuals
-    fam_targets_df = None
-    total_individuals_needed = None
-    if has_family:
-        fam_targets_df, _ = _generate_parent_targets(
-            agg_tables["family"],
-            HIERARCHY_COUNT_ALIASES["family"],
-            schema,
-            cfg,
-            rng,
-            target_parent_count=total_families_needed,
-            parent_level="family",
-        )
-        if len(fam_targets_df) > 0:
-            reconcile_mode = str(cfg.get("synthesis", {}).get("reconcile_counts", "auto")).lower()
-            if reconcile_mode == "auto":
-                total_individuals_needed = int(fam_targets_df["__child_count"].sum())
-    elif has_household and hh_targets_df is not None and len(hh_targets_df) > 0:
-        reconcile_mode = str(cfg.get("synthesis", {}).get("reconcile_counts", "auto")).lower()
-        if reconcile_mode == "auto":
-            total_individuals_needed = int(hh_targets_df["__child_count"].sum())
-
-    # 3. Recreate synthetic unit-record individuals
+    # 2. Recreate synthetic unit-record base-level rows
     ind_df = recreate_individuals_from_agg(
-        agg_tables["individual"],
+        agg_tables[base_lvl],
         schema,
         cfg,
         rng,
-        target_total_count=total_individuals_needed,
+        target_total_count=target_count_next,
     )
 
     if len(ind_df) == 0:
@@ -860,110 +834,118 @@ def create_synthetic_dataset(
             return ind_df, diagnostics
         return ind_df
 
-    # 4. Link individuals -> families (if family level is active)
-    if has_family and fam_targets_df is not None and len(fam_targets_df) > 0:
-        fam_id_col = id_columns.get("family", "family_id")
-        # Ensure exact count match if reconcile_counts was disabled
-        diff = len(ind_df) - int(fam_targets_df["__child_count"].sum())
-        if diff != 0:
-            ind_df = recreate_individuals_from_agg(
-                agg_tables["individual"],
-                schema,
-                cfg,
-                rng,
-                target_total_count=int(fam_targets_df["__child_count"].sum()),
-            )
+    # 3. Link bottom-up through all active higher hierarchy levels
+    current_children_df = ind_df
+    for lvl_idx in range(1, len(active_levels)):
+        child_lvl = active_levels[lvl_idx - 1]
+        parent_lvl = active_levels[lvl_idx]
+        p_targets_df = parent_targets.get(parent_lvl)
+        if p_targets_df is None or len(p_targets_df) == 0:
+            continue
 
-        ind_df, realized_families_df, fam_residuals = assign_children_to_parents_greedy(
-            children_df=ind_df,
-            parents_df=fam_targets_df,
-            schema=schema,
-            parent_id_col=fam_id_col,
-        )
-        diagnostics["residuals"]["family"] = fam_residuals
+        parent_id_col = id_columns.get(parent_lvl, f"{parent_lvl}_id")
+        child_id_col = id_columns.get(child_lvl, f"{child_lvl}_id")
 
-        # 5. Link families -> households (if household level is also active)
-        if has_household and hh_targets_df is not None and len(hh_targets_df) > 0:
-            # Evaluate any family-controlled hierarchy_counts on realized_families_df
+        if lvl_idx == 1:
+            diff = len(ind_df) - int(p_targets_df["__child_count"].sum())
+            if diff != 0:
+                ind_df = recreate_individuals_from_agg(
+                    agg_tables[base_lvl],
+                    schema,
+                    cfg,
+                    rng,
+                    target_total_count=int(p_targets_df["__child_count"].sum()),
+                )
+                current_children_df = ind_df
+        else:
+            # Evaluate any hierarchy_counts controlled at `child_lvl` for `parent_lvl`
+            child_num_col = f"{child_lvl}_num"
+            prev_child_num = f"{active_levels[lvl_idx - 2]}_num"
             for cnt_name, cnt_spec in schema.get("hierarchy_counts", {}).items():
                 if (
-                    str(cnt_spec.get("control_level", "individual")).strip().lower() == "family"
-                    and "household" in cnt_spec.get("levels", ["household"])
+                    str(cnt_spec.get("control_level", base_lvl)).strip().lower() == child_lvl
+                    and parent_lvl in cnt_spec.get("levels", [parent_lvl])
                 ):
                     cond_str = str(cnt_spec.get("condition", "")).strip()
                     if cond_str:
-                        fam_eval_df = realized_families_df.copy()
-                        if "individual_num" not in fam_eval_df.columns and "__child_count" in fam_eval_df.columns:
-                            fam_eval_df["individual_num"] = fam_eval_df["__child_count"]
-                        realized_families_df[f"__hcount_{cnt_name}"] = evaluate_hierarchy_condition(
-                            fam_eval_df, cond_str
+                        eval_df = current_children_df.copy()
+                        if prev_child_num not in eval_df.columns and "__child_count" in eval_df.columns:
+                            eval_df[prev_child_num] = eval_df["__child_count"]
+                        current_children_df[f"__hcount_{cnt_name}"] = evaluate_hierarchy_condition(
+                            eval_df, cond_str
                         )
-            hh_id_col = id_columns.get("household", "household_id")
-            linked_families, realized_hh_df, hh_residuals = assign_children_to_parents_greedy(
-                children_df=realized_families_df,
-                parents_df=hh_targets_df,
-                schema=schema,
-                parent_id_col=hh_id_col,
-            )
-            diagnostics["residuals"]["household"] = hh_residuals
-            fam_to_hh = dict(zip(linked_families[fam_id_col], linked_families[hh_id_col]))
-            ind_df[hh_id_col] = ind_df[fam_id_col].map(fam_to_hh)
 
-    elif has_household and hh_targets_df is not None and len(hh_targets_df) > 0:
-        # Link individuals directly -> households (when there is no family level)
-        hh_id_col = id_columns.get("household", "household_id")
-        diff = len(ind_df) - int(hh_targets_df["__child_count"].sum())
-        if diff != 0:
-            ind_df = recreate_individuals_from_agg(
-                agg_tables["individual"],
-                schema,
-                cfg,
-                rng,
-                target_total_count=int(hh_targets_df["__child_count"].sum()),
-            )
-        ind_df, _, hh_residuals = assign_children_to_parents_greedy(
-            children_df=ind_df,
-            parents_df=hh_targets_df,
+        linked_children, realized_parents, lvl_residuals = assign_children_to_parents_greedy(
+            children_df=current_children_df,
+            parents_df=p_targets_df,
             schema=schema,
-            parent_id_col=hh_id_col,
+            parent_id_col=parent_id_col,
         )
-        diagnostics["residuals"]["household"] = hh_residuals
+        diagnostics["residuals"][parent_lvl] = lvl_residuals
+
+        if lvl_idx == 1:
+            ind_df = linked_children
+        elif child_id_col in linked_children.columns:
+            child_to_parent = dict(zip(linked_children[child_id_col], linked_children[parent_id_col]))
+            ind_df[parent_id_col] = ind_df[child_id_col].map(child_to_parent)
+
+        current_children_df = realized_parents
 
     # Clean up internal helper columns (__onehot_*) and order ID columns first
     helper_cols = [c for c in ind_df.columns if c.startswith("__")]
     ind_df = ind_df.drop(columns=helper_cols)
 
     ordered_ids = []
-    for lvl in reversed(hierarchy):
+    for lvl in reversed(active_levels):
         col = id_columns.get(lvl)
         if col and col in ind_df.columns and col not in ordered_ids:
             ordered_ids.append(col)
     other_cols = [c for c in ind_df.columns if c not in ordered_ids]
-    ind_df = ind_df[ordered_ids + other_cols].sort_values(by=ordered_ids).reset_index(drop=True)
+    if ordered_ids:
+        ind_df = ind_df[ordered_ids + other_cols].sort_values(by=ordered_ids).reset_index(drop=True)
+    else:
+        ind_df = ind_df.reset_index(drop=True)
 
-    # Re-number family_id and person_id sequentially in sorted order so IDs are clean (1, 2, 3, ...)
-    fam_id_col = id_columns.get("family", "family_id")
-    hh_id_col = id_columns.get("household", "household_id")
-    if fam_id_col in ind_df.columns:
-        if hh_id_col in ind_df.columns and hh_id_col != fam_id_col:
-            ind_df[fam_id_col] = (
-                ind_df.groupby([hh_id_col, fam_id_col], sort=False).ngroup() + 1
-            )
+    # Re-number ID columns sequentially in sorted order so IDs are clean (1, 2, 3, ...)
+    for lvl_idx in range(len(active_levels) - 1, 0, -1):
+        lvl = active_levels[lvl_idx]
+        lvl_id = id_columns.get(lvl, f"{lvl}_id")
+        if lvl_id not in ind_df.columns:
+            continue
+        anc_cols = [
+            id_columns.get(a, f"{a}_id")
+            for a in reversed(active_levels[lvl_idx:])
+            if id_columns.get(a, f"{a}_id") in ind_df.columns
+        ]
+        if len(anc_cols) > 1:
+            ind_df[lvl_id] = ind_df.groupby(anc_cols, sort=False).ngroup() + 1
         else:
-            ind_df[fam_id_col] = ind_df.groupby(fam_id_col, sort=False).ngroup() + 1
+            ind_df[lvl_id] = ind_df.groupby(lvl_id, sort=False).ngroup() + 1
 
-    ind_id_col = id_columns.get("individual", "person_id")
-    if ind_id_col in ind_df.columns:
-        ind_df[ind_id_col] = np.arange(1, len(ind_df) + 1, dtype=int)
+    base_id_col = id_columns.get(base_lvl, f"{base_lvl}_id")
+    if base_id_col in ind_df.columns:
+        ind_df[base_id_col] = np.arange(1, len(ind_df) + 1, dtype=int)
 
-    # Ensure household-level or family-level weight columns are consistent within each household/family
+    # Ensure higher-level weight columns are consistent within each group
     for col in ind_df.columns:
         col_norm = col.strip().lower().replace(" ", "_")
-        if col_norm in ("household_weight", "household_weights", "hh_weight") and hh_id_col in ind_df.columns:
-            ind_df[col] = ind_df.groupby(hh_id_col)[col].transform("mean").round(4)
-        elif col_norm in ("family_weight", "family_weights", "fam_weight") and fam_id_col in ind_df.columns:
-            grp_cols = [hh_id_col, fam_id_col] if hh_id_col in ind_df.columns else [fam_id_col]
-            ind_df[col] = ind_df.groupby(grp_cols)[col].transform("mean").round(4)
+        for lvl_idx in range(1, len(active_levels)):
+            lvl = active_levels[lvl_idx]
+            lvl_id = id_columns.get(lvl, f"{lvl}_id")
+            prefixes = [lvl, lvl_id.lower().replace("_id", "")]
+            if lvl == "household":
+                prefixes.append("hh")
+            elif lvl == "family":
+                prefixes.append("fam")
+            if any(col_norm in (f"{p}_weight", f"{p}_weights", f"{p}weight") for p in prefixes):
+                grp_cols = [
+                    id_columns.get(a, f"{a}_id")
+                    for a in reversed(active_levels[lvl_idx:])
+                    if id_columns.get(a, f"{a}_id") in ind_df.columns
+                ]
+                if grp_cols:
+                    ind_df[col] = ind_df.groupby(grp_cols)[col].transform("mean").round(4)
+                break
 
     if return_diagnostics:
         return ind_df, diagnostics

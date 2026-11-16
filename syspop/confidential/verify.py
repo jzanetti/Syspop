@@ -6,9 +6,17 @@ import pandas as pd
 from scipy import stats
 
 from syspop.confidential.aggregate import build_unit_hierarchy_table
-from syspop.confidential.config import load_config, resolve_data_structure, resolve_verification_config
+from syspop.confidential.config import (
+    load_config,
+    resolve_data_structure,
+    resolve_verification_config,
+)
 from syspop.confidential.report import _format_excel_workbook
-from syspop.postp.vis import _is_categorical, compute_idi_safe_1d_bins, compute_idi_safe_2d_bins
+from syspop.postp.vis import (
+    _is_categorical,
+    compute_idi_safe_1d_bins,
+    compute_idi_safe_2d_bins,
+)
 
 
 def _is_continuous_series(s: pd.Series) -> bool:
@@ -28,7 +36,9 @@ def _cramers_v(x: pd.Series, y: pd.Series) -> float:
 
 
 def _correlation_ratio(categories: pd.Series, values: pd.Series) -> float:
-    df_tmp = pd.DataFrame({"cat": categories.astype(str), "val": pd.to_numeric(values, errors="coerce")}).dropna()
+    df_tmp = pd.DataFrame(
+        {"cat": categories.astype(str), "val": pd.to_numeric(values, errors="coerce")}
+    ).dropna()
     if len(df_tmp) < 2:
         return 0.0
     overall_mean = df_tmp["val"].mean()
@@ -40,7 +50,9 @@ def _correlation_ratio(categories: pd.Series, values: pd.Series) -> float:
     return float(np.sqrt(np.clip(ss_between / ss_total, 0.0, 1.0)))
 
 
-def _contingency_tvd(x_raw: pd.Series, y_raw: pd.Series, x_syn: pd.Series, y_syn: pd.Series) -> float:
+def _contingency_tvd(
+    x_raw: pd.Series, y_raw: pd.Series, x_syn: pd.Series, y_syn: pd.Series
+) -> float:
     p_raw = pd.crosstab(x_raw.astype(str), y_raw.astype(str), normalize=True)
     p_syn = pd.crosstab(x_syn.astype(str), y_syn.astype(str), normalize=True)
     all_idx = p_raw.index.union(p_syn.index)
@@ -53,10 +65,22 @@ def _contingency_tvd(x_raw: pd.Series, y_raw: pd.Series, x_syn: pd.Series, y_syn
 def build_metric_guide_df() -> pd.DataFrame:
     """Reference guide explaining the synthetic data verification report."""
     rows = [
-        ("1_Numeric_Summary", "1D numeric comparison across hierarchy levels: raw vs. synthetic count, mean, std, and median."),
-        ("2_Category_Summary", "1D category and discrete-count comparison across hierarchy levels: raw vs. synthetic counts."),
-        ("3_Pairwise_Correlations", "2D association comparison: Pearson r (numeric-numeric), Cramer's V (cat-cat), Correlation Ratio eta (cat-numeric)."),
-        ("status", "PASS = raw_count >= min_count (or 0); SUPPRESSED = raw_count is below the configured min_count threshold."),
+        (
+            "1_Numeric_Summary",
+            "1D numeric comparison across hierarchy levels: raw vs. synthetic count, mean, std, and median.",
+        ),
+        (
+            "2_Category_Summary",
+            "1D category and discrete-count comparison across hierarchy levels: raw vs. synthetic counts.",
+        ),
+        (
+            "3_Pairwise_Correlations",
+            "2D association comparison: Pearson r (numeric-numeric), Cramer's V (cat-cat), Correlation Ratio eta (cat-numeric).",
+        ),
+        (
+            "status",
+            "PASS = raw_count >= min_count (or 0); SUPPRESSED = raw_count is below the configured min_count threshold.",
+        ),
     ]
     return pd.DataFrame(rows, columns=["Sheet / Column", "Description"])
 
@@ -78,20 +102,32 @@ def evaluate_synthetic_data(
     else:
         eval_cols = [c for c in columns if c in raw_df.columns and c in syn_df.columns]
 
-    cont_cols = [c for c in eval_cols if _is_continuous_series(raw_df[c]) and _is_continuous_series(syn_df[c])]
+    cont_cols = [
+        c
+        for c in eval_cols
+        if _is_continuous_series(raw_df[c]) and _is_continuous_series(syn_df[c])
+    ]
     cat_cols = [c for c in eval_cols if c not in cont_cols]
     # Also include discrete low-cardinality integer/count columns (e.g. family_num, individual_num) in category counts
     discrete_cat_cols = list(cat_cols)
     for col in cont_cols:
         r_num = pd.to_numeric(raw_df[col], errors="coerce").dropna()
-        if len(r_num) > 0 and _is_categorical(r_num) and np.all(np.isclose(r_num, np.round(r_num))):
+        if (
+            len(r_num) > 0
+            and _is_categorical(r_num)
+            and np.all(np.isclose(r_num, np.round(r_num)))
+        ):
             discrete_cat_cols.append(col)
 
     # 1. Numeric 1D Summary (count, mean, std, median)
     cont_rows = []
     for col in cont_cols:
-        r_vals = pd.to_numeric(raw_df[col], errors="coerce").dropna().to_numpy(dtype=float)
-        s_vals = pd.to_numeric(syn_df[col], errors="coerce").dropna().to_numpy(dtype=float)
+        r_vals = (
+            pd.to_numeric(raw_df[col], errors="coerce").dropna().to_numpy(dtype=float)
+        )
+        s_vals = (
+            pd.to_numeric(syn_df[col], errors="coerce").dropna().to_numpy(dtype=float)
+        )
         if len(r_vals) == 0 or len(s_vals) == 0:
             continue
 
@@ -123,8 +159,20 @@ def evaluate_synthetic_data(
     cat_rows = []
     for col in discrete_cat_cols:
         if col in cont_cols:
-            r_ser = pd.to_numeric(raw_df[col], errors="coerce").dropna().round().astype(int).astype(str)
-            s_ser = pd.to_numeric(syn_df[col], errors="coerce").dropna().round().astype(int).astype(str)
+            r_ser = (
+                pd.to_numeric(raw_df[col], errors="coerce")
+                .dropna()
+                .round()
+                .astype(int)
+                .astype(str)
+            )
+            s_ser = (
+                pd.to_numeric(syn_df[col], errors="coerce")
+                .dropna()
+                .round()
+                .astype(int)
+                .astype(str)
+            )
         else:
             r_ser = raw_df[col].dropna().astype(str)
             s_ser = syn_df[col].dropna().astype(str)
@@ -178,11 +226,23 @@ def evaluate_synthetic_data(
             pair_type, metric_name = "categorical-categorical", "Cramer's V"
         else:
             cat_c, cont_c = (c1, c2) if not c1_cont else (c2, c1)
-            r_pair = pd.DataFrame({"cat": raw_df[cat_c], "val": pd.to_numeric(raw_df[cont_c], errors="coerce")}).dropna()
-            s_pair = pd.DataFrame({"cat": syn_df[cat_c], "val": pd.to_numeric(syn_df[cont_c], errors="coerce")}).dropna()
+            r_pair = pd.DataFrame(
+                {
+                    "cat": raw_df[cat_c],
+                    "val": pd.to_numeric(raw_df[cont_c], errors="coerce"),
+                }
+            ).dropna()
+            s_pair = pd.DataFrame(
+                {
+                    "cat": syn_df[cat_c],
+                    "val": pd.to_numeric(syn_df[cont_c], errors="coerce"),
+                }
+            ).dropna()
             rc, sc = int(len(r_pair)), int(len(s_pair))
             is_low = rc < min_count
-            v_raw = np.nan if is_low else _correlation_ratio(raw_df[cat_c], raw_df[cont_c])
+            v_raw = (
+                np.nan if is_low else _correlation_ratio(raw_df[cat_c], raw_df[cont_c])
+            )
             v_syn = _correlation_ratio(syn_df[cat_c], syn_df[cont_c])
             pair_type, metric_name = "categorical-numeric", "Correlation Ratio (eta)"
 
@@ -240,11 +300,14 @@ def build_verification_level_datasets(
         active_meta = {k: v for k, v in features_meta.items() if k in base_cols}
     else:
         id_set = {id_columns.get(lvl) for lvl in hierarchy if id_columns.get(lvl)}
-        active_meta = {k: v for k, v in features_meta.items() if k in base_cols and k not in id_set}
+        active_meta = {
+            k: v for k, v in features_meta.items() if k in base_cols and k not in id_set
+        }
 
+    base_lvl = hierarchy[0] if hierarchy else "individual"
     ind_cols = [c for c in base_cols if c in raw_df.columns and c in syn_df.columns]
     level_datasets = {
-        "individual": {
+        base_lvl: {
             "raw_df": raw_df,
             "syn_df": syn_df,
             "eval_columns": ind_cols,
@@ -255,7 +318,11 @@ def build_verification_level_datasets(
     # Build shared categorical mappings across raw & synthetic so higher-level tables align
     cat_mappings = {}
     for feat_name, spec in active_meta.items():
-        if spec.get("type") == "categorical" and feat_name in raw_df.columns and feat_name in syn_df.columns:
+        if (
+            spec.get("type") == "categorical"
+            and feat_name in raw_df.columns
+            and feat_name in syn_df.columns
+        ):
             cats = sorted(
                 set(raw_df[feat_name].fillna("Missing").astype(str)).union(
                     set(syn_df[feat_name].fillna("Missing").astype(str))
@@ -265,112 +332,90 @@ def build_verification_level_datasets(
                 "categories": cats,
                 "columns": [f"{feat_name}_{c}" for c in cats],
             }
-    cat_one_hot_cols = [col_lbl for m in cat_mappings.values() for col_lbl in m["columns"]]
+    cat_one_hot_cols = [
+        col_lbl for m in cat_mappings.values() for col_lbl in m["columns"]
+    ]
 
-    raw_sources = {"individual": raw_df}
-    syn_sources = {"individual": syn_df}
+    raw_sources = {base_lvl: raw_df}
+    syn_sources = {base_lvl: syn_df}
 
-    fam_col = id_columns.get("family", "family_id")
-    hh_col = id_columns.get("household", "household_id")
+    for lvl_idx in range(1, len(hierarchy)):
+        lvl = hierarchy[lvl_idx]
+        child_lvl = hierarchy[lvl_idx - 1]
+        lvl_id_col = id_columns.get(lvl, f"{lvl}_id")
+        if lvl_id_col not in raw_df.columns or lvl_id_col not in syn_df.columns:
+            continue
 
-    if "family" in hierarchy and fam_col in raw_df.columns and fam_col in syn_df.columns:
-        if "household" in hierarchy and hh_col in raw_df.columns and hh_col in syn_df.columns and hh_col != fam_col:
-            fam_group_cols = [hh_col, fam_col]
-        else:
-            fam_group_cols = [fam_col]
+        group_cols = []
+        for anc_lvl in reversed(hierarchy[lvl_idx:]):
+            anc_col = id_columns.get(anc_lvl, f"{anc_lvl}_id")
+            if anc_col in raw_df.columns and anc_col in syn_df.columns and anc_col not in group_cols:
+                group_cols.append(anc_col)
+        if not group_cols:
+            group_cols = [lvl_id_col]
 
-        raw_fam_df, fam_meta = build_unit_hierarchy_table(
+        child_id_col = id_columns.get(child_lvl, f"{child_lvl}_id") if lvl_idx > 1 else None
+        if child_id_col is not None and (child_id_col not in raw_df.columns or child_id_col not in syn_df.columns):
+            child_id_col = None
+        child_count_name = f"{child_lvl}_num"
+
+        raw_lvl_df, lvl_meta = build_unit_hierarchy_table(
             df=raw_df,
-            group_id_cols=fam_group_cols,
+            group_id_cols=group_cols,
             features_meta=active_meta,
             cat_mappings=cat_mappings,
-            child_id_col=None,
-            child_count_col="individual_num",
-            hierarchy_counts=hierarchy_counts,
-            level_name="family",
-            source_tables_by_level=raw_sources,
-        )
-        syn_fam_df, _ = build_unit_hierarchy_table(
-            df=syn_df,
-            group_id_cols=fam_group_cols,
-            features_meta=active_meta,
-            cat_mappings=cat_mappings,
-            child_id_col=None,
-            child_count_col="individual_num",
-            hierarchy_counts=hierarchy_counts,
-            level_name="family",
-            source_tables_by_level=syn_sources,
-        )
-        raw_sources["family"] = raw_fam_df
-        syn_sources["family"] = syn_fam_df
-
-        fam_plot_cols = [
-            c
-            for c, spec in fam_meta.items()
-            if spec.get("type") == "continuous" and c in raw_fam_df.columns and c in syn_fam_df.columns
-        ]
-        fam_eval_cols = fam_plot_cols + [
-            c for c in cat_one_hot_cols if c in raw_fam_df.columns and c in syn_fam_df.columns
-        ]
-        level_datasets["family"] = {
-            "raw_df": raw_fam_df,
-            "syn_df": syn_fam_df,
-            "eval_columns": fam_eval_cols,
-            "plot_columns": fam_plot_cols,
-        }
-
-    if "household" in hierarchy and hh_col in raw_df.columns and hh_col in syn_df.columns:
-        has_family = "family" in hierarchy and fam_col in raw_df.columns and fam_col in syn_df.columns
-        child_col = fam_col if has_family else None
-        child_count_name = "family_num" if has_family else "individual_num"
-
-        raw_hh_df, hh_meta = build_unit_hierarchy_table(
-            df=raw_df,
-            group_id_cols=[hh_col],
-            features_meta=active_meta,
-            cat_mappings=cat_mappings,
-            child_id_col=child_col,
+            child_id_col=child_id_col,
             child_count_col=child_count_name,
             hierarchy_counts=hierarchy_counts,
-            level_name="household",
+            level_name=lvl,
             source_tables_by_level=raw_sources,
         )
-        syn_hh_df, _ = build_unit_hierarchy_table(
+        syn_lvl_df, _ = build_unit_hierarchy_table(
             df=syn_df,
-            group_id_cols=[hh_col],
+            group_id_cols=group_cols,
             features_meta=active_meta,
             cat_mappings=cat_mappings,
-            child_id_col=child_col,
+            child_id_col=child_id_col,
             child_count_col=child_count_name,
             hierarchy_counts=hierarchy_counts,
-            level_name="household",
+            level_name=lvl,
             source_tables_by_level=syn_sources,
         )
-        hh_plot_cols = [
+        raw_sources[lvl] = raw_lvl_df
+        syn_sources[lvl] = syn_lvl_df
+
+        lvl_plot_cols = [
             c
-            for c, spec in hh_meta.items()
-            if spec.get("type") == "continuous" and c in raw_hh_df.columns and c in syn_hh_df.columns
+            for c, spec in lvl_meta.items()
+            if spec.get("type") == "continuous"
+            and c in raw_lvl_df.columns
+            and c in syn_lvl_df.columns
         ]
-        hh_eval_cols = hh_plot_cols + [
-            c for c in cat_one_hot_cols if c in raw_hh_df.columns and c in syn_hh_df.columns
+        lvl_eval_cols = lvl_plot_cols + [
+            c
+            for c in cat_one_hot_cols
+            if c in raw_lvl_df.columns and c in syn_lvl_df.columns
         ]
-        level_datasets["household"] = {
-            "raw_df": raw_hh_df,
-            "syn_df": syn_hh_df,
-            "eval_columns": hh_eval_cols,
-            "plot_columns": hh_plot_cols,
+        level_datasets[lvl] = {
+            "raw_df": raw_lvl_df,
+            "syn_df": syn_lvl_df,
+            "eval_columns": lvl_eval_cols,
+            "plot_columns": lvl_plot_cols,
         }
 
     return level_datasets
 
 
-def _infer_figure_level_and_label(fig_path: str) -> tuple:
+def _infer_figure_level_and_label(fig_path: str, valid_levels: list or None = None) -> tuple:
     """Extract `(level, grouped_label)` from a verification figure path."""
-    parent_name = basename(dirname(fig_path))
+    parent_dir = dirname(fig_path)
+    parent_name = basename(parent_dir)
+    grandparent_name = basename(dirname(parent_dir))
     fname = basename(fig_path)
-    if parent_name in ("individual", "family", "household"):
+    if grandparent_name == "figures" or (valid_levels and parent_name in valid_levels):
         return parent_name, f"{parent_name}/{fname}"
-    return "individual", fname
+    base_lvl = valid_levels[0] if valid_levels else "unit"
+    return base_lvl, fname
 
 
 def export_synthetic_verification_report(
@@ -396,7 +441,11 @@ def export_synthetic_verification_report(
         makedirs(output_dir)
 
     if min_count is None:
-        verif_cfg = resolve_verification_config(config_or_path) if config_or_path is not None else {}
+        verif_cfg = (
+            resolve_verification_config(config_or_path)
+            if config_or_path is not None
+            else {}
+        )
         min_count = int(verif_cfg.get("min_count", 6))
 
     if include_hierarchy:
@@ -410,7 +459,11 @@ def export_synthetic_verification_report(
         eval_cols = (
             [c for c in raw_df.columns if c in syn_df.columns]
             if columns is None
-            else [c for c in ([columns] if isinstance(columns, str) else columns) if c in raw_df.columns and c in syn_df.columns]
+            else [
+                c
+                for c in ([columns] if isinstance(columns, str) else columns)
+                if c in raw_df.columns and c in syn_df.columns
+            ]
         )
         level_datasets = {
             "individual": {
@@ -447,9 +500,15 @@ def export_synthetic_verification_report(
     excel_path = join(output_dir, filename)
     sheets = {
         "0_Guide": metric_guide_df,
-        "1_Numeric_Summary": pd.concat(num_parts, ignore_index=True) if num_parts else pd.DataFrame(),
-        "2_Category_Summary": pd.concat(cat_parts, ignore_index=True) if cat_parts else pd.DataFrame(),
-        "3_Pairwise_Correlations": pd.concat(pair_parts, ignore_index=True) if pair_parts else pd.DataFrame(),
+        "1_Numeric_Summary": (
+            pd.concat(num_parts, ignore_index=True) if num_parts else pd.DataFrame()
+        ),
+        "2_Category_Summary": (
+            pd.concat(cat_parts, ignore_index=True) if cat_parts else pd.DataFrame()
+        ),
+        "3_Pairwise_Correlations": (
+            pd.concat(pair_parts, ignore_index=True) if pair_parts else pd.DataFrame()
+        ),
     }
 
     with pd.ExcelWriter(excel_path) as writer:
@@ -477,7 +536,11 @@ def export_verification_figures_counts(
     2D density cell of the verification figures across all hierarchy levels.
     """
     if min_count is None:
-        verif_cfg = resolve_verification_config(config_or_path) if config_or_path is not None else {}
+        verif_cfg = (
+            resolve_verification_config(config_or_path)
+            if config_or_path is not None
+            else {}
+        )
         min_count = int(verif_cfg.get("min_count", 6))
 
     if not exists(output_dir):
@@ -521,13 +584,25 @@ def export_verification_figures_counts(
         if not eval_cols:
             continue
 
-        fig_1d_name = f"{lvl}/1d_distributions.png" if use_grouped else "comparison_raw_vs_synthetic.png"
+        fig_1d_name = (
+            f"{lvl}/1d_distributions.png"
+            if use_grouped
+            else "comparison_raw_vs_synthetic.png"
+        )
 
         # 1. 1D comparison figure counts (matching vis.plot_comparison)
         for col in eval_cols:
             if not _is_categorical(lvl_raw[col]):
-                r_vals = pd.to_numeric(lvl_raw[col], errors="coerce").dropna().to_numpy(dtype=float)
-                s_vals = pd.to_numeric(lvl_syn[col], errors="coerce").dropna().to_numpy(dtype=float)
+                r_vals = (
+                    pd.to_numeric(lvl_raw[col], errors="coerce")
+                    .dropna()
+                    .to_numpy(dtype=float)
+                )
+                s_vals = (
+                    pd.to_numeric(lvl_syn[col], errors="coerce")
+                    .dropna()
+                    .to_numpy(dtype=float)
+                )
                 if len(r_vals) == 0 or len(s_vals) == 0:
                     continue
                 bins = compute_idi_safe_1d_bins(r_vals, s_vals, min_bin_count=min_count)
@@ -545,7 +620,9 @@ def export_verification_figures_counts(
                             "bin_upper": float(bins[b_i + 1]),
                             "raw_count": rc,
                             "syn_count": sc,
-                            "status": "PASS" if (rc == 0 or rc >= min_count) else "SUPPRESSED",
+                            "status": (
+                                "PASS" if (rc == 0 or rc >= min_count) else "SUPPRESSED"
+                            ),
                         }
                     )
             else:
@@ -624,8 +701,18 @@ def export_verification_figures_counts(
                         )
             elif (not c1_cont) or (not c2_cont):
                 cat_c, cont_c = (col1, col2) if not c1_cont else (col2, col1)
-                r_sub = pd.DataFrame({"cat": lvl_raw[cat_c].astype(str), "val": pd.to_numeric(lvl_raw[cont_c], errors="coerce")}).dropna()
-                s_sub = pd.DataFrame({"cat": lvl_syn[cat_c].astype(str), "val": pd.to_numeric(lvl_syn[cont_c], errors="coerce")}).dropna()
+                r_sub = pd.DataFrame(
+                    {
+                        "cat": lvl_raw[cat_c].astype(str),
+                        "val": pd.to_numeric(lvl_raw[cont_c], errors="coerce"),
+                    }
+                ).dropna()
+                s_sub = pd.DataFrame(
+                    {
+                        "cat": lvl_syn[cat_c].astype(str),
+                        "val": pd.to_numeric(lvl_syn[cont_c], errors="coerce"),
+                    }
+                ).dropna()
                 cats = sorted(set(r_sub["cat"]).union(set(s_sub["cat"])))
                 for k in cats:
                     rv = r_sub.loc[r_sub["cat"] == k, "val"]
@@ -639,11 +726,23 @@ def export_verification_figures_counts(
                             "cat_feature": cat_c,
                             "cont_feature": cont_c,
                             "cat_value": k,
-                            "cont_raw_mean": np.nan if is_suppressed else (float(rv.mean()) if rc > 0 else np.nan),
+                            "cont_raw_mean": (
+                                np.nan
+                                if is_suppressed
+                                else (float(rv.mean()) if rc > 0 else np.nan)
+                            ),
                             "cont_syn_mean": float(sv.mean()) if sc > 0 else np.nan,
-                            "cont_raw_std": np.nan if is_suppressed else (float(rv.std()) if rc > 1 else np.nan),
+                            "cont_raw_std": (
+                                np.nan
+                                if is_suppressed
+                                else (float(rv.std()) if rc > 1 else np.nan)
+                            ),
                             "cont_syn_std": float(sv.std()) if sc > 1 else np.nan,
-                            "cont_raw_median": np.nan if is_suppressed else (float(rv.median()) if rc > 0 else np.nan),
+                            "cont_raw_median": (
+                                np.nan
+                                if is_suppressed
+                                else (float(rv.median()) if rc > 0 else np.nan)
+                            ),
                             "cont_syn_median": float(sv.median()) if sc > 0 else np.nan,
                             "raw_count": rc,
                             "syn_count": sc,
@@ -661,11 +760,17 @@ def export_verification_figures_counts(
                 sx, sy = sx[smask], sy[smask]
                 if len(rx) == 0 or len(sx) == 0:
                     continue
-                x_bins, y_bins = compute_idi_safe_2d_bins(rx, ry, sx, sy, min_bin_count=min_count)
+                x_bins, y_bins = compute_idi_safe_2d_bins(
+                    rx, ry, sx, sy, min_bin_count=min_count
+                )
                 h_raw_cnt, _, _ = np.histogram2d(rx, ry, bins=[x_bins, y_bins])
                 h_syn_cnt, _, _ = np.histogram2d(sx, sy, bins=[x_bins, y_bins])
-                h_raw_den, _, _ = np.histogram2d(rx, ry, bins=[x_bins, y_bins], density=True)
-                h_syn_den, _, _ = np.histogram2d(sx, sy, bins=[x_bins, y_bins], density=True)
+                h_raw_den, _, _ = np.histogram2d(
+                    rx, ry, bins=[x_bins, y_bins], density=True
+                )
+                h_syn_den, _, _ = np.histogram2d(
+                    sx, sy, bins=[x_bins, y_bins], density=True
+                )
                 for xi in range(len(x_bins) - 1):
                     for yi in range(len(y_bins) - 1):
                         rc = int(h_raw_cnt[xi, yi])
@@ -683,7 +788,11 @@ def export_verification_figures_counts(
                                 "bin_upper_1": float(x_bins[xi + 1]),
                                 "bin_lower_2": float(y_bins[yi]),
                                 "bin_upper_2": float(y_bins[yi + 1]),
-                                "raw_density": np.nan if is_suppressed else float(h_raw_den[xi, yi]),
+                                "raw_density": (
+                                    np.nan
+                                    if is_suppressed
+                                    else float(h_raw_den[xi, yi])
+                                ),
                                 "syn_density": float(h_syn_den[xi, yi]),
                                 "raw_count": rc,
                                 "syn_count": sc,

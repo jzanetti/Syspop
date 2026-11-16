@@ -1,32 +1,32 @@
-# Syspop: Synthetic Population & Confidential Microdata Engine
+# Syspop: Synthetic Data & Confidential Microdata Engine
 
 **Contact**: _Sijin Zhang (zsjzyhzp@gmail.com)_
 
-A Python package providing two complementary workflows for synthetic unit-record population generation:
+A Python package providing two complementary workflows for synthetic unit-record data generation:
 
 ## Why:
 
 Secure data environments restrict the release of unit-record data because disclosure checkers must be able to verify that no individual or entity can be identified. In practice, this limits standard micro-to-micro synthetic data generators (such as `CTGAN` or `Copulas`): their black-box neural weights and continuous joint distributions lack deterministic privacy guarantees and cannot be easily audited against strict cell-suppression and rounding rules.
 
-To bridge this gap, **SysPop** implements two practical pathways that let researchers work with realistic unit-record populations while strictly honoring statistical disclosure rules:
+To bridge this gap, **SysPop** implements two practical pathways that let researchers work with realistic unit-record data while strictly honoring statistical disclosure rules:
 
 
-1. **Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
-   Produces unit-record synthetic data from confidential microdata (e.g., IDI data from Stats NZ) by first aggregating unit records into homogeneous clusters under configurable confidentiality rules, and then recreating linked hierarchical synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
-2. **Stochastic Population Imputation (`syspop.model.stochastic_impute`)**:
-   Statistically links multiple publicly published aggregated tables (e.g., from Stats Data Explorer) into a unified unit-record dataset using conditional probability distributions.
+1. **Confidential Aggregation & Hierarchical Synthesis (`syspop.confidential`)**:
+   Produces unit-record synthetic data from confidential microdata (e.g., `IDI data from Stats NZ`) by first aggregating unit records into homogeneous clusters to meet the minimum confidentiality rules, and then recreating linked hierarchical synthetic unit records (e.g., _Individual → Family → Household_) outside the secure environment.
+2. **Stochastic Data Imputation (`syspop.model.stochastic_impute`)**:
+   Statistically links multiple publicly published aggregated tables (e.g., `Stats Data Explorer`) into a unified unit-record dataset using conditional probability distributions.
 
 ---
 
 ## Table of Contents
-- [Syspop: Synthetic Population \& Confidential Microdata Engine](#syspop-synthetic-population--confidential-microdata-engine)
+- [Syspop: Synthetic Data \& Confidential Microdata Engine](#syspop-synthetic-data--confidential-microdata-engine)
   - [Why:](#why)
   - [Table of Contents](#table-of-contents)
   - [1. Installation](#1-installation)
-  - [2. Method 1: Nearest-Neighbour Confidential Aggregation \& Hierarchical Synthesis](#2-method-1-nearest-neighbour-confidential-aggregation--hierarchical-synthesis)
+  - [2. Method 1: Confidential Aggregation \& Hierarchical Synthesis](#2-method-1-confidential-aggregation--hierarchical-synthesis)
     - [Configuration](#configuration)
     - [Quickstart Example](#quickstart-example)
-  - [3. Method 2: Stochastic Imputation from Aggregated Tables](#3-method-2-stochastic-imputation-from-aggregated-tables)
+  - [3. Method 2: Stochastic Data Imputation from Aggregated Tables](#3-method-2-stochastic-data-imputation-from-aggregated-tables)
 - [For Develpers](#for-develpers)
 
 ---
@@ -41,24 +41,15 @@ pip install syspop_v2
 ---
 
 <a name="method1"></a>
-## 2. Method 1: Nearest-Neighbour Confidential Aggregation & Hierarchical Synthesis
+## 2. Method 1: Confidential Aggregation & Hierarchical Synthesis
 <a name="configuration"></a>
 ### Configuration
 
-Example configuration file can be found `etc/examples/Nearest_Neighbour_Synthesis/example1.yml`
-
-All confidentiality thresholds and data structures are controlled via YAML configuration (or Python `dict`), with automatic feature and hierarchy discovery when omitted:
+Example configuration file can be found at `etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.yml`.
+All stage sections (`agg`, `verif`, `synthesis`) share `common`, and any unused stage can be set to `null` (e.g., `verif: null` / `synthesis: null` when running aggregation only).
 
 ```yaml
-output_rules:
-  rounding_base: 3                     # Random rounding base for counts (3 for RR3, or null / 0 / false to switch off)
-  leftover_action: "assign_nearest"    # Leftover records after clustering: "assign_nearest" or "suppress"
-  continuous:
-    min_count: 20                      # Minimum units per cluster (for continuous means, stds & cluster count)
-  categorical:
-    min_count: 6                       # Minimum unweighted units per category cell inside a cluster
-
-data_structure:
+common:
   hierarchy:
     - individual
     - family
@@ -89,7 +80,19 @@ data_structure:
     - features: ["age", "sex"]
       weight: 1.0
 
-synthesis:
+agg:                                   # Set to `null` if running only synthesis/verification
+  rounding_base: 3                     # Random rounding base for counts (3 for RR3, or null / 0 / false to switch off)
+  leftover_action: "assign_nearest"    # Leftover records after clustering: "assign_nearest" or "suppress"
+  continuous:
+    min_count: 20                      # Minimum units per cluster (for continuous means, stds & cluster count)
+  categorical:
+    min_count: 6                       # Minimum unweighted units per category cell inside a cluster
+
+verif:                                 # Set to `null` if running only aggregation/synthesis
+  min_count: 20                        # Minimum raw units per bin/cell/category in verification plots & reports
+  columns: ["age", "income", "sex"]
+
+synthesis:                             # Set to `null` if running only aggregation/verification
   reconcile_counts: "auto"
   random_seed: 42
 ```
@@ -99,44 +102,49 @@ synthesis:
 <a name="method1-example"></a>
 ### Quickstart Example
 
+See details: [`etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.py`](etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.py)
+
 ```python
 from syspop.confidential import (
-    run_datalab_aggregation,
-    run_outside_synthesis,
-    run_confidential_synthetic_pipeline,
+    run_aggregation,
+    run_synthesis,
+    run_verif,
 )
 
-# Option A: Run end-to-end (Steps 1, 2, and 3)
-# syn_df, agg_tables, diagnostics = run_confidential_synthetic_pipeline(
-#    df=raw_microdata_df,
-#    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
-#    output_dir="./output",
-# )
-
-# Option B: Run Step 1 & 2 inside the secure environment, and Step 3 outside
-# (Optionally pass `weight_df` in parallel to `df` if using survey weights, e.g. household_weight / family_weight / person_weight)
-agg_tables, metadata = run_datalab_aggregation(
+# Step 1 & 2: Run aggregation (e.g., inside the secure environment)
+# (Optionally pass `weight_df` in parallel to `df` if using survey weights)
+agg_tables, metadata = run_aggregation(
     df=raw_microdata_df,
-    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
+    config_or_path="etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.yml",
     output_dir="./output/exported_tables",
-    weight_df=None,  # Optional DataFrame with e.g. ["household_id", "household_weight"] or ["person_id", "person_weight"]
+    weight_df=None,
 )
 
-syn_df, diagnostics = run_outside_synthesis(
+# Step 3: Recreate synthetic unit records outside the secure environment
+syn_df, diagnostics = run_synthesis(
     agg_tables_or_dir="./output/exported_tables",
-    config_or_path="etc/examples/Nearest_Neighbour_Synthesis/example1.yml",
+    config_or_path="etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.yml",
     output_dir="./output",
 )
-```
 
-See:
-- [`etc/examples/Nearest_Neighbour_Synthesis/example1.py`](etc/examples/Nearest_Neighbour_Synthesis/example1.py)
-- [`etc/examples/Nearest_Neighbour_Synthesis/example2.py`](etc/examples/Nearest_Neighbour_Synthesis/example2.py)
+# Step 4: Run hierarchical verification plots and reports (inside the secure environment)
+run_verif(
+    raw_df=raw_microdata_df,
+    syn_df=syn_df,
+    output_dir="./output",
+    config_or_path="etc/examples/Confidential_Aggregation_and_Hierarchical_Synthesis/example.yml",
+    diagnostics=diagnostics,
+)
+```
 
 ---
 
 <a name="method2"></a>
-## 3. Method 2: Stochastic Imputation from Aggregated Tables
+## 3. Method 2: Stochastic Data Imputation from Aggregated Tables
+
+See details:
+- [`etc/examples/Stochastic_Imputation/simple_example.py`](etc/examples/Stochastic_Imputation/simple_example.py)
+- [`etc/examples/Stochastic_Imputation/example_nz_census.py`](etc/examples/Stochastic_Imputation/example_nz_census.py)
 
 ```python
 from pandas import DataFrame
@@ -174,10 +182,6 @@ syn_pop = stochastic_impute(data, task_list, maintain_counts=["income"])
 plot_distribution(syn_pop, ["age"])
 plot_distribution(syn_pop, ["gender", "age"])
 ```
-
-See:
-- [`etc/examples/Stochastic_Imputation/simple_example.py`](etc/examples/Stochastic_Imputation/simple_example.py)
-- [`etc/examples/Stochastic_Imputation/example_nz_census.py`](etc/examples/Stochastic_Imputation/example_nz_census.py)
 
 
 # For Develpers

@@ -1342,91 +1342,69 @@ def aggregate_hierarchy(
     agg_tables = {}
     meta_by_level = {}
 
-    # 1. Individual level aggregation
-    ind_agg, ind_details = aggregate_unit_records(
+    base_level = hierarchy[0]
+
+    # 1. Lowest (unit-record) hierarchy level aggregation
+    base_agg, base_details = aggregate_unit_records(
         work_df,
         cfg,
         features_meta=features_meta,
         weight_col=weight_col,
         return_details=True,
     )
-    agg_tables["individual"] = ind_agg
-    meta_by_level["individual"] = ind_details
-    cat_mappings = ind_details["cat_mappings"]
+    agg_tables[base_level] = base_agg
+    meta_by_level[base_level] = base_details
+    cat_mappings = base_details["cat_mappings"]
 
-    # 2. Family level aggregation (if present in hierarchy)
-    source_tables_by_level = {"individual": work_df}
-    if "family" in hierarchy:
-        fam_col = id_columns.get("family", "family_id")
-        if fam_col not in work_df.columns:
+    # 2. Higher hierarchy levels (generalized for any configured hierarchy order)
+    source_tables_by_level = {base_level: work_df}
+    for lvl_idx in range(1, len(hierarchy)):
+        lvl = hierarchy[lvl_idx]
+        child_lvl = hierarchy[lvl_idx - 1]
+        lvl_id_col = id_columns.get(lvl, f"{lvl}_id")
+        if lvl_id_col not in work_df.columns:
             raise ValueError(
-                f"Hierarchy includes 'family', but ID column '{fam_col}' was not found in DataFrame."
+                f"Hierarchy includes '{lvl}', but ID column '{lvl_id_col}' was not found in DataFrame."
             )
-        hh_col = id_columns.get("household", "household_id")
-        if "household" in hierarchy and hh_col in work_df.columns and hh_col != fam_col:
-            fam_group_cols = [hh_col, fam_col]
-        else:
-            fam_group_cols = [fam_col]
 
-        fam_unit_df, fam_features_meta = build_unit_hierarchy_table(
+        # Group by [top_ancestor_id, ..., lvl_id] so duplicate child IDs across parents stay distinct
+        group_cols = []
+        for anc_lvl in reversed(hierarchy[lvl_idx:]):
+            anc_col = id_columns.get(anc_lvl, f"{anc_lvl}_id")
+            if anc_col in work_df.columns and anc_col not in group_cols:
+                group_cols.append(anc_col)
+        if not group_cols:
+            group_cols = [lvl_id_col]
+
+        child_id_col = id_columns.get(child_lvl, f"{child_lvl}_id") if lvl_idx > 1 else None
+        if child_id_col is not None and child_id_col not in work_df.columns:
+            child_id_col = None
+        child_count_name = f"{child_lvl}_num"
+
+        lvl_unit_df, lvl_features_meta = build_unit_hierarchy_table(
             df=work_df,
-            group_id_cols=fam_group_cols,
+            group_id_cols=group_cols,
             features_meta=features_meta,
             cat_mappings=cat_mappings,
-            child_id_col=None,
-            child_count_col="individual_num",
-            weight_col=weight_col,
-            hierarchy_counts=hierarchy_counts,
-            level_name="family",
-            source_tables_by_level=source_tables_by_level,
-        )
-        source_tables_by_level["family"] = fam_unit_df
-        fam_agg, fam_details = aggregate_unit_records(
-            fam_unit_df,
-            cfg,
-            features_meta=fam_features_meta,
-            pre_encoded_categories=cat_mappings,
-            weight_col=weight_col,
-            return_details=True,
-        )
-        fam_details["unit_table"] = fam_unit_df
-        agg_tables["family"] = fam_agg
-        meta_by_level["family"] = fam_details
-
-    # 3. Household level aggregation (if present in hierarchy)
-    if "household" in hierarchy:
-        hh_col = id_columns.get("household", "household_id")
-        if hh_col not in work_df.columns:
-            raise ValueError(
-                f"Hierarchy includes 'household', but ID column '{hh_col}' was not found in DataFrame."
-            )
-        has_family = "family" in hierarchy and id_columns.get("family", "family_id") in work_df.columns
-        child_col = id_columns.get("family") if has_family else None
-        child_count_name = "family_num" if has_family else "individual_num"
-
-        hh_unit_df, hh_features_meta = build_unit_hierarchy_table(
-            df=work_df,
-            group_id_cols=[hh_col],
-            features_meta=features_meta,
-            cat_mappings=cat_mappings,
-            child_id_col=child_col,
+            child_id_col=child_id_col,
             child_count_col=child_count_name,
             weight_col=weight_col,
             hierarchy_counts=hierarchy_counts,
-            level_name="household",
+            level_name=lvl,
             source_tables_by_level=source_tables_by_level,
         )
-        hh_agg, hh_details = aggregate_unit_records(
-            hh_unit_df,
+        source_tables_by_level[lvl] = lvl_unit_df
+        lvl_agg, lvl_details = aggregate_unit_records(
+            lvl_unit_df,
             cfg,
-            features_meta=hh_features_meta,
+            features_meta=lvl_features_meta,
             pre_encoded_categories=cat_mappings,
             weight_col=weight_col,
             return_details=True,
         )
-        hh_details["unit_table"] = hh_unit_df
-        agg_tables["household"] = hh_agg
-        meta_by_level["household"] = hh_details
+        lvl_details["unit_table"] = lvl_unit_df
+        agg_tables[lvl] = lvl_agg
+        meta_by_level[lvl] = lvl_details
 
     metadata = {
         "hierarchy": hierarchy,
