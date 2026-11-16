@@ -169,11 +169,11 @@ def run_complex_example():
     print("\n  [2a] Compliance Summary across Hierarchy Levels:")
     print(summary_df)
 
-    ind_audit_df = pd.read_excel(excel_report_path, sheet_name="Ind_Checker_Audit")
+    ind_audit_df = pd.read_excel(excel_report_path, sheet_name="individual_Checker_Audit")
     print("\n  [2b] Vertically Structured Audit Report for Cluster 1 (first 15 rows):")
     print(ind_audit_df[ind_audit_df["cluster_id"].astype(str) == "1"].head(15))
 
-    ind_raw_map_df = pd.read_excel(excel_report_path, sheet_name="Ind_Raw_Data")
+    ind_raw_map_df = pd.read_excel(excel_report_path, sheet_name="individual_Raw_Data")
     print(
         "\n  [2c] Sample of Raw Individual Records Mapped to Cluster 1 (showing derivation of Row 1):"
     )

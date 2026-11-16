@@ -475,10 +475,11 @@ class TestReport(unittest.TestCase):
                 "cluster_id",
                 "feature",
                 "metric_or_category",
-                "raw_count",
-                "min_required",
                 "raw_value",
                 "released_value",
+                "raw_count",
+                "rounded_count",
+                "min_required",
                 "status",
             ],
         )
@@ -491,12 +492,10 @@ class TestReport(unittest.TestCase):
 
         summary_df = build_rules_summary_df(agg_tables, metadata_with_levels)
         self.assertEqual(len(summary_df), 1)
+        self.assertEqual(list(summary_df.columns), ["hierarchy_level", "raw_counts", "released_clusters"])
         self.assertEqual(summary_df.iloc[0]["hierarchy_level"], "individual")
-        self.assertEqual(summary_df.iloc[0]["raw_units"], 6)
+        self.assertEqual(summary_df.iloc[0]["raw_counts"], 6)
         self.assertEqual(summary_df.iloc[0]["released_clusters"], 1)
-        self.assertEqual(summary_df.iloc[0]["continuous_min_count"], 6)
-        self.assertEqual(summary_df.iloc[0]["categorical_min_count"], 3)
-        self.assertEqual(summary_df.iloc[0]["status"], "PASS")
 
     def test_build_released_with_counts_df(self):
         table_df = pd.DataFrame(
@@ -510,19 +509,25 @@ class TestReport(unittest.TestCase):
                 "age",
                 "age_std",
                 "unrounded_age_count",
+                "rounded_age_count",
                 "M",
                 "unrounded_M_count",
+                "rounded_M_count",
                 "F",
                 "unrounded_F_count",
-                "unrounded_count",
-                "rounded_count",
+                "rounded_F_count",
+                "unrounded_total_count",
+                "rounded_total_count",
             ],
         )
         self.assertEqual(out_df.iloc[0]["unrounded_age_count"], 6)
+        self.assertEqual(out_df.iloc[0]["rounded_age_count"], 6)
         self.assertEqual(out_df.iloc[0]["unrounded_M_count"], 3)
+        self.assertEqual(out_df.iloc[0]["rounded_M_count"], 3)
         self.assertEqual(out_df.iloc[0]["unrounded_F_count"], 3)
-        self.assertEqual(out_df.iloc[0]["unrounded_count"], 6)
-        self.assertEqual(out_df.iloc[0]["rounded_count"], 6)
+        self.assertEqual(out_df.iloc[0]["rounded_F_count"], 3)
+        self.assertEqual(out_df.iloc[0]["unrounded_total_count"], 6)
+        self.assertEqual(out_df.iloc[0]["rounded_total_count"], 6)
 
     def test_export_datalab_checker_reports(self):
         metadata_with_levels = dict(self.metadata)
@@ -543,17 +548,21 @@ class TestReport(unittest.TestCase):
             self.assertEqual(saved["checker_audit_csvs"], {})
             self.assertEqual([f for f in os.listdir(tmp_dir) if f.endswith(".csv")], [])
 
-            excel_released_df = pd.read_excel(saved["excel_report"], sheet_name="Ind_Released_Output")
+            excel_released_df = pd.read_excel(saved["excel_report"], sheet_name="individual_Released_Output")
             self.assertIn("unrounded_age_count", excel_released_df.columns)
+            self.assertIn("rounded_age_count", excel_released_df.columns)
             self.assertIn("unrounded_M_count", excel_released_df.columns)
+            self.assertIn("rounded_M_count", excel_released_df.columns)
             self.assertIn("unrounded_F_count", excel_released_df.columns)
-            self.assertIn("unrounded_count", excel_released_df.columns)
-            self.assertIn("rounded_count", excel_released_df.columns)
+            self.assertIn("rounded_F_count", excel_released_df.columns)
+            self.assertIn("unrounded_total_count", excel_released_df.columns)
+            self.assertIn("rounded_total_count", excel_released_df.columns)
             self.assertEqual(excel_released_df.iloc[0]["unrounded_age_count"], 6)
+            self.assertEqual(excel_released_df.iloc[0]["rounded_age_count"], 6)
             self.assertEqual(excel_released_df.iloc[0]["unrounded_M_count"], 3)
             self.assertEqual(excel_released_df.iloc[0]["unrounded_F_count"], 3)
-            self.assertEqual(excel_released_df.iloc[0]["unrounded_count"], 6)
-            self.assertEqual(excel_released_df.iloc[0]["rounded_count"], 6)
+            self.assertEqual(excel_released_df.iloc[0]["unrounded_total_count"], 6)
+            self.assertEqual(excel_released_df.iloc[0]["rounded_total_count"], 6)
 
             saved_csv = export_datalab_checker_reports(
                 agg_tables, metadata_with_levels, tmp_dir, export_csv_reports=True
@@ -581,13 +590,13 @@ class TestReport(unittest.TestCase):
             min_count=2,
         )
         self.assertTrue((res_exact["numeric_summary"]["mean_diff"] == 0.0).all())
-        self.assertTrue((res_exact["numeric_summary"]["idi_status"] == "PASS").all())
-        self.assertTrue((res_exact["category_summary"]["proportion_diff"] == 0.0).all())
-        self.assertTrue((res_exact["category_summary"]["idi_status"] == "PASS").all())
-        self.assertTrue((res_exact["pairwise_correlations"]["diff"] < 1e-12).all())
+        self.assertTrue((res_exact["numeric_summary"]["status"] == "PASS").all())
+        self.assertNotIn("raw_proportion", res_exact["category_summary"].columns)
+        self.assertTrue((res_exact["category_summary"]["status"] == "PASS").all())
+        self.assertNotIn("diff", res_exact["pairwise_correlations"].columns)
         self.assertTrue((res_exact["pairwise_correlations"]["raw_count"] == 20).all())
-        self.assertTrue((res_exact["pairwise_correlations"]["idi_status"] == "PASS").all())
-        self.assertEqual(len(res_exact["hierarchy_residuals"]), 1)
+        self.assertTrue((res_exact["pairwise_correlations"]["status"] == "PASS").all())
+        self.assertNotIn("hierarchy_residuals", res_exact)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             xlsx_path = export_synthetic_verification_report(
@@ -595,7 +604,6 @@ class TestReport(unittest.TestCase):
                 syn_df=raw_df.copy(),
                 output_dir=tmp_dir,
                 columns=["age", "income", "sex", "region"],
-                diagnostics={"residuals": {"family": {"age_sum": 0.25}}},
                 min_count=2,
             )
             self.assertTrue(os.path.exists(xlsx_path))
@@ -604,11 +612,9 @@ class TestReport(unittest.TestCase):
                 xl.sheet_names,
                 [
                     "0_Guide",
-                    "1_Overall_Summary",
-                    "2_Numeric_Summary",
-                    "3_Category_Summary",
-                    "4_Pairwise_Correlations",
-                    "5_Hierarchy_Residuals",
+                    "1_Numeric_Summary",
+                    "2_Category_Summary",
+                    "3_Pairwise_Correlations",
                 ],
             )
 
@@ -623,7 +629,6 @@ class TestReport(unittest.TestCase):
             self.assertEqual(
                 xl_figs.sheet_names,
                 [
-                    "0_Figures_Summary",
                     "1D_Histograms",
                     "1D_Categories",
                     "2D_Cat_Cat",
@@ -631,22 +636,27 @@ class TestReport(unittest.TestCase):
                     "2D_Cont_Cont_Density",
                 ],
             )
-            fig_sum = pd.read_excel(xl_figs, sheet_name="0_Figures_Summary")
-            # 1D comparison + 6 pairwise figures = 7 rows
-            self.assertEqual(len(fig_sum), 7)
-            self.assertTrue((fig_sum["raw_total_count"] == 20).all())
             for sh in ["1D_Histograms", "1D_Categories", "2D_Cat_Cat", "2D_Cat_Cont", "2D_Cont_Cont_Density"]:
                 df_sh = pd.read_excel(xl_figs, sheet_name=sh)
                 self.assertIn("figure_file", df_sh.columns)
-                self.assertIn("idi_status", df_sh.columns)
-            for sh in ["1D_Histograms", "1D_Categories", "2D_Cat_Cat"]:
-                df_sh = pd.read_excel(xl_figs, sheet_name=sh)
-                self.assertNotIn("raw_proportion", df_sh.columns)
-                self.assertNotIn("syn_proportion", df_sh.columns)
+                self.assertIn("status", df_sh.columns)
+                self.assertNotIn("idi_status", df_sh.columns)
                 self.assertNotIn("min_required_count", df_sh.columns)
+                self.assertEqual(list(df_sh.columns[-3:]), ["raw_count", "syn_count", "status"])
 
-            # Verify config_or_path drives min_count (e.g. min_count=3 flags raw_count < 3)
-            custom_cfg = {"verification": {"min_count": 3}}
+            cat_cont_df = pd.read_excel(xl_figs, sheet_name="2D_Cat_Cont")
+            self.assertIn("cat_value", cat_cont_df.columns)
+            self.assertIn("cont_raw_mean", cat_cont_df.columns)
+            self.assertIn("cont_syn_mean", cat_cont_df.columns)
+
+            cont_2d_df = pd.read_excel(xl_figs, sheet_name="2D_Cont_Cont_Density")
+            self.assertIn("bin_lower_1", cont_2d_df.columns)
+            self.assertIn("bin_upper_1", cont_2d_df.columns)
+            self.assertIn("bin_lower_2", cont_2d_df.columns)
+            self.assertIn("bin_upper_2", cont_2d_df.columns)
+
+            # Verify config_or_path drives min_count suppression
+            custom_cfg = {"verification": {"min_count": 100}}
             figs_custom_xlsx = export_verification_figures_counts(
                 raw_df=raw_df,
                 syn_df=raw_df.copy(),
@@ -657,7 +667,7 @@ class TestReport(unittest.TestCase):
             )
             xl_custom = pd.ExcelFile(figs_custom_xlsx)
             cont_2d = pd.read_excel(xl_custom, sheet_name="2D_Cont_Cont_Density")
-            self.assertTrue((cont_2d["min_required_count"] == 3).all())
+            self.assertTrue((cont_2d["status"] == "SUPPRESSED").all())
 
     def test_hierarchical_verification_levels_and_grouped_figures(self):
         from syspop.postp.vis import plot_hierarchical_verification
@@ -708,8 +718,10 @@ class TestReport(unittest.TestCase):
                 figure_paths=fig_bundle["all_figures"],
                 config_or_path=cfg,
             )
-            overall = pd.read_excel(verif_xlsx, sheet_name="1_Overall_Summary")
-            self.assertEqual(set(overall["level"]), {"individual", "family", "household"})
+            num_sum = pd.read_excel(verif_xlsx, sheet_name="1_Numeric_Summary")
+            self.assertEqual(set(num_sum["level"]), {"individual", "family", "household"})
+            cat_sum = pd.read_excel(verif_xlsx, sheet_name="2_Category_Summary")
+            self.assertEqual(set(cat_sum["level"]), {"individual", "family", "household"})
 
             counts_xlsx = export_verification_figures_counts(
                 raw_df=hier_df,
@@ -718,11 +730,18 @@ class TestReport(unittest.TestCase):
                 output_dir=tmp_dir,
                 config_or_path=cfg,
             )
-            fig_sum = pd.read_excel(counts_xlsx, sheet_name="0_Figures_Summary")
-            self.assertEqual(set(fig_sum["level"]), {"individual", "family", "household"})
+            xl_hier = pd.ExcelFile(counts_xlsx)
+            all_fig_files = set()
+            all_levels = set()
+            for sh in xl_hier.sheet_names:
+                df_sh = pd.read_excel(xl_hier, sheet_name=sh)
+                if len(df_sh) > 0:
+                    all_fig_files.update(df_sh["figure_file"].unique())
+                    all_levels.update(df_sh["level"].unique())
+            self.assertEqual(all_levels, {"individual", "family", "household"})
             # Verify 1-to-1 match between plotted figure filenames and figure_file column
             plotted_rel = {f"{os.path.basename(os.path.dirname(p))}/{os.path.basename(p)}" for p in fig_bundle["all_figures"]}
-            self.assertEqual(plotted_rel, set(fig_sum["figure_file"]))
+            self.assertEqual(plotted_rel, all_fig_files)
 
 
 if __name__ == "__main__":
